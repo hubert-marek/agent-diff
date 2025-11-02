@@ -37,7 +37,8 @@ from agent_diff import AgentDiff
 client = AgentDiff()
 
 # Initialise isolated environment from a template. See: examples/slack/seeds
-env = client.init_env(templateService="slack", templateName="slack_default", impersonateUserId="U01AGENBOT9") #impersonateUserId - seeded user account that agent will use
+env = client.init_env(templateService="slack", templateName="slack_default",
+impersonateUserId="U01AGENBOT9") #impersonateUserId - seeded user account that agent will use
 
 # print(env.environmentUrl) = http://localhost:8000/api/env/{environmentId}/services/slack
 
@@ -45,7 +46,7 @@ env = client.init_env(templateService="slack", templateName="slack_default", imp
 run = client.start_run(envId=env.environmentId)
 
 # Your agent does stuff using the environment URL 
-# You can swap the URLs in MCPs or use the code executor tool (Python or bash) with a proxy that will route the requests
+# You can swap the URLs in MCPs or use the code executor tool (Python or bash) with a proxy 
 
 # Using CodeExecutorProxy with OpenAI Agents SDK (For Vercel AI, check TS SDK docs)
 from agent_diff import PythonExecutorProxy, create_openai_tool
@@ -57,8 +58,9 @@ python_tool = create_openai_tool(python_executor)
 
 agent = Agent(
         name="Slack Assistant",
-        instructions="Use execute_python or execute_bash tools to interact with Slack API at https://slack.com/api/*. Authentication is handled automatically.",
-        tools=[python_tool, bash_tool] # Just add python_tool or bash_tool where agent will write code
+        instructions="Use execute_python or execute_bash tools to interact
+        with Slack API at https://slack.com/api/*. Authentication is handled automatically.",
+        tools=[python_tool] # python_tool (or bash_tool) where agent will write code
     )
 
 response = await Runner.run(agent, "Post 'Hello' to Slack channel #general")
@@ -67,8 +69,8 @@ response = await Runner.run(agent, "Post 'Hello' to Slack channel #general")
 # requests.post('https://slack.com/api/chat.postMessage', ...)
 # But it will be proxied to the temporary sandbox environment
 # e.g. transforms:
-#   from: https://api.slack.com/api/conversations.list
-#   to:   http://localhost:8000/api/env/{environmentId}/services/slack/conversations.list 
+# from: https://api.slack.com/api/conversations.list
+# to: http://localhost:8000/api/env/{environmentId}/services/slack/conversations.list 
 
 # Compute diff (changes in the environment) and get results
 diff = client.diff_run(runId=run.runId)
@@ -155,13 +157,14 @@ for test in suite['tests']:
 
     agent = Agent(
         name="Slack Assistant",
-        instructions="Use execute_bash tool with curl to interact with Slack API at https://slack.com/api/*. Authentication is handled automatically.",
+        instructions="Use execute_bash tool with curl to interact with Slack API
+        at https://slack.com/api/*. Authentication is handled automatically.",
         tools=[bash_tool]
     )
 
     response = await Runner.run(agent, prompt)
 
-    #This function will take a 2nd snapshot, run diff and assert results against expedted state defined in test suite
+    #This function will take a 2nd snapshot, run diff and assert results against expected state defined in test suite
     evaluation_result = client.evaluate_run(run.runId) 
 
     #returns score runId, status and score (0/1)
