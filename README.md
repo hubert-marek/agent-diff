@@ -1,26 +1,10 @@
 # Agent Diff
 
-**Interactive environments for evaluating AI agents & RL training on replicas of 3rd party APIs like Linear or Slack.** Run it locally (or deploy it). Agents call sandboxed APIs that behave like the real ones, and you get deterministic diffs of every state change — no external services, no side effects, full control over test data and environments without rate limits.
+**Interactive environments for evaluating AI agents & RL training on replicas of 3rd party APIs like Linear or Slack.**
 
-## Supported APIs
+Run it locally (or deploy it). Agents call sandboxed replicas of APIs that behave like the real ones, and you get deterministic diffs of every state change — no external services, no side effects, no rate limits.
 
-- **Slack** – core Web API coverage for conversations, chat, reactions, users, etc. Full list here [`backend/src/services/slack/README.md`](backend/src/services/slack/README.md). A few examples:
 
-  ```python
-  "chat.postMessage"  # post messages in seeded channels/DMs
-  "conversations.open"  # spin up IM/MPIM threads
-  "reactions.add"  # add emoji reactions to seeded messages
-  ```
-
-- **Linear** – GraphQL API. See [`backend/src/services/linear/README.md`](backend/src/services/linear/README.md). 
-
-  ```python
-  "issues"            # list/filter issues with pagination
-  "teams"             # list teams
-  "issueCreate"       # create new issue
-  "issueUpdate"       # update issue (state, assignee, priority, etc.)
-  "commentCreate"     # add comment to issue
-  ```
 ## Quick Start
 
 ### 1. Install SDK
@@ -53,52 +37,71 @@ from agent_diff import AgentDiff
 client = AgentDiff()
 
 # Initialise isolated environment from a template. See: examples/slack/seeds
-env = client.init_env(templateService="slack", templateName="slack_default", impersonateUserId="U01AGENBOT9") #impersonateUserId - seeded user (agent) in seed
+env = client.init_env(templateService="slack", templateName="slack_default", impersonateUserId="U01AGENBOT9") #impersonateUserId - seeded user account that agent will use
 
-# e.g. env.environmentUrl = http://localhost:8000/api/env/{environmentId}/services/slack
+# print(env.environmentUrl) = http://localhost:8000/api/env/{environmentId}/services/slack
 
 # Take before snapshot
 run = client.start_run(envId=env.environmentId)
 
 # Your agent does stuff using the environment URL 
- 
-# You can swap the URLs directly in MCPs or use the code executor tool for Python or bash with proxy that will route the requests automatically
-# e.g. proxy transforms:
-#   from: https://api.slack.com/api/conversations.list
-#   to:   http://localhost:8000/api/env/{environmentId}/services/slack/conversations.list 
+# You can swap the URLs in MCPs or use the code executor tool (Python or bash) with a proxy that will route the requests
 
-# Using CodeExecutorProxy (With OpenAI Agents SDK Tool example, LangChain is also available)
-from agent_diff import PythonExecutorProxy, BashExecutorProxy, create_openai_tool
+# Using CodeExecutorProxy with OpenAI Agents SDK (For Vercel AI, check TS SDK docs)
+from agent_diff import PythonExecutorProxy, create_openai_tool
 from agents import Agent, Runner
 
-# Pass base_url from client or use default
+# Pass base_url (Where requests will be routed) from the client and create a tool
 python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
-bash_executor = BashExecutorProxy(env.environmentId, base_url=client.base_url)
 python_tool = create_openai_tool(python_executor) 
-bash_tool = create_openai_tool(bash_executor)
 
 agent = Agent(
         name="Slack Assistant",
         instructions="Use execute_python or execute_bash tools to interact with Slack API at https://slack.com/api/*. Authentication is handled automatically.",
-        tools=[python_tool, bash_tool]
+        tools=[python_tool, bash_tool] # Just add python_tool or bash_tool where agent will write code
     )
 
 response = await Runner.run(agent, "Post 'Hello' to Slack channel #general")
+
 # The agent writes normal code like:
 # requests.post('https://slack.com/api/chat.postMessage', ...)
-# But it will be proxied to the temporary sandbox environment  
+# But it will be proxied to the temporary sandbox environment
+# e.g. transforms:
+#   from: https://api.slack.com/api/conversations.list
+#   to:   http://localhost:8000/api/env/{environmentId}/services/slack/conversations.list 
 
-# Compute diff and get results
+# Compute diff (changes in the environment) and get results
 diff = client.diff_run(runId=run.runId)
 
 # Inspect changes
-print(diff.diff['inserts'])   # New records
-print(diff.diff['updates'])   # Modified records
-print(diff.diff['deletes'])   # Deleted records
+print(diff.diff['inserts'])   # New records, e.g. new message or user added by agent
+print(diff.diff['updates'])   # Modified records, edited message
+print(diff.diff['deletes'])   # Deleted records, deleted message, linear issue, etc.
 
 # Clean up
 client.delete_env(envId=env.environmentId)
+
 ```
+
+## Supported APIs
+
+- **Slack** – core Web API coverage for conversations, chat, reactions, users, etc. Full list here [`backend/src/services/slack/README.md`](backend/src/services/slack/README.md). A few examples:
+
+  ```python
+  "chat.postMessage"  # post messages in seeded channels/DMs
+  "conversations.open"  # spin up IM/MPIM threads
+  "reactions.add"  # add emoji reactions to seeded messages
+  ```
+
+- **Linear** – GraphQL API. See [`backend/src/services/linear/README.md`](backend/src/services/linear/README.md). 
+
+  ```python
+  "issues"            # list/filter issues with pagination
+  "teams"             # list teams
+  "issueCreate"       # create new issue
+  "issueUpdate"       # update issue (state, assignee, priority, etc.)
+  "commentCreate"     # add comment to issue
+  ```
 
 ## Templates, Seeds & Environments
 
@@ -111,6 +114,11 @@ client.delete_env(envId=env.environmentId)
 - **URL**: Each environment has a unique service URL (e.g., `http://localhost:8000/api/env/{env_id}/services/slack`)
 - **Creation**: `client.init_env(templateService="slack", templateName="slack_default")`
 - **Cleanup**: `client.delete_env(envId)` or auto-expires after TTL
+
+## CodeExectuorProxy
+
+SDK provides **code execution proxies** - tools for AI agents. You add it to your toolbox in Vercel AI SDK, Langchain or OpenAI Agents, making LLM write Python or Bash code to talk with Slack or Linear API. Requests will automatically be intercepted and routed to isolated test environments. This enables agents to interact with service replicas without any code changes. See more in: **[Python SDK](sdk/agent-diff-python/README.md)** 
+
 
 ## Evaluations & Test Suites
 
