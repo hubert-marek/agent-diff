@@ -24,6 +24,7 @@ from .models import (
     DiffRunRequest,
     DiffRunResponse,
     DeleteEnvResponse,
+    Visibility,
 )
 
 
@@ -91,9 +92,59 @@ class AgentDiff:
         response.raise_for_status()
         return TemplateEnvironmentDetail.model_validate(response.json())
 
-    def list_test_suites(self) -> TestSuiteListResponse:
+    def list_test_suites(
+        self,
+        *,
+        name: str | None = None,
+        suite_id: UUID | str | None = None,
+        visibility: Visibility | str | None = None,
+        **kwargs,
+    ) -> TestSuiteListResponse:
+        """List visible test suites for the authenticated principal.
+
+        Args:
+            name: Optional substring filter on suite name.
+            suite_id: Optional UUID (string) to fetch a specific suite if visible. Aliases: suiteId, id.
+            visibility: Optional visibility filter (`public` or `private`).
+
+        Keyword Args:
+            name: Same as positional keyword.
+            suiteId | suite_id | id: Alternative ways to supply the suite identifier.
+            visibility: Alternate way to supply the visibility filter.
+
+        Returns:
+            TestSuiteListResponse: Collection of public suites plus any owned by the caller.
+        """
+        params: dict[str, str] = {}
+        name = name or kwargs.pop("name", None)
+        suite_id = (
+            suite_id
+            or kwargs.pop("suiteId", None)
+            or kwargs.pop("suite_id", None)
+            or kwargs.pop("id", None)
+        )
+        visibility = visibility or kwargs.pop("visibility", None)
+
+        if name:
+            params["name"] = name
+        if suite_id:
+            params["id"] = str(suite_id)
+        if visibility:
+            vis_value = (
+                visibility.value if isinstance(visibility, Visibility) else visibility
+            )
+            params["visibility"] = vis_value
+
+        if kwargs:
+            unknown = ", ".join(kwargs.keys())
+            raise TypeError(
+                f"Unsupported filter(s) for list_test_suites: {unknown}. "
+                "Accepted keys are name, suiteId, suite_id, id, visibility."
+            )
+
         response = requests.get(
             f"{self.base_url}/api/platform/testSuites",
+            params=params or None,
             headers=self._headers(),
             timeout=5,
         )
@@ -101,20 +152,42 @@ class AgentDiff:
         return TestSuiteListResponse.model_validate(response.json())
 
     def get_test_suite(
-        self, suite_id: UUID, expand: bool = False
+        self, suite_id: UUID | str | None = None, *, expand: bool = False, **kwargs
     ) -> dict | TestSuiteDetail:
-        """
-        Get test suite.
+        """Retrieve metadata and tests for a specific suite.
 
         Args:
-            suite_id: Suite ID
-            expand: If True, returns full TestSuiteDetail with all metadata.
-                   If False (default), returns minimal dict with just {"tests": [...]}
+            suite_id: UUID of the suite (from list_test_suites). Aliases: suiteId, id.
+            expand: When True, include metadata and test details in a `TestSuiteDetail`.
+
+        Keyword Args:
+            suiteId | suite_id | id: Alternative ways to supply the suite identifier.
+            expand: Alternate way to set expand flag (truthy values enable expansion).
 
         Returns:
-            dict: Minimal response with just test list (default)
-            TestSuiteDetail: Full suite details when expand=True
+            TestSuiteDetail | dict: A full detail object when `expand=True`, otherwise a
+            minimal dict containing only the `tests` array.
         """
+        suite_id = (
+            suite_id
+            or kwargs.pop("suiteId", None)
+            or kwargs.pop("suite_id", None)
+            or kwargs.pop("id", None)
+        )
+
+        if suite_id is None:
+            raise ValueError("suite_id is required")
+
+        if "expand" in kwargs:
+            expand = bool(kwargs.pop("expand"))
+
+        if kwargs:
+            unknown = ", ".join(kwargs.keys())
+            raise TypeError(
+                f"Unsupported argument(s) for get_test_suite: {unknown}. "
+                "Accepted keys are suiteId, suite_id, id, expand."
+            )
+
         query = "?expand=tests" if expand else ""
         response = requests.get(
             f"{self.base_url}/api/platform/testSuites/{suite_id}{query}",
@@ -219,7 +292,10 @@ class AgentDiff:
     def evaluate_run(
         self, request: EndRunRequest | None = None, **kwargs
     ) -> EndRunResponse:
-        """Evaluate a test run (computes diff and compares to expected output in test suite). Pass EndRunRequest or runId."""
+        """Evaluate a test run (computes diff and compares to expected output in test suite).
+
+        Pass an EndRunRequest instance or provide runId as a keyword argument.
+        """
         if request is None:
             request = EndRunRequest(**kwargs)
         response = requests.post(

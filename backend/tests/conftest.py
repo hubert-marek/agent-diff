@@ -380,7 +380,54 @@ def cleanup_test_templates(session_manager, test_user_id):
 
 
 @pytest.fixture(scope="function")
-def sdk_client(test_api_key, cleanup_test_templates):
+def cleanup_test_suites(session_manager):
+    """Auto-cleanup fixture that removes test suites and tests created during a test."""
+    from src.platform.db.schema import TestSuite, Test, TestMembership, TestRun
+
+    with session_manager.with_meta_session() as s:
+        baseline_suite_ids = {suite.id for suite in s.query(TestSuite.id).all()}
+
+    yield
+
+    with session_manager.with_meta_session() as s:
+        suites = s.query(TestSuite).all()
+        for suite in suites:
+            if suite.id in baseline_suite_ids:
+                continue
+
+            memberships = (
+                s.query(TestMembership)
+                .filter(TestMembership.test_suite_id == suite.id)
+                .all()
+            )
+            test_ids = [membership.test_id for membership in memberships]
+
+            if memberships:
+                s.query(TestMembership).filter(
+                    TestMembership.test_suite_id == suite.id
+                ).delete(synchronize_session=False)
+
+            if test_ids:
+                s.query(TestRun).filter(TestRun.test_id.in_(test_ids)).delete(
+                    synchronize_session=False
+                )
+
+            s.query(TestRun).filter(TestRun.test_suite_id == suite.id).delete(
+                synchronize_session=False
+            )
+
+            if test_ids:
+                s.query(Test).filter(Test.id.in_(test_ids)).delete(
+                    synchronize_session=False
+                )
+
+            s.delete(suite)
+
+        s.commit()
+
+
+@pytest.fixture(scope="function")
+def sdk_client(test_api_key, cleanup_test_templates, cleanup_test_suites):
     """AgentDiff SDK client for integration tests."""
     import sys
 

@@ -142,15 +142,16 @@ else:
 To run evaluations:
 
 ```python
-suite = client.get_test_suite("slack-bench")
-# Returns: {"tests": [{"id": "...", "prompt": "Send hello to #general"}, ...]}
-
+suite_list = client.list_test_suites(name="Slack Bench")
+slack_suite = suite_list.testSuites[0]
+test_suite = client.get_test_suite(slack_suite.id, expand=True)
 
 evaluation_results = []
 
-for test in suite['tests']:
-    prompt = test['prompt']
-    test_id = test['id']
+
+for test in test_suite.tests:
+    prompt = test.prompt
+    test_id = test.id
 
     env = client.init_env(testId=test_id)
     run = client.start_run(envId=env.environmentId, testId=test_id)
@@ -167,7 +168,7 @@ for test in suite['tests']:
     )
     response = agent.run(prompt)
 
-    evaluation_result = client.evaluate_run(run.runId)  # Returns score, runId, status and Score (0/1)
+    evaluation_result = client.evaluate_run(runId=run.runId)  # Returns score, runId, status and Score (0/1)
 
     evaluation_results.append(evaluation_result)
 

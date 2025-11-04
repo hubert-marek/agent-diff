@@ -176,8 +176,8 @@ await client.getTemplate(templateId: string): Promise<TemplateEnvironmentDetail>
 await client.createTemplateFromEnvironment(request): Promise<CreateTemplateFromEnvResponse>
 
 // Test Suite Management
-await client.listTestSuites(): Promise<TestSuiteListResponse>
-await client.getTestSuite(suiteId: string, options?): Promise<TestSuiteDetail>
+await client.listTestSuites(options?: { name?: string; suiteId?: string; id?: string; visibility?: Visibility }): Promise<TestSuiteListResponse>
+await client.getTestSuite(suiteIdOrOptions: string | { suiteId: string; expand?: boolean }, options?: { expand?: boolean }): Promise<TestSuiteDetail | { tests: Test[] }>
 await client.createTestSuite(request): Promise<CreateTestSuiteResponse>
 await client.getTest(testId: string): Promise<Test>
 
@@ -296,24 +296,6 @@ See the [examples/](./examples) directory for complete working examples:
 - [langchain.ts](./examples/langchain.ts) - LangChain integration
 - [openai-agents.ts](./examples/openai-agents.ts) - OpenAI Agents SDK integration
 
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Type check
-npm run type-check
-
-# Run tests
-npm test
-
-# Run integration tests (requires backend)
-npm run test:integration
-```
 
 ## Requirements
 

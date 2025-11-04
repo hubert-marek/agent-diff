@@ -133,21 +133,21 @@ Collections of test cases with assertions that you can run against agent runs us
 To run evaluations:
 
 ```python
-suite = client.get_test_suite("slack-bench")
-# Returns: {"tests": [{"id": "...", "prompt": "Send hello to #general"}, ...]}
-# You can edit the file and add your own tests
+suite_list = client.list_test_suites(name="Slack Bench")
+slack_suite = suite_list.testSuites[0]
+suite = client.get_test_suite(slack_suite.id, expand=True)
 
 evaluation_results = []
 
-for test in suite['tests']:
-    prompt = test['prompt']
-    test_id = test['id']
+for test in suite.tests:
+    prompt = test.prompt
+    test_id = test.id
 
     #In test suite you define which env seed template is used for each test
-    env = client.init_env(testId = test_id)
+    env = client.init_env(testId=test_id)
 
     # This function will take a snapshot before run
-    run = client.start_run(envId = env.environmentId, testId = test_id) 
+    run = client.start_run(envId=env.environmentId, testId=test_id)
 
     from agent_diff import PythonExecutorProxy, create_openai_tool
     from agents import Agent, Runner
@@ -165,7 +165,7 @@ for test in suite['tests']:
     response = await Runner.run(agent, prompt)
 
     #This function will take a 2nd snapshot, run diff and assert results against expected state defined in test suite
-    evaluation_result = client.evaluate_run(run.runId) 
+    evaluation_result = client.evaluate_run(runId=run.runId)
 
     #returns score runId, status and score (0/1)
     evaluation_results.append(evaluation_result) 
@@ -185,14 +185,16 @@ from smolagents import CodeAgent, InferenceClientModel
 client = AgentDiff()
 
 # Load test suite with prompts
-test_suite = client.get_test_suite("slack-bench")
+suite_list = client.list_test_suites(name="Slack Bench")
+slack_suite = suite_list.testSuites[0]
+test_suite = client.get_test_suite(slack_suite.id, expand=True)
 
 training_data = []
 
-for test in test_suite['tests']:
+for test in test_suite.tests:
     # Initialize environment for each test
-    env = client.init_env(testId=test['id'])
-    run = client.start_run(envId=env.environmentId, testId=test['id'])
+    env = client.init_env(testId=test.id)
+    run = client.start_run(envId=env.environmentId, testId=test.id)
 
     # Create HF agent with Python and/ or Bash tools
     python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
@@ -204,12 +206,12 @@ for test in test_suite['tests']:
     agent = CodeAgent(tools=[python_tool, bash_tool], model=model)
 
     # Execute task with prompt from test suite
-    prompt = test['prompt']
+    prompt = test.prompt
     response = agent.run(prompt)
     trace = agent.get_last_run_trace()  # Full execution history
 
     # Evaluate against expected outcomes
-    eval_result = client.evaluate_run(run.runId)
+    eval_result = client.evaluate_run(runId=run.runId)
 
     training_data.append({
             "prompt": prompt,

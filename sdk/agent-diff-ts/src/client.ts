@@ -25,6 +25,7 @@ import type {
   DiffRunRequest,
   DiffRunResponse,
   TestResultResponse,
+  Visibility,
 } from './types';
 
 export interface AgentDiffOptions {
@@ -133,20 +134,64 @@ export class AgentDiff {
 
   // Test Suite Management
 
-  async listTestSuites(): Promise<TestSuiteListResponse> {
-    return this.request<TestSuiteListResponse>('/api/platform/testSuites');
+  async listTestSuites(options?: {
+    name?: string;
+    suiteId?: string;
+    id?: string;
+    visibility?: Visibility;
+  }): Promise<TestSuiteListResponse> {
+    const params = new URLSearchParams();
+
+    if (options?.name) {
+      params.set('name', options.name);
+    }
+
+    const suiteId = options?.suiteId || options?.id;
+    if (suiteId) {
+      params.set('id', suiteId);
+    }
+
+    if (options?.visibility) {
+      params.set('visibility', options.visibility);
+    }
+
+    const query = params.toString();
+    const path = query
+      ? `/api/platform/testSuites?${query}`
+      : '/api/platform/testSuites';
+
+    return this.request<TestSuiteListResponse>(path);
   }
 
   async getTestSuite(
     suiteId: string,
     options?: { expand?: boolean }
+  ): Promise<TestSuiteDetail | { tests: Test[] }>;
+
+  async getTestSuite(
+    options: { suiteId: string; expand?: boolean }
+  ): Promise<TestSuiteDetail | { tests: Test[] }>;
+
+  async getTestSuite(
+    suiteIdOrOptions: string | { suiteId: string; expand?: boolean },
+    maybeOptions?: { expand?: boolean }
   ): Promise<TestSuiteDetail | { tests: Test[] }> {
-    const query = options?.expand ? '?expand=tests' : '';
+    const suiteId =
+      typeof suiteIdOrOptions === 'string'
+        ? suiteIdOrOptions
+        : suiteIdOrOptions.suiteId;
+
+    const expand =
+      typeof suiteIdOrOptions === 'string'
+        ? maybeOptions?.expand ?? false
+        : suiteIdOrOptions.expand ?? false;
+
+    const query = expand ? '?expand=tests' : '';
     const response = await this.request<any>(
       `/api/platform/testSuites/${suiteId}${query}`
     );
 
-    if (options?.expand && 'created_at' in response) {
+    if (expand && 'created_at' in response) {
       return {
         ...response,
         createdAt: new Date(response.created_at),

@@ -1,6 +1,6 @@
 {
   "name": "agent-diff",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "TypeScript SDK for Agent Diff - test AI agents against replicas of services",
   "type": "module",
   "main": "./dist/index.cjs",

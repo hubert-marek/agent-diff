@@ -11,6 +11,19 @@ from sqlalchemy.orm import Session
 from src.platform.db.schema import Test, TestSuite, TestMembership
 
 
+def _normalize_expected_output(test_data: dict) -> dict:
+    if "expected_output" in test_data and isinstance(
+        test_data["expected_output"], dict
+    ):
+        return test_data["expected_output"]
+
+    assertions = test_data.get("assertions")
+    if isinstance(assertions, list):
+        return {"assertions": assertions}
+
+    return {}
+
+
 def main():
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
@@ -29,10 +42,6 @@ def main():
     engine = create_engine(db_url)
 
     with Session(engine) as session:
-        if session.query(Test).count() > 0:
-            print("Tests already exist, skipping")
-            return
-
         for test_file in test_suite_files:
             print(
                 f"Loading test suite from {test_file.relative_to(examples_root.parent)}"
@@ -41,18 +50,45 @@ def main():
             with open(test_file) as f:
                 data = json.load(f)
 
-            # Create test suite for dev user
-            test_suite = TestSuite(
-                name=data.get("name", test_file.stem),
-                description=data.get(
-                    "description", f"Test suite from {test_file.name}"
-                ),
-                owner="dev-user",
-                visibility="public",
+            suite_name = data.get("name", test_file.stem)
+            suite_description = data.get(
+                "description", f"Test suite from {test_file.name}"
             )
-            session.add(test_suite)
-            session.flush()
+            owner = data.get("owner", "dev-user")
 
+            existing_suite = (
+                session.query(TestSuite)
+                .filter(TestSuite.name == suite_name, TestSuite.owner == owner)
+                .one_or_none()
+            )
+
+            if existing_suite:
+                print(f"  → Suite '{suite_name}' exists, refreshing tests")
+                memberships = (
+                    session.query(TestMembership)
+                    .filter(TestMembership.test_suite_id == existing_suite.id)
+                    .all()
+                )
+                test_ids = [m.test_id for m in memberships]
+                for membership in memberships:
+                    session.delete(membership)
+                if test_ids:
+                    session.query(Test).filter(Test.id.in_(test_ids)).delete(
+                        synchronize_session=False
+                    )
+                test_suite = existing_suite
+                test_suite.description = suite_description
+            else:
+                test_suite = TestSuite(
+                    name=suite_name,
+                    description=suite_description,
+                    owner=owner,
+                    visibility="public",
+                )
+                session.add(test_suite)
+                session.flush()
+
+            # Create test suite for dev user
             # Create tests and link to suite
             test_count = 0
             for test_data in data.get("tests", []):
@@ -60,7 +96,7 @@ def main():
                     name=test_data["name"],
                     prompt=test_data["prompt"],
                     type=test_data["type"],
-                    expected_output=test_data.get("assertions", []),
+                    expected_output=_normalize_expected_output(test_data),
                     template_schema=test_data.get("seed_template"),
                     impersonate_user_id=test_data.get("impersonate_user_id"),
                 )
