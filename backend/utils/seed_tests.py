@@ -4,11 +4,12 @@ import sys
 import json
 from pathlib import Path
 
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from src.platform.db.schema import Test, TestSuite, TestMembership
+from src.platform.db.schema import Test, TestRun, TestSuite, TestMembership
 
 
 def _normalize_expected_output(test_data: dict) -> dict:
@@ -73,9 +74,9 @@ def main():
                 for membership in memberships:
                     session.delete(membership)
                 if test_ids:
-                    session.query(TestRun).filter(
-                        TestRun.test_id.in_(test_ids)
-                    ).delete(synchronize_session=False)
+                    session.query(TestRun).filter(TestRun.test_id.in_(test_ids)).delete(
+                        synchronize_session=False
+                    )
                     session.query(Test).filter(Test.id.in_(test_ids)).delete(
                         synchronize_session=False
                     )

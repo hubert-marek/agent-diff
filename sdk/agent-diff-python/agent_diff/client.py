@@ -181,7 +181,9 @@ class AgentDiff:
         if "expand" in kwargs:
             raw_expand = kwargs.pop("expand")
             if isinstance(raw_expand, str):
-                expand = raw_expand.strip().lower() in {"1", "true", "yes", "on"}
+                normalized = raw_expand.strip().lower()
+                false_tokens = {"0", "false", "no", "off", ""}
+                expand = False if normalized in false_tokens else bool(normalized)
             else:
                 expand = bool(raw_expand)
 
