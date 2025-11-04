@@ -179,7 +179,11 @@ class AgentDiff:
             raise ValueError("suite_id is required")
 
         if "expand" in kwargs:
-            expand = bool(kwargs.pop("expand"))
+            raw_expand = kwargs.pop("expand")
+            if isinstance(raw_expand, str):
+                expand = raw_expand.strip().lower() in {"1", "true", "yes", "on"}
+            else:
+                expand = bool(raw_expand)
 
         if kwargs:
             unknown = ", ".join(kwargs.keys())
