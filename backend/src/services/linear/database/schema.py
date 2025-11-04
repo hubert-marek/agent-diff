@@ -1374,7 +1374,7 @@ class Organization(Base):
     customerCount: Mapped[int] = mapped_column(Integer, nullable=False)
     customersConfiguration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     customersEnabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    defaultFeedSummarySchedule: Mapped[str] = mapped_column(String, nullable=False)
+    defaultFeedSummarySchedule: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     deletionRequestedAt: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True
     )
@@ -1394,7 +1394,7 @@ class Organization(Base):
     initiativeUpdateReminderFrequencyInWeeks: Mapped[Optional[float]] = mapped_column(
         Float, nullable=True
     )
-    initiativeUpdateRemindersDay: Mapped[date] = mapped_column(Date, nullable=False)
+    initiativeUpdateRemindersDay: Mapped[str] = mapped_column(String, nullable=False)
     initiativeUpdateRemindersHour: Mapped[float] = mapped_column(Float, nullable=False)
     integrations: Mapped[list["Integration"]] = relationship(
         "Integration",
@@ -1423,7 +1423,7 @@ class Organization(Base):
     projectUpdateReminderFrequencyInWeeks: Mapped[Optional[float]] = mapped_column(
         Float, nullable=True
     )
-    projectUpdateRemindersDay: Mapped[date] = mapped_column(Date, nullable=False)
+    projectUpdateRemindersDay: Mapped[str] = mapped_column(String, nullable=False)
     projectUpdateRemindersHour: Mapped[float] = mapped_column(Float, nullable=False)
     projectUpdatesReminderFrequency: Mapped[str] = mapped_column(String, nullable=False)
     projectStatuses: Mapped[list["ProjectStatus"]] = relationship(

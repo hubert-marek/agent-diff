@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+from urllib.parse import quote
 
 USER_AGENT = "U01AGENBOT9"
 USER_JOHN = "U02JOHNDOE1"
@@ -1074,9 +1075,9 @@ class TestSearchMessages:
         # in: by channel name
         r1 = await slack_client.get("/search.messages?query=in:searchchan termX")
         assert r1.status_code == 200
-        assert any(
-            m["channel"]["id"] == ch_id for m in r1.json()["messages"]["matches"]
-        )
+        r1_data = r1.json()
+        assert "response_metadata" in r1_data["messages"]
+        assert any(m["channel"]["id"] == ch_id for m in r1_data["messages"]["matches"])
 
         # in: by channel id
         r2 = await slack_client.get(f"/search.messages?query=in:{ch_id} termX")
@@ -1095,6 +1096,61 @@ class TestSearchMessages:
         r3 = await slack_client.get(f"/search.messages?query=from:<@{USER_JOHN}> termY")
         assert r3.status_code == 200
         assert any(m["user"] == USER_JOHN for m in r3.json()["messages"]["matches"])
+
+        # in:<@user> should resolve DM channel
+        open_dm = await slack_client.post(
+            "/conversations.open", json={"users": USER_JOHN, "return_im": True}
+        )
+        assert open_dm.status_code == 200
+        dm_id = open_dm.json()["channel"]["id"]
+
+        dm_post = await slack_client.post(
+            "/chat.postMessage",
+            json={"channel": dm_id, "text": "dmfilter termZ"},
+        )
+        assert dm_post.status_code == 200
+
+        r4 = await slack_client.get(f"/search.messages?query=in:<@{USER_JOHN}> termZ")
+        assert r4.status_code == 200
+        assert any(
+            m["channel"]["id"] == dm_id for m in r4.json()["messages"]["matches"]
+        )
+
+    async def test_boolean_logic_and_cursor(self, slack_client: AsyncClient):
+        alpha_text = "alpha project release announcement"
+        beta_text = "beta launch checklist"
+        secret_text = "beta secret roadmap"
+
+        for text in (alpha_text, beta_text, secret_text):
+            resp = await slack_client.post(
+                "/chat.postMessage",
+                json={"channel": CHANNEL_GENERAL, "text": text},
+            )
+            assert resp.status_code == 200
+
+        query = '"alpha project" OR beta -secret'
+        encoded_query = quote(query)
+
+        first = await slack_client.get(
+            f"/search.messages?query={encoded_query}&count=1&sort=timestamp&sort_dir=asc"
+        )
+        assert first.status_code == 200
+        first_data = first.json()
+        assert first_data["messages"]["pagination"]["page"] == 1
+        cursor = first_data["messages"]["response_metadata"]["next_cursor"]
+        assert cursor
+        first_matches = {m["text"] for m in first_data["messages"]["matches"]}
+
+        second = await slack_client.get(
+            f"/search.messages?query={encoded_query}&cursor={cursor}&count=1&sort=timestamp&sort_dir=asc"
+        )
+        assert second.status_code == 200
+        second_data = second.json()
+        second_matches = {m["text"] for m in second_data["messages"]["matches"]}
+        combined = first_matches | second_matches
+
+        assert combined == {alpha_text, beta_text}
+        assert second_data["messages"]["response_metadata"]["next_cursor"] == ""
 
 
 @pytest.mark.asyncio

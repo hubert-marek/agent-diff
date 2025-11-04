@@ -1,16 +1,14 @@
 {
   "organizations": [
     {
-      "id": "ORG01",
+      "id": "18c8630e-1fd6-4c2e-a032-aa2684c16e46",
       "name": "Test Organization",
       "urlKey": "test-org",
       "logoUrl": null,
       "createdAt": "2025-01-01T00:00:00",
       "updatedAt": "2025-01-01T00:00:00",
       "aiAddonEnabled": false,
-      "allowedAuthServices": [
-        "google"
-      ],
+      "allowedAuthServices": [],
       "allowedFileUploadContentTypes": [
         "image/png",
         "image/jpeg",
@@ -20,32 +18,32 @@
       "customerCount": 0,
       "customersConfiguration": {},
       "customersEnabled": false,
-      "defaultFeedSummarySchedule": "weekly",
+      "defaultFeedSummarySchedule": null,
       "feedEnabled": true,
-      "fiscalYearStartMonth": 1.0,
-      "gitBranchFormat": "{{issue.identifier}}-{{issue.title}}",
+      "fiscalYearStartMonth": 0.0,
+      "gitBranchFormat": null,
       "gitLinkbackMessagesEnabled": true,
       "gitPublicLinkbackMessagesEnabled": false,
       "hipaaComplianceEnabled": false,
-      "initiativeUpdateRemindersDay": "2025-01-06",
+      "initiativeUpdateRemindersDay": "Friday",
       "initiativeUpdateRemindersHour": 9.0,
       "periodUploadVolume": 0.0,
       "previousUrlKeys": [],
-      "projectUpdateRemindersDay": "2025-01-06",
+      "projectUpdateRemindersDay": "Friday",
       "projectUpdateRemindersHour": 9.0,
-      "projectUpdatesReminderFrequency": "weekly",
+      "projectUpdatesReminderFrequency": "never",
       "releaseChannel": "stable",
       "roadmapEnabled": true,
       "samlEnabled": false,
       "scimEnabled": false,
-      "slaDayCount": "businessDays",
+      "slaDayCount": "all",
       "userCount": 3,
       "workingDays": [1.0, 2.0, 3.0, 4.0, 5.0]
     }
   ],
   "users": [
     {
-      "id": "U01AGENT",
+      "id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "email": "agent@example.com",
       "name": "AI Agent",
       "displayName": "Agent",
@@ -75,7 +73,7 @@
       "url": "https://linear.app/test-org/user/agent"
     },
     {
-      "id": "U02JOHN",
+      "id": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
       "email": "john@example.com",
       "name": "John Doe",
       "displayName": "John",
@@ -105,7 +103,7 @@
       "url": "https://linear.app/test-org/user/john"
     },
     {
-      "id": "U03SARAH",
+      "id": "03b0809e-713e-44ee-95de-b7a198b135ac",
       "email": "sarah@example.com",
       "name": "Sarah Smith",
       "displayName": "Sarah",
@@ -137,13 +135,12 @@
   ],
   "teams": [
     {
-      "id": "TEAM01ENG",
+      "id": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Engineering",
       "key": "ENG",
       "displayName": "Engineering",
       "organizationId": "ORG01",
       "description": "Engineering team",
-      "icon": "🚀",
       "color": "#3B82F6",
       "private": false,
       "createdAt": "2025-01-01T00:00:00",
@@ -161,6 +158,7 @@
       "cyclesEnabled": true,
       "defaultIssueEstimate": 1.0,
       "groupIssueHistory": false,
+      "icon": null,
       "inheritIssueEstimation": false,
       "inheritWorkflowStatuses": false,
       "inviteHash": "eng-team-invite",
@@ -179,16 +177,16 @@
       "slackNewIssue": true,
       "timezone": "America/Los_Angeles",
       "triageEnabled": false,
-      "upcomingCycleCount": 3.0
+      "upcomingCycleCount": 3.0,
+      "private": false
     },
     {
-      "id": "TEAM02PROD",
+      "id": "58c03c85-7b0c-466d-9a4c-120209fccb56",
       "name": "Product",
       "key": "PROD",
       "displayName": "Product",
       "organizationId": "ORG01",
       "description": "Product team",
-      "icon": "💡",
       "color": "#10B981",
       "private": false,
       "createdAt": "2025-01-01T00:00:00",
@@ -224,23 +222,14 @@
       "slackNewIssue": true,
       "timezone": "America/Los_Angeles",
       "triageEnabled": false,
-      "upcomingCycleCount": 3.0
+      "upcomingCycleCount": 3.0,
+      "private": false
     }
   ],
   "workflow_states": [
     {
-      "id": "WS_ENG_TRIAGE",
-      "teamId": "TEAM01ENG",
-      "name": "Triage",
-      "color": "#95a2b3",
-      "position": 0.0,
-      "type": "triage",
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "WS_ENG_BACKLOG",
-      "teamId": "TEAM01ENG",
+      "id": "8708b274-82d1-4769-bb1a-c4937db76d0f",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Backlog",
       "color": "#95a2b3",
       "position": 1.0,
@@ -249,8 +238,8 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_TODO",
-      "teamId": "TEAM01ENG",
+      "id": "741f29ae-cfb3-4b8a-a1f8-c5161c842366",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Todo",
       "color": "#e2e2e2",
       "position": 2.0,
@@ -259,8 +248,8 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_IN_PROGRESS",
-      "teamId": "TEAM01ENG",
+      "id": "6963a682-5967-477a-9afc-0b8a5b70b070",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "In Progress",
       "color": "#f2c94c",
       "position": 3.0,
@@ -269,8 +258,8 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_IN_REVIEW",
-      "teamId": "TEAM01ENG",
+      "id": "4379b3d7-1143-4aa4-a3a6-da0c436e73b6",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "In Review",
       "color": "#eb5757",
       "position": 4.0,
@@ -279,8 +268,8 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_DONE",
-      "teamId": "TEAM01ENG",
+      "id": "4334c4ee-405c-4d2c-bf25-4dcb7a8c0512",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Done",
       "color": "#5e6ad2",
       "position": 5.0,
@@ -289,8 +278,8 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_CANCELED",
-      "teamId": "TEAM01ENG",
+      "id": "13b20552-8997-4c01-944e-cb48955dce08",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Canceled",
       "color": "#95a2b3",
       "position": 6.0,
@@ -299,8 +288,78 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "WS_ENG_DUPLICATE",
-      "teamId": "TEAM01ENG",
+      "id": "ab04ec5f-1292-48b0-9426-50d354957357",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "Duplicate",
+      "color": "#95a2b3",
+      "position": 7.0,
+      "type": "canceled",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "f21270cf-d068-4523-97ff-3da8b4727a2c",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "Backlog",
+      "color": "#95a2b3",
+      "position": 1.0,
+      "type": "backlog",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "e5f0226b-42bf-4e88-b855-156459993b7e",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "Todo",
+      "color": "#e2e2e2",
+      "position": 2.0,
+      "type": "unstarted",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "bc18f453-9b6a-4863-8f7c-11357825fb95",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "In Progress",
+      "color": "#f2c94c",
+      "position": 3.0,
+      "type": "started",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "6e575a72-2624-473d-9341-aeb6d14d4c2a",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "In Review",
+      "color": "#eb5757",
+      "position": 4.0,
+      "type": "started",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "21fca257-3d28-4152-a820-2bd27941995a",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "Done",
+      "color": "#5e6ad2",
+      "position": 5.0,
+      "type": "completed",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "13b20552-8997-4c01-944e-cb48955dce08",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "name": "Canceled",
+      "color": "#95a2b3",
+      "position": 6.0,
+      "type": "canceled",
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "f97c671a-4ad0-48fe-a1d2-0a47b6083105",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
       "name": "Duplicate",
       "color": "#95a2b3",
       "position": 7.0,
@@ -311,14 +370,14 @@
   ],
   "issues": [
     {
-      "id": "ISS_ENG_001",
+      "id": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab",
       "identifier": "ENG-1",
       "title": "Fix authentication bug in login flow",
       "description": "Users are experiencing intermittent login failures. Need to investigate and fix the authentication service.",
-      "teamId": "TEAM01ENG",
-      "stateId": "WS_ENG_BACKLOG",
-      "assigneeId": "U02JOHN",
-      "creatorId": "U01AGENT",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "stateId": "8708b274-82d1-4769-bb1a-c4937db76d0f",
+      "assigneeId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+      "creatorId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "priority": 0.0,
       "priorityLabel": "No priority",
       "prioritySortOrder": 0.0,

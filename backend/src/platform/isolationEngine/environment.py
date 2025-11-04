@@ -103,21 +103,37 @@ class EnvironmentHandler:
         with engine.begin() as conn:
             meta = MetaData()
             meta.reflect(bind=engine, schema=template_schema)
-            ordered = [t.name for t in meta.sorted_tables]
+            available_tables = [t.name for t in meta.sorted_tables]
+            available_set = set(available_tables)
 
-            # Temporarily disable triggers to handle circular foreign key dependencies
-            conn.execute(text('SET session_replication_role = replica'))
+            ordered: list[str] = []
+            seen: set[str] = set()
 
+            explicit_order = tables_order or self._load_template_table_order(
+                template_schema
+            )
+            if explicit_order:
+                for tbl in explicit_order:
+                    if tbl in available_set and tbl not in seen:
+                        ordered.append(tbl)
+                        seen.add(tbl)
+
+            for tbl in available_tables:
+                if tbl not in seen:
+                    ordered.append(tbl)
+                    seen.add(tbl)
+
+            conn.execute(text("SET session_replication_role = replica"))
             try:
                 for tbl in ordered:
                     conn.execute(
                         text(
-                            f'INSERT INTO "{target_schema}".{tbl} SELECT * FROM "{template_schema}".{tbl}'
+                            f'INSERT INTO "{target_schema}"."{tbl}" '
+                            f'SELECT * FROM "{template_schema}"."{tbl}"'
                         )
                     )
             finally:
-                # Re-enable triggers
-                conn.execute(text('SET session_replication_role = DEFAULT'))
+                conn.execute(text("SET session_replication_role = DEFAULT"))
 
             self._reset_sequences(conn, target_schema, ordered)
 
@@ -167,6 +183,34 @@ class EnvironmentHandler:
             raise ValueError("environment not found")
         return env
 
+    def get_template_metadata(
+        self,
+        *,
+        location: str | None = None,
+        template_id: str | UUID | None = None,
+    ) -> TemplateEnvironment | None:
+        if location is None and template_id is None:
+            raise ValueError("location or template_id must be provided")
+
+        with self.session_manager.with_meta_session() as s:
+            query = s.query(TemplateEnvironment)
+            if template_id is not None:
+                return query.filter(
+                    TemplateEnvironment.id == self._to_uuid(template_id)
+                ).one_or_none()
+
+            return (
+                query.filter(TemplateEnvironment.location == location)
+                .order_by(TemplateEnvironment.created_at.desc())
+                .first()
+            )
+
+    def _load_template_table_order(self, template_schema: str) -> list[str] | None:
+        template = self.get_template_metadata(location=template_schema)
+        if template and template.table_order:
+            return list(template.table_order)
+        return None
+
     def clone_schema_from_environment(
         self, source_schema: str, target_schema: str
     ) -> None:
@@ -185,10 +229,12 @@ class EnvironmentHandler:
         owner_id: str | None,
         kind: str,
         location: str,
+        table_order: Iterable[str] | None = None,
     ) -> str:
         from uuid import uuid4
 
         template_uuid = uuid4()
+        order_value = list(table_order) if table_order is not None else None
         with self.session_manager.with_meta_session() as s:
             tmpl = TemplateEnvironment(
                 id=template_uuid,
@@ -200,6 +246,7 @@ class EnvironmentHandler:
                 owner_id=owner_id,
                 kind=kind,
                 location=location,
+                table_order=order_value,
             )
             s.add(tmpl)
         return str(template_uuid)
@@ -230,9 +277,11 @@ class EnvironmentHandler:
         # manual DELETE calls.
 
     @staticmethod
-    def _to_uuid(value: str | None) -> UUID:
+    def _to_uuid(value: str | UUID | None) -> UUID:
         if value is None:
             raise ValueError("UUID value cannot be None")
+        if isinstance(value, UUID):
+            return value
         try:
             return UUID(value)
         except ValueError:

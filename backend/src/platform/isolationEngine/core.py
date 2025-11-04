@@ -38,8 +38,14 @@ class CoreIsolationEngine:
 
         self.environment_handler.create_schema(environment_schema)
         self.environment_handler.migrate_schema(template_schema, environment_schema)
+
+        template_meta = self.environment_handler.get_template_metadata(
+            location=template_schema
+        )
+        table_order = template_meta.table_order if template_meta else None
+
         self.environment_handler.seed_data_from_template(
-            template_schema, environment_schema
+            template_schema, environment_schema, tables_order=table_order
         )
 
         expires_at = datetime.now() + timedelta(seconds=ttl_seconds)
@@ -49,6 +55,7 @@ class CoreIsolationEngine:
             expires_at=expires_at,
             last_used_at=datetime.now(),
             created_by=created_by,
+            template_id=str(template_meta.id) if template_meta else None,
             impersonate_user_id=impersonate_user_id,
             impersonate_email=impersonate_email,
         )
@@ -88,6 +95,14 @@ class CoreIsolationEngine:
             source_schema, target_schema
         )
 
+        table_order = None
+        if rte.template_id:
+            template_meta = self.environment_handler.get_template_metadata(
+                template_id=rte.template_id
+            )
+            if template_meta and template_meta.table_order:
+                table_order = template_meta.table_order
+
         template_id = self.environment_handler.register_template(
             service=service,
             name=name,
@@ -97,6 +112,7 @@ class CoreIsolationEngine:
             owner_id=owner_id,
             kind="schema",
             location=target_schema,
+            table_order=table_order,
         )
 
         return TemplateCreateResult(

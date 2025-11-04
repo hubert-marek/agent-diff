@@ -41,17 +41,18 @@ def create_app():
     app.state.templateManager = templateManager
     app.state.sessions = sessions
 
-    platform_router = Router(
-        routes=platform_routes,
-        middleware=[Middleware(PlatformMiddleware, session_manager=sessions)],
-    )
-    app.mount("/api/platform", platform_router)
-
+    # Add middleware BEFORE mounting routes so it applies to mounted apps
     app.add_middleware(
         IsolationMiddleware,
         session_manager=sessions,
         core_isolation_engine=coreIsolationEngine,
     )
+
+    platform_router = Router(
+        routes=platform_routes,
+        middleware=[Middleware(PlatformMiddleware, session_manager=sessions)],
+    )
+    app.mount("/api/platform", platform_router)
 
     slack_router = Router(slack_routes)
     app.mount("/api/env/{env_id}/services/slack", slack_router)
@@ -64,7 +65,9 @@ def create_app():
         linear_schema,
         coreIsolationEngine=coreIsolationEngine,
         coreEvaluationEngine=coreEvaluationEngine,
+        session_manager=sessions,
     )
+
     app.mount("/api/env/{env_id}/services/linear", linear_graphql)
 
     return app

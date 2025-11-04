@@ -36,9 +36,7 @@ class TemplateEnvironment(PlatformBase):
         nullable=False,
         default="public",
     )
-    description: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     kind: Mapped[str] = mapped_column(
         Enum("schema", "artifact", "jsonb", name="template_kind"),
@@ -48,6 +46,7 @@ class TemplateEnvironment(PlatformBase):
     location: Mapped[str] = mapped_column(
         String(512), nullable=False
     )  # schema_name or s3://… URI
+    table_order: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now, nullable=False
     )

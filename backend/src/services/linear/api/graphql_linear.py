@@ -18,10 +18,12 @@ class LinearGraphQL(GraphQL):
         schema,
         coreIsolationEngine: CoreIsolationEngine,
         coreEvaluationEngine: CoreEvaluationEngine,
+        session_manager=None,
     ):
-        super().__init__(schema, context_value=self._build_context)
         self.coreIsolationEngine = coreIsolationEngine
         self.coreEvaluationEngine = coreEvaluationEngine
+        self.session_manager = session_manager
+        super().__init__(schema, context_value=self._build_context)
 
     def _build_context(self, request, data):
         """
@@ -37,23 +39,24 @@ class LinearGraphQL(GraphQL):
             request: Starlette Request object
             data: GraphQL request data (query, variables, etc.)
         """
-        session = getattr(request.state, "db_session", None)
-        env_id = getattr(request.state, "environment_id", None)
+        state = request.state
 
-        if not session:
-            raise PermissionError(
-                "missing database session - ensure IsolationMiddleware is active"
-            )
+        session = getattr(state, "db_session", None)
+        environment_id = getattr(state, "environment_id", None)
 
-        if not env_id:
-            raise PermissionError("missing environment identifier")
+        if session is None or environment_id is None:
+            raise PermissionError("missing environment session")
+
+        principal_id = getattr(state, "principal_id", None)
+        impersonate_user_id = getattr(state, "impersonate_user_id", None)
 
         return {
             "request": request,
             "session": session,
-            "environment_id": env_id,
-            "user_id": getattr(request.state, "impersonate_user_id", None),
-            "impersonate_email": getattr(request.state, "impersonate_email", None),
+            "environment_id": environment_id,
+            "user_id": principal_id or impersonate_user_id,
+            "impersonate_user_id": impersonate_user_id,
+            "impersonate_email": getattr(state, "impersonate_email", None),
         }
 
     async def handle_request(self, request):

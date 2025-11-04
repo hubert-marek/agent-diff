@@ -22,6 +22,12 @@ from sqlalchemy import create_engine, text
 from src.services.linear.database.schema import Base
 from src.services.linear.database import schema as linear_schema
 
+
+def quote_identifier(name: str) -> str:
+    """Quote a column name for PostgreSQL to preserve case sensitivity."""
+    return f'"{name}"'
+
+
 # Tables in foreign key dependency order
 TABLE_ORDER = [
     "organizations",
@@ -118,17 +124,26 @@ def insert_seed_data(conn, schema_name: str, seed_data: dict):
                     processed_record[k] = v
 
             # Quote column names to preserve case sensitivity in PostgreSQL
-            columns = ", ".join([f'"{k}"' for k in processed_record.keys()])
+            columns = ", ".join([quote_identifier(k) for k in processed_record.keys()])
             placeholders = ", ".join([f":{k}" for k in processed_record.keys()])
-            sql = f"INSERT INTO {schema_name}.{table_name} ({columns}) VALUES ({placeholders})"
+            sql = (
+                f'INSERT INTO "{schema_name}"."{table_name}" '
+                f"({columns}) VALUES ({placeholders})"
+            )
             conn.execute(text(sql), processed_record)
 
 
 def register_public_template(
-    conn, *, service: str, name: str, location: str, description: str | None = None
+    conn,
+    *,
+    service: str,
+    name: str,
+    location: str,
+    description: str | None = None,
+    table_order: list[str] | None = None,
 ):
     """Register a template in platform meta DB as public."""
-    # Check if template already exists
+
     check_sql = text(
         """
         SELECT id FROM public.environments
@@ -152,10 +167,10 @@ def register_public_template(
         """
         INSERT INTO public.environments (
             id, service, name, version, visibility, description,
-            owner_id, kind, location, created_at, updated_at
+            owner_id, kind, location, table_order, created_at, updated_at
         ) VALUES (
             :id, :service, :name, :version, 'public', :description,
-            NULL, 'schema', :location, NOW(), NOW()
+            NULL, 'schema', :location, :table_order, NOW(), NOW()
         )
         """
     )
@@ -166,6 +181,7 @@ def register_public_template(
         "version": "v1",
         "description": description,
         "location": location,
+        "table_order": table_order,
     }
     conn.execute(sql, params)
 
@@ -211,6 +227,7 @@ def create_template(engine, template_name: str, seed_file: Path | None = None):
                 if template_name == "linear_base"
                 else "Linear default template"
             ),
+            table_order=TABLE_ORDER,
         )
         print(f"Registered public template: {template_name}")
 

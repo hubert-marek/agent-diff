@@ -7,21 +7,23 @@ that can be used across all test files.
 
 import os
 from pathlib import Path
+from uuid import uuid4
+
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from starlette.testclient import TestClient
-from uuid import uuid4
-
-env_path = Path(__file__).parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(env_path)
 
 from src.platform.isolationEngine.session import SessionManager
 from src.platform.isolationEngine.environment import EnvironmentHandler
 from src.platform.isolationEngine.core import CoreIsolationEngine
 from src.platform.evaluationEngine.core import CoreEvaluationEngine
+
+
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 
 @pytest.fixture(scope="session")
@@ -130,28 +132,21 @@ def cleanup_test_environments(session_manager, created_schemas):
 
 
 @pytest_asyncio.fixture
-async def slack_client(
-    test_user_id, core_isolation_engine, session_manager, environment_handler
-):
+async def slack_client(slack_shared_environment, session_manager):
     """Create an AsyncClient for testing Slack API as U01AGENBOT9 (agent1)."""
     from httpx import AsyncClient, ASGITransport
     from src.services.slack.api.methods import slack_endpoint
     from starlette.routing import Route
     from starlette.applications import Starlette
 
-    env_result = core_isolation_engine.create_environment(
-        template_schema="slack_default",
-        ttl_seconds=3600,
-        created_by=test_user_id,
-        impersonate_user_id="U01AGENBOT9",
-        impersonate_email="agent@example.com",
-    )
+    env_result = slack_shared_environment
 
     async def add_db_session(request, call_next):
         with session_manager.with_session_for_environment(
             env_result.environment_id
         ) as session:
             request.state.db_session = session
+            request.state.environment_id = env_result.environment_id
             request.state.impersonate_user_id = "U01AGENBOT9"
             request.state.impersonate_email = "agent@example.com"
             response = await call_next(request)
@@ -164,8 +159,6 @@ async def slack_client(
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
-
-    environment_handler.drop_schema(env_result.schema_name)
 
 
 @pytest_asyncio.fixture
@@ -265,28 +258,21 @@ async def slack_bench_client_with_differ(
 
 
 @pytest_asyncio.fixture
-async def slack_client_john(
-    test_user_id, core_isolation_engine, session_manager, environment_handler
-):
+async def slack_client_john(slack_shared_environment, session_manager):
     """Create an AsyncClient for testing Slack API as U02JOHNDOE1 (johndoe)."""
     from httpx import AsyncClient, ASGITransport
     from src.services.slack.api.methods import slack_endpoint
     from starlette.routing import Route
     from starlette.applications import Starlette
 
-    env_result = core_isolation_engine.create_environment(
-        template_schema="slack_default",
-        ttl_seconds=3600,
-        created_by=test_user_id,
-        impersonate_user_id="U02JOHNDOE1",
-        impersonate_email="john@example.com",
-    )
+    env_result = slack_shared_environment
 
     async def add_db_session(request, call_next):
         with session_manager.with_session_for_environment(
             env_result.environment_id
         ) as session:
             request.state.db_session = session
+            request.state.environment_id = env_result.environment_id
             request.state.impersonate_user_id = "U02JOHNDOE1"
             request.state.impersonate_email = "john@example.com"
             response = await call_next(request)
@@ -300,7 +286,19 @@ async def slack_client_john(
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
-    environment_handler.drop_schema(env_result.schema_name)
+
+@pytest.fixture(scope="function")
+def slack_shared_environment(test_user_id, core_isolation_engine, environment_handler):
+    env_result = core_isolation_engine.create_environment(
+        template_schema="slack_default",
+        ttl_seconds=3600,
+        created_by=test_user_id,
+    )
+
+    try:
+        yield env_result
+    finally:
+        environment_handler.drop_schema(env_result.schema_name)
 
 
 def create_test_environment(

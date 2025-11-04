@@ -1,6 +1,6 @@
 from ariadne import QueryType, MutationType
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, select
+from sqlalchemy import or_, and_, select, func
 from src.services.linear.database.schema import (
     Issue,
     Attachment,
@@ -35,6 +35,7 @@ from src.services.linear.database.schema import (
 from typing import Optional
 import base64
 import json
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 
@@ -2804,6 +2805,7 @@ def resolve_organizationInviteCreate(obj, info, **kwargs):
             organization_invite.teams = teams
 
         session.add(organization_invite)
+        session.flush()
 
         return organization_invite
 
@@ -5931,6 +5933,7 @@ def resolve_initiativeToProjectCreate(obj, info, **kwargs):
         )
 
         session.add(initiative_to_project)
+        session.flush()
 
         # Return the proper InitiativeToProjectPayload structure
         return {
@@ -6542,6 +6545,7 @@ def resolve_attachmentCreate(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         # Handle linked comment creation if commentBody or commentBodyData is provided
         comment_body = input_data.get("commentBody")
@@ -6573,6 +6577,7 @@ def resolve_attachmentCreate(obj, info, **kwargs):
 
             comment = Comment(**comment_data)
             session.add(comment)
+            session.flush()
 
         return attachment
 
@@ -6725,13 +6730,14 @@ def resolve_attachmentLinkDiscord(obj, info, **kwargs):
                         updatedAt=datetime.utcnow(),
                     )
                     session.add(external_user)
-                    session.flush()  # Ensure external_user.id is available
+                    session.flush()
 
                 attachment_data["externalUserCreatorId"] = external_user.id
 
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -6841,6 +6847,7 @@ def resolve_attachmentLinkFront(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         # Flush to get the attachment ID
         session.flush()
@@ -6953,6 +6960,7 @@ def resolve_attachmentLinkGitHubIssue(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7077,6 +7085,7 @@ def resolve_attachmentLinkGitHubPR(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7203,6 +7212,7 @@ def resolve_attachmentLinkGitLabMR(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7327,6 +7337,7 @@ def resolve_attachmentLinkIntercom(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7453,6 +7464,7 @@ def resolve_attachmentLinkJiraIssue(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7570,6 +7582,7 @@ def resolve_attachmentLinkSalesforce(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7702,6 +7715,7 @@ def resolve_attachmentLinkSlack(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7812,6 +7826,7 @@ def resolve_attachmentLinkURL(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -7938,6 +7953,7 @@ def resolve_attachmentLinkZendesk(obj, info, **kwargs):
             # Create the attachment entity
             attachment = Attachment(**attachment_data)
             session.add(attachment)
+            session.flush()
 
         return attachment
 
@@ -8146,6 +8162,7 @@ def resolve_cycleCreate(obj, info, **kwargs):
         )
 
         session.add(new_cycle)
+        session.flush()
 
         # Return CyclePayload
         return {
@@ -8473,6 +8490,7 @@ def resolve_documentCreate(obj, info, **kwargs):
             document.subscribers = subscribers
 
         session.add(document)
+        session.flush()
 
         return document
 
@@ -8692,6 +8710,7 @@ def resolve_initiativeCreate(obj, info, **kwargs):
         )
 
         session.add(initiative)
+        session.flush()
 
         # Return InitiativePayload structure
         return {
@@ -8961,6 +8980,7 @@ def resolve_initiativeRelationCreate(obj, info, **kwargs):
         )
 
         session.add(initiative_relation)
+        session.flush()
 
         # Return InitiativeRelationPayload structure
         return {
@@ -9482,8 +9502,14 @@ def resolve_issueUpdate(obj, info, **kwargs):
             pass
 
         # Update simple fields
+        new_assignee = None
         if "assigneeId" in input_data:
-            issue.assigneeId = input_data["assigneeId"]
+            assignee_value = input_data["assigneeId"]
+            if assignee_value:
+                new_assignee = session.get(User, assignee_value)
+                if new_assignee is None:
+                    raise Exception(f"Assignee with id '{assignee_value}' not found")
+            issue.assigneeId = assignee_value
 
         if "autoClosedByParentClosing" in input_data:
             issue.autoClosedByParentClosing = input_data["autoClosedByParentClosing"]
@@ -9520,7 +9546,11 @@ def resolve_issueUpdate(obj, info, **kwargs):
             issue.parentId = input_data["parentId"]
 
         if "priority" in input_data:
-            issue.priority = float(input_data["priority"])
+            priority_value = input_data["priority"]
+            issue.priority = float(priority_value)
+            issue.priorityLabel = _get_priority_label(
+                _validate_priority(priority_value)
+            )
 
         if "prioritySortOrder" in input_data:
             issue.prioritySortOrder = float(input_data["prioritySortOrder"])
@@ -9559,8 +9589,13 @@ def resolve_issueUpdate(obj, info, **kwargs):
                 else None
             )
 
+        new_team = None
         if "teamId" in input_data:
-            issue.teamId = input_data["teamId"]
+            team_id_val = input_data["teamId"]
+            new_team = session.get(Team, team_id_val)
+            if new_team is None:
+                raise Exception(f"Team with id '{team_id_val}' not found")
+            issue.teamId = team_id_val
 
         if "title" in input_data:
             issue.title = input_data["title"]
@@ -9570,6 +9605,19 @@ def resolve_issueUpdate(obj, info, **kwargs):
 
         # Always update the updatedAt timestamp
         issue.updatedAt = now
+
+        session.flush()
+
+        # Hydrate relationships for GraphQL response
+        if new_team is not None:
+            issue.team = new_team
+        else:
+            _ = issue.team
+
+        if new_assignee is not None:
+            issue.assignee = new_assignee
+        elif issue.assigneeId:
+            issue.assignee = session.get(User, issue.assigneeId)
 
         # Return the payload
         return {"issue": issue, "success": True, "lastSyncId": float(now.timestamp())}
@@ -9607,6 +9655,9 @@ def resolve_issueCreate(obj, info, **kwargs):
 
         # Extract required fields
         team_id = input_data["teamId"]  # Required field
+        team: Team | None = session.get(Team, team_id)
+        if team is None:
+            raise Exception(f"Team with id '{team_id}' not found")
 
         # Extract optional fields
         title = input_data.get("title", "")
@@ -9680,73 +9731,81 @@ def resolve_issueCreate(obj, info, **kwargs):
         create_as_user = input_data.get("createAsUser")  # External user display name
         preserve_sort_order = input_data.get("preserveSortOrderOnCreate", False)
 
-        # Create the Issue entity
-        issue = Issue(
-            id=issue_id,
-            teamId=team_id,
-            title=title,
-            assigneeId=assignee_id,
-            cycleId=cycle_id,
-            delegateId=delegate_id,
-            parentId=parent_id,
-            projectId=project_id,
-            projectMilestoneId=project_milestone_id,
-            stateId=state_id,
-            description=description,
-            descriptionData=description_data,
-            lastAppliedTemplateId=last_applied_template_id,
-            sourceCommentId=source_comment_id,
-            createdAt=created_at if isinstance(created_at, datetime) else now,
-            updatedAt=now,
-            completedAt=completed_at,
-            dueDate=due_date,
-            estimate=float(estimate) if estimate is not None else None,
-            priority=float(priority),
-            boardOrder=float(board_order),
-            sortOrder=float(sort_order),
-            subIssueSortOrder=float(sub_issue_sort_order)
-            if sub_issue_sort_order is not None
-            else None,
-            prioritySortOrder=float(priority_sort_order),
-            labelIds=label_ids,
-            slaType=sla_type,
-            slaBreachesAt=sla_breaches_at,
-            slaStartedAt=sla_started_at,
-            # Default values for required fields that are system-generated
-            branchName="",  # Will be generated based on title
-            customerTicketCount=0,
-            identifier="",  # Will be generated based on team + number
-            number=0.0,  # Will be auto-incremented by the system
-            priorityLabel=_get_priority_label(priority),
-            reactionData={},
-            previousIdentifiers=[],
-            url="",  # Will be generated from identifier
-            archivedAt=None,
-            trashed=False,
-        )
+        identifier_input = input_data.get("identifier")
+        branch_name_input = input_data.get("branchName")
+        issue_url_input = input_data.get("url")
 
-        # Generate sequential issue number and identifier with row lock to avoid races
         from sqlalchemy.exc import OperationalError
 
+        issue = None
+        locked_team: Team | None = None
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                team = (
+                locked_team = (
                     session.query(Team)
                     .filter(Team.id == team_id)
                     .with_for_update()
                     .one_or_none()
                 )
-                if team is None:
+                if locked_team is None:
                     raise Exception(f"Team not found: {team_id}")
 
-                next_number_int = int((team.issueCount or 0) + 1)
-                team.issueCount = next_number_int
-                issue.number = float(next_number_int)
-                issue.identifier = f"{team.key}-{next_number_int}"
-                issue.url = issue.url or f"/issues/{issue.identifier}"
+                next_number_int = int((locked_team.issueCount or 0) + 1)
+                locked_team.issueCount = next_number_int
 
-                # Persist while holding the lock
+                identifier_value = (
+                    identifier_input or f"{locked_team.key}-{next_number_int}"
+                )
+                branch_name_value = branch_name_input or _build_issue_branch_name(
+                    identifier_value, title
+                )
+                issue_url_value = issue_url_input or _build_issue_url(identifier_value)
+
+                issue = Issue(
+                    id=issue_id,
+                    teamId=team_id,
+                    title=title,
+                    assigneeId=assignee_id,
+                    cycleId=cycle_id,
+                    delegateId=delegate_id,
+                    parentId=parent_id,
+                    projectId=project_id,
+                    projectMilestoneId=project_milestone_id,
+                    stateId=state_id,
+                    description=description,
+                    descriptionData=description_data,
+                    lastAppliedTemplateId=last_applied_template_id,
+                    sourceCommentId=source_comment_id,
+                    createdAt=created_at if isinstance(created_at, datetime) else now,
+                    updatedAt=now,
+                    completedAt=completed_at,
+                    dueDate=due_date,
+                    estimate=float(estimate) if estimate is not None else None,
+                    priority=float(priority),
+                    boardOrder=float(board_order),
+                    sortOrder=float(sort_order),
+                    subIssueSortOrder=float(sub_issue_sort_order)
+                    if sub_issue_sort_order is not None
+                    else None,
+                    prioritySortOrder=float(priority_sort_order),
+                    labelIds=label_ids,
+                    slaType=sla_type,
+                    slaBreachesAt=sla_breaches_at,
+                    slaStartedAt=sla_started_at,
+                    # Default values for required fields that are system-generated
+                    branchName=branch_name_value,
+                    customerTicketCount=0,
+                    identifier=identifier_value,
+                    number=float(next_number_int),
+                    priorityLabel=_get_priority_label(priority),
+                    reactionData={},
+                    previousIdentifiers=[],
+                    url=issue_url_value,
+                    archivedAt=None,
+                    trashed=False,
+                )
+
                 session.add(issue)
                 session.flush()
                 session.refresh(issue)
@@ -9756,6 +9815,18 @@ def resolve_issueCreate(obj, info, **kwargs):
                     session.rollback()
                     continue
                 raise
+
+        if issue is None or locked_team is None:
+            raise Exception("Failed to allocate issue number")
+
+        # Hydrate relationships required by GraphQL response
+        team = locked_team
+        issue.team = team
+        if assignee_id:
+            assignee = session.get(User, assignee_id)
+            if assignee is None:
+                raise Exception(f"Assignee with id '{assignee_id}' not found")
+            issue.assignee = assignee
 
         # Return the payload
         return {"issue": issue, "success": True, "lastSyncId": float(now.timestamp())}
@@ -9771,8 +9842,6 @@ def resolve_issueCreate(obj, info, **kwargs):
 # ================================================================================
 # IssueBatch Mutation Resolvers
 # ================================================================================
-
-
 @mutation.field("issueBatchCreate")
 def resolve_issueBatchCreate(obj, info, **kwargs):
     """
@@ -9816,10 +9885,18 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
 
             # Extract required fields
             team_id = issue_input["teamId"]  # Required
+            team = session.get(Team, team_id)
+            if team is None:
+                raise Exception(f"Team with id '{team_id}' not found")
             title = issue_input.get("title", "")  # Default to empty if not provided
 
             # Extract optional fields with defaults
             assignee_id = issue_input.get("assigneeId")
+            assignee = None
+            if assignee_id:
+                assignee = session.get(User, assignee_id)
+                if assignee is None:
+                    raise Exception(f"Assignee with id '{assignee_id}' not found")
             cycle_id = issue_input.get("cycleId")
             delegate_id = issue_input.get("delegateId")
             parent_id = issue_input.get("parentId")
@@ -9883,7 +9960,38 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
             # Comment references
             source_comment_id = issue_input.get("sourceCommentId")
 
-            # Create the Issue entity
+            identifier_input = issue_input.get("identifier")
+            branch_name_input = issue_input.get("branchName")
+            issue_url_input = issue_input.get("url")
+
+            # Generate sequential issue number and identifier with row lock
+            if team_id not in team_counters:
+                # Lock the team row on first encounter in this batch
+                team_row = (
+                    session.query(Team)
+                    .filter(Team.id == team_id)
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if team_row is None:
+                    raise Exception(f"Team not found: {team_id}")
+                team_rows[team_id] = team_row
+                team_keys[team_id] = team_row.key
+                team_counters[team_id] = int(team_row.issueCount or 0)
+
+            # Increment atomically within the transaction
+            next_number_int = team_counters[team_id] + 1
+            team_counters[team_id] = next_number_int
+            team_rows[team_id].issueCount = next_number_int
+
+            identifier_value = (
+                identifier_input or f"{team_keys[team_id]}-{next_number_int}"
+            )
+            branch_name_value = branch_name_input or _build_issue_branch_name(
+                identifier_value, title
+            )
+            issue_url_value = issue_url_input or _build_issue_url(identifier_value)
+
             issue = Issue(
                 id=issue_id,
                 teamId=team_id,
@@ -9914,48 +10022,27 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
                 slaBreachesAt=sla_breaches_at,
                 slaStartedAt=sla_started_at,
                 sourceCommentId=source_comment_id,
-                # Default values for required fields
-                branchName=issue_input.get("branchName", ""),
+                branchName=branch_name_value,
                 customerTicketCount=0,
-                identifier=issue_input.get(
-                    "identifier", ""
-                ),  # This should be generated by the system
-                number=issue_input.get(
-                    "number", 0.0
-                ),  # This should be generated by the system
+                identifier=identifier_value,
+                number=float(next_number_int),
                 priorityLabel=_get_priority_label(priority),
                 reactionData={},
                 previousIdentifiers=[],
-                url=issue_input.get("url", ""),
+                url=issue_url_value,
                 archivedAt=None,
                 trashed=False,
             )
 
-            # Generate sequential issue number and identifier with row lock
-            if team_id not in team_counters:
-                # Lock the team row on first encounter in this batch
-                team_row = (
-                    session.query(Team)
-                    .filter(Team.id == team_id)
-                    .with_for_update()
-                    .one_or_none()
-                )
-                if team_row is None:
-                    raise Exception(f"Team not found: {team_id}")
-                team_rows[team_id] = team_row
-                team_keys[team_id] = team_row.key
-                team_counters[team_id] = int(team_row.issueCount or 0)
-            # Increment atomically within the transaction
-            next_number_int = team_counters[team_id] + 1
-            team_counters[team_id] = next_number_int
-            team_rows[team_id].issueCount = next_number_int
-            issue.number = float(next_number_int)
-            issue.identifier = f"{team_keys[team_id]}-{next_number_int}"
-            issue.url = issue.url or f"/issues/{issue.identifier}"
-
             # Add to session
             session.add(issue)
             created_issues.append(issue)
+            session.flush()
+
+            # Hydrate relationships for GraphQL response
+            issue.team = team
+            if assignee is not None:
+                issue.assignee = assignee
 
         from sqlalchemy.exc import OperationalError
 
@@ -10347,6 +10434,7 @@ def resolve_issueImportCreateAsana(obj, info, **kwargs):
 
         # Add to session
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10423,6 +10511,7 @@ def resolve_issueImportCreateClubhouse(obj, info, **kwargs):
         )
 
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10507,6 +10596,7 @@ def resolve_issueImportCreateCSVJira(obj, info, **kwargs):
         )
 
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10589,6 +10679,7 @@ def resolve_issueImportCreateGithub(obj, info, **kwargs):
 
         # Add to session
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10680,6 +10771,7 @@ def resolve_issueImportCreateJira(obj, info, **kwargs):
 
         # Add to session
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10738,6 +10830,7 @@ def resolve_issueImportCreateLinearV2(obj, info, **kwargs):
         )
 
         session.add(issue_import)
+        session.flush()
 
         return issue_import
 
@@ -10988,6 +11081,7 @@ def resolve_issueLabelCreate(obj, info, **kwargs):
 
         # Add to session
         session.add(issue_label)
+        session.flush()
 
         # Handle replaceTeamLabels if requested
         # This would replace all team-specific labels with the same name
@@ -11220,6 +11314,7 @@ def resolve_issueRelationCreate(obj, info, **kwargs):
         )
 
         session.add(issue_relation)
+        session.flush()
 
         # Return the proper IssueRelationPayload structure
         return {"success": True, "lastSyncId": 0.0, "issueRelation": issue_relation}
@@ -11762,6 +11857,7 @@ def resolve_userFlagUpdate(obj, info, **kwargs):
                 updatedAt=datetime.utcnow(),
             )
             session.add(user_flag)
+            session.flush()
 
         # Apply the operation
         if operation == "incr":
@@ -11845,6 +11941,7 @@ def resolve_userSettingsFlagsReset(obj, info, **kwargs):
                         updatedAt=datetime.utcnow(),
                     )
                     session.add(user_flag)
+                    session.flush()
                 else:
                     # Reset existing flag to 0
                     user_flag.value = 0
@@ -12296,6 +12393,7 @@ def resolve_notificationCategoryChannelSubscriptionUpdate(
                 notificationDeliveryPreferences={},
             )
             session.add(user_settings)
+            session.flush()
 
         # Update the notification preferences
         # The structure is typically: channelPreferences[channel][category] = boolean
@@ -13254,6 +13352,37 @@ def _get_priority_label(priority: int) -> str:
     return priority_map.get(priority, "No priority")
 
 
+def _next_issue_number(session: Session, team_id: str) -> int:
+    """Return next sequential issue number for a team."""
+    current_max = (
+        session.query(func.max(Issue.number)).filter(Issue.teamId == team_id).scalar()
+    )
+    if current_max is None:
+        return 1
+    return int(current_max) + 1
+
+
+def _build_issue_identifier(team: Team, number: int) -> str:
+    """Compose Linear-style identifier from team and number."""
+    team_key = (team.key or "ISS").upper()
+    return f"{team_key}-{int(number)}"
+
+
+def _build_issue_branch_name(identifier: str, title: str) -> str:
+    """Generate a branch name using identifier and a slugified title."""
+    slug = title.strip().lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[-\s]+", "-", slug).strip("-")
+    if slug:
+        return f"{identifier.lower()}-{slug}"[:80]
+    return identifier.lower()
+
+
+def _build_issue_url(identifier: str) -> str:
+    """Return placeholder issue URL matching Linear format."""
+    return f"https://linear.app/issue/{identifier}"
+
+
 def _generate_slug_id(name: str, project_id: str) -> str:
     """Generate a URL-friendly slug from the project name"""
     import re
@@ -13351,6 +13480,7 @@ def resolve_projectCreate(obj, info, **kwargs):
 
         # Add the project to the session
         session.add(project)
+        session.flush()
 
         # Flush to get the project ID if relationships need it
         session.flush()
@@ -13881,6 +14011,7 @@ def resolve_projectLabelCreate(obj, info, **kwargs):
         )
 
         session.add(project_label)
+        session.flush()
 
         return project_label
 
@@ -14045,6 +14176,7 @@ def resolve_projectMilestoneCreate(obj, info, **kwargs):
         )
 
         session.add(project_milestone)
+        session.flush()
 
         return project_milestone
 
@@ -14369,6 +14501,7 @@ def resolve_projectRelationCreate(obj, info, **kwargs):
         )
 
         session.add(project_relation)
+        session.flush()
 
         return project_relation
 
@@ -14551,6 +14684,7 @@ def resolve_projectStatusCreate(obj, info, **kwargs):
 
         # Add to session
         session.add(project_status)
+        session.flush()
 
         # Generate lastSyncId (using timestamp as sync ID)
         last_sync_id = now.timestamp()
@@ -14984,6 +15118,7 @@ def resolve_teamCreate(obj, info, **kwargs):
 
         # Add the team to the session
         session.add(new_team)
+        session.flush()
 
         # Flush to get the ID before creating membership
         session.flush()
@@ -15008,6 +15143,7 @@ def resolve_teamCreate(obj, info, **kwargs):
                 sortOrder=0.0,
             )
             session.add(membership)
+            session.flush()
 
         # Create default workflow states for the team
         # Linear default states: Triage, Backlog, Todo, In Progress, In Review, Done, Canceled, Duplicate
@@ -15076,6 +15212,7 @@ def resolve_teamCreate(obj, info, **kwargs):
                 updatedAt=now,
             )
             session.add(workflow_state)
+            session.flush()
 
             # Track the Backlog state ID (position 1) to set as default
             if state_config["position"] == 1.0:
@@ -15606,6 +15743,7 @@ def resolve_teamMembershipCreate(obj, info, **kwargs):
         team_membership = TeamMembership(**membership_data)
 
         session.add(team_membership)
+        session.flush()
 
         # Return the proper TeamMembershipPayload structure
         return {"success": True, "lastSyncId": 0.0, "teamMembership": team_membership}
@@ -16141,6 +16279,7 @@ def resolve_workflowStateCreate(obj, info, **kwargs):
         )
 
         session.add(workflow_state)
+        session.flush()
 
         # Return WorkflowStatePayload structure
         return {
