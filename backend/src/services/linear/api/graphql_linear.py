@@ -47,12 +47,15 @@ class LinearGraphQL(GraphQL):
         if session is None or environment_id is None:
             raise PermissionError("missing environment session")
 
+        principal_id = getattr(state, "principal_id", None)
+        impersonate_user_id = getattr(state, "impersonate_user_id", None)
+
         return {
             "request": request,
             "session": session,
             "environment_id": environment_id,
-            "user_id": getattr(state, "principal_id", None),
-            "impersonate_user_id": getattr(state, "impersonate_user_id", None),
+            "user_id": principal_id or impersonate_user_id,
+            "impersonate_user_id": impersonate_user_id,
             "impersonate_email": getattr(state, "impersonate_email", None),
         }
 

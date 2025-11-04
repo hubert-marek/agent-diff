@@ -9731,83 +9731,81 @@ def resolve_issueCreate(obj, info, **kwargs):
         create_as_user = input_data.get("createAsUser")  # External user display name
         preserve_sort_order = input_data.get("preserveSortOrderOnCreate", False)
 
-        # Generate identifier metadata
-        next_number = _next_issue_number(session, team_id)
-        identifier = input_data.get("identifier") or _build_issue_identifier(
-            team, next_number
-        )
-        branch_name = input_data.get("branchName") or _build_issue_branch_name(
-            identifier, title
-        )
-        issue_url = input_data.get("url") or _build_issue_url(identifier)
+        identifier_input = input_data.get("identifier")
+        branch_name_input = input_data.get("branchName")
+        issue_url_input = input_data.get("url")
 
-        # Create the Issue entity
-        issue = Issue(
-            id=issue_id,
-            teamId=team_id,
-            title=title,
-            assigneeId=assignee_id,
-            cycleId=cycle_id,
-            delegateId=delegate_id,
-            parentId=parent_id,
-            projectId=project_id,
-            projectMilestoneId=project_milestone_id,
-            stateId=state_id,
-            description=description,
-            descriptionData=description_data,
-            lastAppliedTemplateId=last_applied_template_id,
-            sourceCommentId=source_comment_id,
-            createdAt=created_at if isinstance(created_at, datetime) else now,
-            updatedAt=now,
-            completedAt=completed_at,
-            dueDate=due_date,
-            estimate=float(estimate) if estimate is not None else None,
-            priority=float(priority),
-            boardOrder=float(board_order),
-            sortOrder=float(sort_order),
-            subIssueSortOrder=float(sub_issue_sort_order)
-            if sub_issue_sort_order is not None
-            else None,
-            prioritySortOrder=float(priority_sort_order),
-            labelIds=label_ids,
-            slaType=sla_type,
-            slaBreachesAt=sla_breaches_at,
-            slaStartedAt=sla_started_at,
-            # Default values for required fields that are system-generated
-            branchName=branch_name,
-            customerTicketCount=0,
-            identifier=identifier,
-            number=float(next_number),
-            priorityLabel=_get_priority_label(priority),
-            reactionData={},
-            previousIdentifiers=[],
-            url=issue_url,
-            archivedAt=None,
-            trashed=False,
-        )
-
-        # Generate sequential issue number and identifier with row lock to avoid races
         from sqlalchemy.exc import OperationalError
 
+        issue = None
+        locked_team: Team | None = None
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                team = (
+                locked_team = (
                     session.query(Team)
                     .filter(Team.id == team_id)
                     .with_for_update()
                     .one_or_none()
                 )
-                if team is None:
+                if locked_team is None:
                     raise Exception(f"Team not found: {team_id}")
 
-                next_number_int = int((team.issueCount or 0) + 1)
-                team.issueCount = next_number_int
-                issue.number = float(next_number_int)
-                issue.identifier = f"{team.key}-{next_number_int}"
-                issue.url = issue.url or f"/issues/{issue.identifier}"
+                next_number_int = int((locked_team.issueCount or 0) + 1)
+                locked_team.issueCount = next_number_int
 
-                # Persist while holding the lock
+                identifier_value = (
+                    identifier_input or f"{locked_team.key}-{next_number_int}"
+                )
+                branch_name_value = branch_name_input or _build_issue_branch_name(
+                    identifier_value, title
+                )
+                issue_url_value = issue_url_input or _build_issue_url(identifier_value)
+
+                issue = Issue(
+                    id=issue_id,
+                    teamId=team_id,
+                    title=title,
+                    assigneeId=assignee_id,
+                    cycleId=cycle_id,
+                    delegateId=delegate_id,
+                    parentId=parent_id,
+                    projectId=project_id,
+                    projectMilestoneId=project_milestone_id,
+                    stateId=state_id,
+                    description=description,
+                    descriptionData=description_data,
+                    lastAppliedTemplateId=last_applied_template_id,
+                    sourceCommentId=source_comment_id,
+                    createdAt=created_at if isinstance(created_at, datetime) else now,
+                    updatedAt=now,
+                    completedAt=completed_at,
+                    dueDate=due_date,
+                    estimate=float(estimate) if estimate is not None else None,
+                    priority=float(priority),
+                    boardOrder=float(board_order),
+                    sortOrder=float(sort_order),
+                    subIssueSortOrder=float(sub_issue_sort_order)
+                    if sub_issue_sort_order is not None
+                    else None,
+                    prioritySortOrder=float(priority_sort_order),
+                    labelIds=label_ids,
+                    slaType=sla_type,
+                    slaBreachesAt=sla_breaches_at,
+                    slaStartedAt=sla_started_at,
+                    # Default values for required fields that are system-generated
+                    branchName=branch_name_value,
+                    customerTicketCount=0,
+                    identifier=identifier_value,
+                    number=float(next_number_int),
+                    priorityLabel=_get_priority_label(priority),
+                    reactionData={},
+                    previousIdentifiers=[],
+                    url=issue_url_value,
+                    archivedAt=None,
+                    trashed=False,
+                )
+
                 session.add(issue)
                 session.flush()
                 session.refresh(issue)
@@ -9818,7 +9816,11 @@ def resolve_issueCreate(obj, info, **kwargs):
                     continue
                 raise
 
+        if issue is None or locked_team is None:
+            raise Exception("Failed to allocate issue number")
+
         # Hydrate relationships required by GraphQL response
+        team = locked_team
         issue.team = team
         if assignee_id:
             assignee = session.get(User, assignee_id)
@@ -9840,8 +9842,6 @@ def resolve_issueCreate(obj, info, **kwargs):
 # ================================================================================
 # IssueBatch Mutation Resolvers
 # ================================================================================
-
-
 @mutation.field("issueBatchCreate")
 def resolve_issueBatchCreate(obj, info, **kwargs):
     """
@@ -9931,16 +9931,6 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
                             "Workflow states should be created automatically when a team is created."
                         )
 
-            # Generate identifier metadata
-            next_number = _next_issue_number(session, team_id)
-            identifier = issue_input.get("identifier") or _build_issue_identifier(
-                team, next_number
-            )
-            branch_name = issue_input.get("branchName") or _build_issue_branch_name(
-                identifier, title
-            )
-            issue_url = issue_input.get("url") or _build_issue_url(identifier)
-
             description = issue_input.get("description")
             description_data = issue_input.get("descriptionData")
 
@@ -9970,7 +9960,38 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
             # Comment references
             source_comment_id = issue_input.get("sourceCommentId")
 
-            # Create the Issue entity
+            identifier_input = issue_input.get("identifier")
+            branch_name_input = issue_input.get("branchName")
+            issue_url_input = issue_input.get("url")
+
+            # Generate sequential issue number and identifier with row lock
+            if team_id not in team_counters:
+                # Lock the team row on first encounter in this batch
+                team_row = (
+                    session.query(Team)
+                    .filter(Team.id == team_id)
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if team_row is None:
+                    raise Exception(f"Team not found: {team_id}")
+                team_rows[team_id] = team_row
+                team_keys[team_id] = team_row.key
+                team_counters[team_id] = int(team_row.issueCount or 0)
+
+            # Increment atomically within the transaction
+            next_number_int = team_counters[team_id] + 1
+            team_counters[team_id] = next_number_int
+            team_rows[team_id].issueCount = next_number_int
+
+            identifier_value = (
+                identifier_input or f"{team_keys[team_id]}-{next_number_int}"
+            )
+            branch_name_value = branch_name_input or _build_issue_branch_name(
+                identifier_value, title
+            )
+            issue_url_value = issue_url_input or _build_issue_url(identifier_value)
+
             issue = Issue(
                 id=issue_id,
                 teamId=team_id,
@@ -10001,40 +10022,17 @@ def resolve_issueBatchCreate(obj, info, **kwargs):
                 slaBreachesAt=sla_breaches_at,
                 slaStartedAt=sla_started_at,
                 sourceCommentId=source_comment_id,
-                # Default values for required fields
-                branchName=branch_name,
+                branchName=branch_name_value,
                 customerTicketCount=0,
-                identifier=identifier,
-                number=float(next_number),
+                identifier=identifier_value,
+                number=float(next_number_int),
                 priorityLabel=_get_priority_label(priority),
                 reactionData={},
                 previousIdentifiers=[],
-                url=issue_url,
+                url=issue_url_value,
                 archivedAt=None,
                 trashed=False,
             )
-
-            # Generate sequential issue number and identifier with row lock
-            if team_id not in team_counters:
-                # Lock the team row on first encounter in this batch
-                team_row = (
-                    session.query(Team)
-                    .filter(Team.id == team_id)
-                    .with_for_update()
-                    .one_or_none()
-                )
-                if team_row is None:
-                    raise Exception(f"Team not found: {team_id}")
-                team_rows[team_id] = team_row
-                team_keys[team_id] = team_row.key
-                team_counters[team_id] = int(team_row.issueCount or 0)
-            # Increment atomically within the transaction
-            next_number_int = team_counters[team_id] + 1
-            team_counters[team_id] = next_number_int
-            team_rows[team_id].issueCount = next_number_int
-            issue.number = float(next_number_int)
-            issue.identifier = f"{team_keys[team_id]}-{next_number_int}"
-            issue.url = issue.url or f"/issues/{issue.identifier}"
 
             # Add to session
             session.add(issue)

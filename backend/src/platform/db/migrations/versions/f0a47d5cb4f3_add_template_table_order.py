@@ -1,7 +1,6 @@
 """Add table_order metadata to templates."""
 
 from typing import Sequence, Union
-import json
 
 from alembic import op
 import sqlalchemy as sa
@@ -76,14 +75,21 @@ def upgrade() -> None:
         schema="public",
     )
 
-    op.execute(
+    connection = op.get_bind()
+    connection.execute(
         sa.text(
             """
             UPDATE public.environments
-            SET table_order = :table_order::jsonb
+            SET table_order = :table_order
             WHERE service = 'linear' AND table_order IS NULL
             """
-        ).bindparams(table_order=json.dumps(LINEAR_TABLE_ORDER))
+        ).bindparams(
+            sa.bindparam(
+                "table_order",
+                value=LINEAR_TABLE_ORDER,
+                type_=postgresql.JSONB,
+            )
+        )
     )
 
 
