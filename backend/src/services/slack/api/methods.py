@@ -3,12 +3,13 @@ from __future__ import annotations
 import base64
 import json
 import math
+import os
 import re
 import shlex
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
-from typing import Any, Callable, Awaitable, NoReturn
+from typing import Any, Callable, Awaitable, Literal, NoReturn
 from sqlalchemy import select, or_, false, func
 from sqlalchemy.exc import IntegrityError
 
@@ -82,11 +83,20 @@ COMMON_REACTIONS = {
 }
 
 
+SLACK_COMPAT_MODE = os.getenv("SLACK_COMPAT_MODE", "strict").lower()
+
+
 class SlackAPIError(Exception):
-    def __init__(self, detail: str, status_code: int = status.HTTP_400_BAD_REQUEST):
+    def __init__(
+        self,
+        detail: str,
+        status_code: int = status.HTTP_200_OK,
+        extra: dict[str, Any] | None = None,
+    ):
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
+        self.extra = extra or {}
 
 
 def _session(request: Request):
@@ -126,9 +136,16 @@ def _json_response(
 
 
 def _slack_error(
-    code: str, *, status_code: int = status.HTTP_400_BAD_REQUEST
+    code: str,
+    *,
+    http_status: int | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> NoReturn:
-    raise SlackAPIError(code, status_code)
+    if SLACK_COMPAT_MODE == "relaxed":
+        status_code = http_status or status.HTTP_400_BAD_REQUEST
+    else:
+        status_code = http_status or status.HTTP_200_OK
+    raise SlackAPIError(code, status_code, extra)
 
 
 def _resolve_channel_id(channel: str) -> str:
@@ -144,6 +161,211 @@ def _format_user_id(user_id: str) -> str:
 def _format_channel_id(channel_id: str) -> str:
     """Return channel ID as-is (already in string format)"""
     return channel_id
+
+
+def _boolean(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def _normalize_reaction_name(name: Any) -> str | None:
+    if name is None:
+        return None
+    cleaned = str(name).strip()
+    if cleaned.startswith(":") and cleaned.endswith(":"):
+        cleaned = cleaned.strip(":")
+    if "::" in cleaned:
+        cleaned = cleaned.split("::", 1)[0]
+    return cleaned.lower()
+
+
+def _has_content(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip() not in {"", "[]", "{}"}
+    if isinstance(value, (list, dict)):
+        return bool(value)
+    return True
+
+
+def _channel_members(session, channel_id: str) -> list[str]:
+    return list(
+        session.execute(
+            select(ChannelMember.user_id).where(ChannelMember.channel_id == channel_id)
+        ).scalars()
+    )
+
+
+def _topic_payload(text: str | None) -> dict[str, Any]:
+    return {"value": text or "", "creator": "", "last_set": 0}
+
+
+def _serialize_conversation(
+    session,
+    channel: Channel,
+    *,
+    actor_id: str,
+    team_id: str | None,
+    flavor: Literal["info", "list"] = "info",
+    include_num_members: bool = False,
+    include_locale: bool = False,
+    creator_id: str | None = None,
+    is_member: bool = True,
+) -> dict[str, Any]:
+    effective_team_id = team_id or channel.team_id or "T00000000"
+    created_ts = (
+        int(channel.created_at.timestamp())
+        if channel.created_at
+        else int(datetime.now().timestamp())
+    )
+    updated_ts = created_ts
+
+    if channel.is_dm:
+        member_ids = _channel_members(session, channel.channel_id)
+        other_member = next((mid for mid in member_ids if mid != actor_id), None)
+
+        latest_message = (
+            session.execute(
+                select(Message)
+                .where(Message.channel_id == channel.channel_id)
+                .order_by(Message.created_at.desc(), Message.message_id.desc())
+            )
+            .scalars()
+            .first()
+        )
+
+        if latest_message is not None:
+            latest_payload: dict[str, Any] | None = {
+                "type": "message",
+                "user": _format_user_id(latest_message.user_id),
+                "text": latest_message.message_text or "",
+                "ts": latest_message.message_id,
+            }
+            last_read_ts = latest_message.message_id or "0000000000.000000"
+        else:
+            latest_payload = None
+            last_read_ts = "0000000000.000000"
+
+        payload = {
+            "id": _format_channel_id(channel.channel_id),
+            "created": created_ts,
+            "is_im": True,
+            "is_org_shared": False,
+            "user": _format_user_id(other_member or actor_id),
+            "last_read": last_read_ts,
+            "latest": latest_payload,
+            "unread_count": 0,
+            "unread_count_display": 0,
+            "is_open": True,
+            "priority": 0,
+        }
+        if include_locale:
+            payload["locale"] = "en-US"
+        if include_num_members:
+            payload["num_members"] = len(member_ids)
+        return payload
+
+    member_ids: list[str] = []
+    if include_num_members or channel.is_gc or channel.is_private or flavor == "info":
+        member_ids = _channel_members(session, channel.channel_id)
+
+    base_payload: dict[str, Any] = {
+        "id": _format_channel_id(channel.channel_id),
+        "name": channel.channel_name,
+        "is_channel": not channel.is_private and not channel.is_gc,
+        "is_group": channel.is_private and not channel.is_gc,
+        "is_im": False,
+        "is_mpim": channel.is_gc,
+        "is_private": bool(channel.is_private or channel.is_gc),
+        "created": created_ts,
+        "creator": _format_user_id(creator_id or actor_id),
+        "is_archived": channel.is_archived,
+        "is_general": channel.channel_name == "general",
+        "unlinked": 0,
+        "name_normalized": channel.channel_name,
+        "is_shared": False,
+        "is_ext_shared": False,
+        "is_org_shared": False,
+        "pending_shared": [],
+        "is_pending_ext_shared": False,
+        "is_member": is_member,
+        "topic": _topic_payload(channel.topic_text),
+        "purpose": _topic_payload(channel.purpose_text),
+        "previous_names": [],
+        "updated": updated_ts,
+        "priority": 0,
+    }
+
+    if channel.is_gc:
+        base_payload["is_channel"] = False
+        base_payload["is_group"] = True
+        base_payload["is_mpim"] = True
+        base_payload["is_private"] = True
+
+    if include_num_members:
+        base_payload["num_members"] = len(member_ids)
+
+    if flavor == "info":
+        base_payload.update(
+            {
+                "context_team_id": effective_team_id,
+                "parent_conversation": None,
+                "is_frozen": False,
+                "is_read_only": False,
+                "is_thread_only": False,
+                "last_read": "0000000000.000000",
+                "latest": None,
+                "is_open": not channel.is_archived,
+                "shared_team_ids": [effective_team_id] if effective_team_id else [],
+                "pending_connected_team_ids": [],
+            }
+        )
+        if include_locale:
+            base_payload["locale"] = "en-US"
+
+    if flavor == "list":
+        allowed_keys = {
+            "id",
+            "name",
+            "is_channel",
+            "is_group",
+            "is_im",
+            "created",
+            "creator",
+            "is_archived",
+            "is_general",
+            "unlinked",
+            "name_normalized",
+            "is_shared",
+            "is_ext_shared",
+            "is_org_shared",
+            "pending_shared",
+            "is_pending_ext_shared",
+            "is_member",
+            "is_private",
+            "is_mpim",
+            "updated",
+            "topic",
+            "purpose",
+            "previous_names",
+            "num_members",
+            "priority",
+        }
+        return {
+            key: value for key, value in base_payload.items() if key in allowed_keys
+        }
+
+    return base_payload
 
 
 def _get_env_team_id(
@@ -170,6 +392,8 @@ async def chat_post_message(request: Request) -> JSONResponse:
     channel = payload.get("channel")
     text = payload.get("text")
     thread_ts = payload.get("thread_ts")
+    attachments = payload.get("attachments")
+    blocks = payload.get("blocks")
     session = _session(request)
     user_id = _principal_user_id(request)
 
@@ -178,7 +402,11 @@ async def chat_post_message(request: Request) -> JSONResponse:
         _slack_error("channel_not_found")
 
     # Validate text (required per documentation)
-    if not text:
+    if (
+        not _has_content(text)
+        and not _has_content(attachments)
+        and not _has_content(blocks)
+    ):
         _slack_error("no_text")
 
     channel_id = _resolve_channel_id(channel)
@@ -190,20 +418,31 @@ async def chat_post_message(request: Request) -> JSONResponse:
     if session.get(ChannelMember, (channel_id, user_id)) is None:
         _slack_error("not_in_channel")
 
+    if isinstance(text, str) and _has_content(text):
+        message_text = text
+    elif _has_content(text):
+        message_text = str(text)
+    else:
+        message_text = ""
+
     message = ops.send_message(
         session=session,
         channel_id=channel_id,
         user_id=user_id,
-        message_text=text,
+        message_text=message_text,
         parent_id=thread_ts,
     )
 
-    message_obj = {
+    message_obj: dict[str, Any] = {
         "type": "message",
         "user": _format_user_id(message.user_id),
-        "text": message.message_text,
+        "text": message.message_text or "",
         "ts": message.message_id,
     }
+    if _has_content(attachments):
+        message_obj["attachments"] = attachments
+    if _has_content(blocks):
+        message_obj["blocks"] = blocks
     if message.parent_id:
         message_obj["thread_ts"] = message.parent_id
 
@@ -222,11 +461,17 @@ async def chat_update(request: Request) -> JSONResponse:
     ts = payload.get("ts")
     text = payload.get("text")
     channel = payload.get("channel")
+    attachments = payload.get("attachments")
+    blocks = payload.get("blocks")
 
     # Validate required parameters
     if not channel or not ts:
-        raise SlackAPIError("channel and ts are required")
-    if not text:
+        _slack_error("invalid_form_data")
+    if (
+        not _has_content(text)
+        and not _has_content(attachments)
+        and not _has_content(blocks)
+    ):
         _slack_error("no_text")
 
     session = _session(request)
@@ -256,22 +501,32 @@ async def chat_update(request: Request) -> JSONResponse:
         _slack_error("cant_update_message")
 
     # Update the message
-    message = ops.update_message(session=session, message_id=ts, text=text)
+    if _has_content(text):
+        message_text = text if isinstance(text, str) else str(text)
+        message = ops.update_message(session=session, message_id=ts, text=message_text)
+    else:
+        message = msg
 
-    return _json_response(
-        {
-            "ok": True,
-            "channel": channel,
+    response: dict[str, Any] = {
+        "ok": True,
+        "channel": channel,
+        "ts": message.message_id,
+        "text": (message.message_text or ""),
+        "message": {
+            "type": "message",
+            "user": _format_user_id(message.user_id),
+            "text": message.message_text or "",
             "ts": message.message_id,
-            "text": message.message_text,
-            "message": {
-                "type": "message",
-                "user": _format_user_id(message.user_id),
-                "text": message.message_text,
-                "ts": message.message_id,
-            },
-        }
-    )
+        },
+    }
+
+    message_payload = response["message"]
+    if _has_content(attachments):
+        message_payload["attachments"] = attachments
+    if _has_content(blocks):
+        message_payload["blocks"] = blocks
+
+    return _json_response(response)
 
 
 async def chat_delete(request: Request) -> JSONResponse:
@@ -279,7 +534,7 @@ async def chat_delete(request: Request) -> JSONResponse:
     channel = payload.get("channel")
     ts = payload.get("ts")
     if not channel or not ts:
-        raise SlackAPIError("channel and ts are required")
+        _slack_error("invalid_form_data")
 
     session = _session(request)
     actor_id = _principal_user_id(request)
@@ -343,46 +598,35 @@ async def conversations_create(request: Request) -> JSONResponse:
         session=session, channel_id=channel_obj.channel_id, user_id=actor_id
     )
 
-    # Build response matching Slack API format
-    created_timestamp = (
-        int(channel_obj.created_at.timestamp()) if channel_obj.created_at else 0
+    serialized = _serialize_conversation(
+        session,
+        channel_obj,
+        actor_id=actor_id,
+        team_id=team_id,
+        flavor="info",
+        creator_id=actor_id,
     )
 
-    return _json_response(
-        {
-            "ok": True,
-            "channel": {
-                "id": _format_channel_id(channel_obj.channel_id),
-                "name": channel_obj.channel_name,
-                "is_channel": not channel_obj.is_private,
-                "is_group": channel_obj.is_private,
-                "is_im": False,
-                "created": created_timestamp,
-                "creator": _format_user_id(actor_id),
-                "is_archived": channel_obj.is_archived,
-                "is_general": False,
-                "name_normalized": channel_obj.channel_name,
-                "is_shared": False,
-                "is_ext_shared": False,
-                "is_org_shared": False,
-                "is_member": True,
-                "is_private": channel_obj.is_private,
-                "is_mpim": False,
-                "topic": {
-                    "value": channel_obj.topic_text or "",
-                    "creator": "",
-                    "last_set": 0,
-                },
-                "purpose": {"value": "", "creator": "", "last_set": 0},
-            },
-        }
-    )
+    return _json_response({"ok": True, "channel": serialized})
 
 
 async def conversations_list(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
-    limit = min(int(params.get("limit", 100)), 1000)  # Max 1000 per docs
-    cursor = int(params.get("cursor", 0) or 0)
+    try:
+        limit = int(params.get("limit", 100))
+    except (TypeError, ValueError):
+        _slack_error("invalid_arguments")
+    limit = max(1, min(limit, 1000))
+
+    cursor_param = params.get("cursor")
+    if cursor_param is None or cursor_param == "":
+        offset = 0
+    else:
+        try:
+            offset = _decode_cursor(cursor_param)
+        except ValueError:
+            _slack_error("invalid_arguments")
+
     exclude_archived = params.get("exclude_archived", "false").lower() == "true"
     types_param = params.get("types", "public_channel")  # Default: public_channel
 
@@ -399,7 +643,7 @@ async def conversations_list(request: Request) -> JSONResponse:
         session=session,
         user_id=user_id,
         team_id=team_id,
-        offset=cursor,
+        offset=offset,
         limit=limit + 1,  # Fetch extra for pagination check
     )
 
@@ -428,49 +672,19 @@ async def conversations_list(request: Request) -> JSONResponse:
     if has_more:
         filtered_channels = filtered_channels[:limit]
 
-    # Build full channel objects matching Slack API format
-    data = []
-    for ch in filtered_channels:
-        created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
-        updated_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
-
-        # Get member count
-        members = ops.list_members_in_channel(
-            session=session, channel_id=ch.channel_id, team_id=team_id
+    data = [
+        _serialize_conversation(
+            session,
+            ch,
+            actor_id=user_id,
+            team_id=team_id,
+            flavor="list",
+            include_num_members=True,
         )
+        for ch in filtered_channels
+    ]
 
-        channel_obj = {
-            "id": _format_channel_id(ch.channel_id),
-            "name": ch.channel_name,
-            "is_channel": not ch.is_private and not ch.is_dm and not ch.is_gc,
-            "is_group": ch.is_private and not ch.is_dm and not ch.is_gc,
-            "is_im": ch.is_dm,
-            "created": created_timestamp,
-            "is_archived": ch.is_archived,
-            "is_general": False,
-            "unlinked": 0,
-            "name_normalized": ch.channel_name,
-            "is_shared": False,
-            "is_ext_shared": False,
-            "is_org_shared": False,
-            "pending_shared": [],
-            "is_pending_ext_shared": False,
-            "is_member": True,
-            "is_private": ch.is_private,
-            "is_mpim": ch.is_gc,
-            "updated": updated_timestamp,
-            "topic": {
-                "value": ch.topic_text or "",
-                "creator": "",
-                "last_set": 0,
-            },
-            "purpose": {"value": "", "creator": "", "last_set": 0},
-            "previous_names": [],
-            "num_members": len(members),
-        }
-        data.append(channel_obj)
-
-    next_cursor = str(cursor + limit) if has_more else ""
+    next_cursor = _encode_cursor(offset + limit) if has_more else ""
     return _json_response(
         {
             "ok": True,
@@ -485,8 +699,21 @@ async def conversations_history(request: Request) -> JSONResponse:
 
     params = await _get_params_async(request)
     channel = params.get("channel")
-    limit = min(int(params.get("limit", 100)), 999)  # Max 999 per docs
-    cursor = int(params.get("cursor", 0) or 0)
+    try:
+        limit = int(params.get("limit", 100))
+    except (TypeError, ValueError):
+        _slack_error("invalid_limit")
+    if limit < 1 or limit > 999:
+        _slack_error("invalid_limit")
+
+    cursor_param = params.get("cursor")
+    if cursor_param is None or cursor_param == "":
+        cursor = 0
+    else:
+        try:
+            cursor = _decode_cursor(cursor_param)
+        except ValueError:
+            _slack_error("invalid_cursor")
     oldest_param = params.get("oldest")
     latest_param = params.get("latest")
     inclusive = params.get("inclusive", "false").lower() == "true"
@@ -552,7 +779,9 @@ async def conversations_history(request: Request) -> JSONResponse:
         "messages": message_list,
         "has_more": has_more,
         "pin_count": 0,
-        "response_metadata": {"next_cursor": str(cursor + limit) if has_more else ""},
+        "response_metadata": {
+            "next_cursor": _encode_cursor(cursor + limit) if has_more else ""
+        },
     }
 
     # Include latest in response if it was provided
@@ -570,6 +799,7 @@ async def conversations_join(request: Request) -> JSONResponse:
     session = _session(request)
     channel_id = _resolve_channel_id(channel)
     actor = _principal_user_id(request)
+    team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor)
     ch = session.get(Channel, channel_id)
     if ch is None:
         _slack_error("channel_not_found")
@@ -582,36 +812,17 @@ async def conversations_join(request: Request) -> JSONResponse:
     if not already_member:
         ops.join_channel(session=session, channel_id=channel_id, user_id=actor)
 
-    # Build full channel response
-    created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
+    serialized = _serialize_conversation(
+        session,
+        ch,
+        actor_id=actor,
+        team_id=team_id,
+        flavor="info",
+        include_num_members=True,
+        is_member=True,
+    )
 
-    response = {
-        "ok": True,
-        "channel": {
-            "id": _format_channel_id(ch.channel_id),
-            "name": ch.channel_name,
-            "is_channel": not ch.is_private,
-            "is_group": ch.is_private,
-            "is_im": False,
-            "created": created_timestamp,
-            "is_archived": ch.is_archived,
-            "is_general": False,
-            "name_normalized": ch.channel_name,
-            "is_shared": False,
-            "is_ext_shared": False,
-            "is_org_shared": False,
-            "is_member": True,
-            "is_private": ch.is_private,
-            "is_mpim": False,
-            "topic": {
-                "value": ch.topic_text or "",
-                "creator": "",
-                "last_set": 0,
-            },
-            "purpose": {"value": "", "creator": "", "last_set": 0},
-            "previous_names": [],
-        },
-    }
+    response: dict[str, Any] = {"ok": True, "channel": serialized}
 
     # Add warning and response_metadata if already a member
     if already_member:
@@ -625,10 +836,10 @@ async def conversations_invite(request: Request) -> JSONResponse:
     payload = await _get_params_async(request)
     channel = payload.get("channel")
     users_param = payload.get("users", "")
-    force = payload.get("force", False)
+    force = bool(_boolean(payload.get("force", False)))
 
     if channel is None:
-        raise SlackAPIError("channel is required")
+        _slack_error("channel_not_found")
     if not users_param:
         _slack_error("no_user")
 
@@ -640,6 +851,7 @@ async def conversations_invite(request: Request) -> JSONResponse:
     session = _session(request)
     channel_id = _resolve_channel_id(channel)
     actor_id = _principal_user_id(request)
+    team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor_id)
 
     # Validate channel exists and caller is a member
     ch = session.get(Channel, channel_id)
@@ -688,56 +900,31 @@ async def conversations_invite(request: Request) -> JSONResponse:
 
         except ValueError:
             errors.append({"user": user_id_str, "ok": False, "error": "user_not_found"})
-        except Exception as e:
-            errors.append({"user": user_id_str, "ok": False, "error": str(e)})
+        except Exception:
+            errors.append({"user": user_id_str, "ok": False, "error": "fatal_error"})
 
     # If there are errors and force is not set, return error response
     if errors and not force:
         session.rollback()
-        return _json_response(
-            {"ok": False, "error": errors[0]["error"], "errors": errors},
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        _slack_error(errors[0]["error"], extra={"errors": errors})
 
     # If force is set but no successful invites, still return error
     if errors and successful_invites == 0:
         session.rollback()
-        return _json_response(
-            {"ok": False, "error": errors[0]["error"], "errors": errors},
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        _slack_error(errors[0]["error"], extra={"errors": errors})
 
     # Build full channel response
-    created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
+    serialized = _serialize_conversation(
+        session,
+        ch,
+        actor_id=actor_id,
+        team_id=team_id,
+        flavor="info",
+        include_num_members=True,
+        is_member=True,
+    )
 
-    response = {
-        "ok": True,
-        "channel": {
-            "id": _format_channel_id(ch.channel_id),
-            "name": ch.channel_name,
-            "is_channel": not ch.is_private,
-            "is_group": ch.is_private,
-            "is_im": False,
-            "created": created_timestamp,
-            "is_archived": ch.is_archived,
-            "is_general": False,
-            "name_normalized": ch.channel_name,
-            "is_shared": False,
-            "is_ext_shared": False,
-            "is_org_shared": False,
-            "is_member": True,
-            "is_private": ch.is_private,
-            "is_mpim": False,
-            "topic": {
-                "value": ch.topic_text or "",
-                "creator": "",
-                "last_set": 0,
-            },
-            "purpose": {"value": "", "creator": "", "last_set": 0},
-        },
-    }
-
-    # Include errors in response if force was used and some invites failed
+    response: dict[str, Any] = {"ok": True, "channel": serialized}
     if errors and force:
         response["errors"] = errors
 
@@ -748,8 +935,8 @@ async def conversations_open(request: Request) -> JSONResponse:
     payload = await _get_params_async(request)
     channel = payload.get("channel")
     users_param = payload.get("users")
-    return_im = payload.get("return_im", False)
-    prevent_creation = payload.get("prevent_creation", False)
+    return_im = bool(_boolean(payload.get("return_im", False)))
+    prevent_creation = bool(_boolean(payload.get("prevent_creation", False)))
 
     session = _session(request)
     actor_id = _principal_user_id(request)
@@ -770,35 +957,25 @@ async def conversations_open(request: Request) -> JSONResponse:
         if ch is None:
             _slack_error("channel_not_found")
 
-        # Build response based on return_im flag
         if return_im:
-            created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
-            return _json_response(
-                {
-                    "ok": True,
-                    "already_open": True,
-                    "channel": {
-                        "id": _format_channel_id(ch.channel_id),
-                        "created": created_timestamp,
-                        "is_im": ch.is_dm,
-                        "is_org_shared": False,
-                        "user": _format_user_id(actor_id) if ch.is_dm else "",
-                        "last_read": "0000000000.000000",
-                        "latest": None,
-                        "unread_count": 0,
-                        "unread_count_display": 0,
-                        "is_open": True,
-                        "priority": 0,
-                    },
-                }
+            serialized = _serialize_conversation(
+                session,
+                ch,
+                actor_id=actor_id,
+                team_id=team_id or ch.team_id,
+                flavor="info",
+                include_num_members=False,
             )
-        else:
             return _json_response(
-                {"ok": True, "channel": {"id": _format_channel_id(ch.channel_id)}}
+                {"ok": True, "already_open": True, "channel": serialized}
             )
+        return _json_response(
+            {"ok": True, "channel": {"id": _format_channel_id(ch.channel_id)}}
+        )
 
     # Parse users parameter
-    user_ids_str = [u.strip() for u in users_param.split(",") if u.strip()]
+    users_value = users_param if isinstance(users_param, str) else ""
+    user_ids_str = [u.strip() for u in users_value.split(",") if u.strip()]
     if not user_ids_str:
         _slack_error("users_list_not_supplied")
 
@@ -836,27 +1013,19 @@ async def conversations_open(request: Request) -> JSONResponse:
 
         # Build response
         if return_im:
-            created_timestamp = (
-                int(dm_channel.created_at.timestamp()) if dm_channel.created_at else 0
+            serialized = _serialize_conversation(
+                session,
+                dm_channel,
+                actor_id=actor_id,
+                team_id=team_id,
+                flavor="info",
             )
             return _json_response(
                 {
                     "ok": True,
                     "no_op": already_existed,
                     "already_open": already_existed,
-                    "channel": {
-                        "id": _format_channel_id(dm_channel.channel_id),
-                        "created": created_timestamp,
-                        "is_im": True,
-                        "is_org_shared": False,
-                        "user": _format_user_id(other_user_id),
-                        "last_read": "0000000000.000000",
-                        "latest": None,
-                        "unread_count": 0,
-                        "unread_count_display": 0,
-                        "is_open": True,
-                        "priority": 0,
-                    },
+                    "channel": serialized,
                 }
             )
         else:
@@ -892,40 +1061,28 @@ async def conversations_open(request: Request) -> JSONResponse:
             break
 
     if existing_mpim:
-        # Return existing MPIM
         if return_im:
-            created_timestamp = (
-                int(existing_mpim.created_at.timestamp())
-                if existing_mpim.created_at
-                else 0
+            serialized = _serialize_conversation(
+                session,
+                existing_mpim,
+                actor_id=actor_id,
+                team_id=team_id,
+                flavor="info",
             )
             return _json_response(
                 {
                     "ok": True,
                     "no_op": True,
                     "already_open": True,
-                    "channel": {
-                        "id": _format_channel_id(existing_mpim.channel_id),
-                        "created": created_timestamp,
-                        "is_im": False,
-                        "is_mpim": True,
-                        "is_org_shared": False,
-                        "last_read": "0000000000.000000",
-                        "latest": None,
-                        "unread_count": 0,
-                        "unread_count_display": 0,
-                        "is_open": True,
-                        "priority": 0,
-                    },
+                    "channel": serialized,
                 }
             )
-        else:
-            return _json_response(
-                {
-                    "ok": True,
-                    "channel": {"id": _format_channel_id(existing_mpim.channel_id)},
-                }
-            )
+        return _json_response(
+            {
+                "ok": True,
+                "channel": {"id": _format_channel_id(existing_mpim.channel_id)},
+            }
+        )
 
     # Create new MPIM
     if prevent_creation:
@@ -952,31 +1109,18 @@ async def conversations_open(request: Request) -> JSONResponse:
 
     # Build response
     if return_im:
-        created_timestamp = (
-            int(mpim_channel.created_at.timestamp()) if mpim_channel.created_at else 0
+        serialized = _serialize_conversation(
+            session,
+            mpim_channel,
+            actor_id=actor_id,
+            team_id=team_id,
+            flavor="info",
         )
-        return _json_response(
-            {
-                "ok": True,
-                "channel": {
-                    "id": _format_channel_id(mpim_channel.channel_id),
-                    "created": created_timestamp,
-                    "is_im": False,
-                    "is_mpim": True,
-                    "is_org_shared": False,
-                    "last_read": "0000000000.000000",
-                    "latest": None,
-                    "unread_count": 0,
-                    "unread_count_display": 0,
-                    "is_open": True,
-                    "priority": 0,
-                },
-            }
-        )
-    else:
-        return _json_response(
-            {"ok": True, "channel": {"id": _format_channel_id(mpim_channel.channel_id)}}
-        )
+        return _json_response({"ok": True, "channel": serialized})
+
+    return _json_response(
+        {"ok": True, "channel": {"id": _format_channel_id(mpim_channel.channel_id)}}
+    )
 
 
 async def conversations_info(request: Request) -> JSONResponse:
@@ -1005,116 +1149,18 @@ async def conversations_info(request: Request) -> JSONResponse:
     # Get team_id
     team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor_id)
 
-    # Build channel object based on channel type
-    created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
-    updated_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
+    is_member = session.get(ChannelMember, (channel_id, actor_id)) is not None
 
-    channel_obj = {
-        "id": _format_channel_id(ch.channel_id),
-        "created": created_timestamp,
-    }
-
-    # DM-specific fields
-    if ch.is_dm:
-        # Get the other user in the DM
-        members = ops.list_members_in_channel(
-            session=session, channel_id=ch.channel_id, team_id=team_id
-        )
-        other_user_id = next(
-            (m.user_id for m in members if m.user_id != actor_id), None
-        )
-
-        channel_obj.update(
-            {
-                "is_im": True,
-                "is_org_shared": False,
-                "user": _format_user_id(other_user_id) if other_user_id else "",
-                "last_read": "0000000000.000000",
-                "latest": None,
-                "unread_count": 0,
-                "unread_count_display": 0,
-                "is_open": True,
-                "priority": 0,
-            }
-        )
-
-        if include_locale:
-            channel_obj["locale"] = "en-US"
-
-    # MPIM-specific fields
-    elif ch.is_gc:
-        channel_obj.update(
-            {
-                "name": ch.channel_name,
-                "is_channel": False,
-                "is_group": True,
-                "is_im": False,
-                "is_mpim": True,
-                "is_private": True,
-                "is_archived": ch.is_archived,
-                "is_general": False,
-                "unlinked": 0,
-                "name_normalized": ch.channel_name,
-                "is_shared": False,
-                "is_org_shared": False,
-                "is_pending_ext_shared": False,
-                "pending_shared": [],
-                "is_ext_shared": False,
-                "shared_team_ids": ["T00000000"],
-                "pending_connected_team_ids": [],
-                "updated": updated_timestamp,
-                "topic": {
-                    "value": ch.topic_text or "",
-                    "creator": "",
-                    "last_set": 0,
-                },
-                "purpose": {"value": "", "creator": "", "last_set": 0},
-                "previous_names": [],
-            }
-        )
-
-    # Regular channel (public/private)
-    else:
-        channel_obj.update(
-            {
-                "name": ch.channel_name,
-                "is_channel": not ch.is_private,
-                "is_group": ch.is_private,
-                "is_im": False,
-                "is_mpim": False,
-                "is_private": ch.is_private,
-                "is_archived": ch.is_archived,
-                "is_general": ch.channel_name == "general",
-                "unlinked": 0,
-                "name_normalized": ch.channel_name,
-                "is_shared": False,
-                "is_frozen": False,
-                "is_org_shared": False,
-                "is_pending_ext_shared": False,
-                "pending_shared": [],
-                "context_team_id": "T00000000",
-                "updated": updated_timestamp,
-                "parent_conversation": None,
-                "creator": "U00000000",  # Could track creator if needed
-                "is_ext_shared": False,
-                "shared_team_ids": ["T00000000"],
-                "pending_connected_team_ids": [],
-                "topic": {
-                    "value": ch.topic_text or "",
-                    "creator": "",
-                    "last_set": 0,
-                },
-                "purpose": {"value": "", "creator": "", "last_set": 0},
-                "previous_names": [],
-            }
-        )
-
-    # Add num_members if requested
-    if include_num_members:
-        members = ops.list_members_in_channel(
-            session=session, channel_id=ch.channel_id, team_id=team_id
-        )
-        channel_obj["num_members"] = len(members)
+    channel_obj = _serialize_conversation(
+        session,
+        ch,
+        actor_id=actor_id,
+        team_id=team_id,
+        flavor="info",
+        include_num_members=include_num_members,
+        include_locale=include_locale,
+        is_member=is_member,
+    )
 
     return _json_response({"ok": True, "channel": channel_obj})
 
@@ -1218,7 +1264,7 @@ async def conversations_rename(request: Request) -> JSONResponse:
 
     # Check if trying to rename #general
     if ch.channel_name == "general":
-        _slack_error("cannot_rename_general")
+        _slack_error("not_authorized")
 
     # Rename the channel
     try:
@@ -1229,20 +1275,20 @@ async def conversations_rename(request: Request) -> JSONResponse:
         raise
 
     # Return updated channel info
-    created_timestamp = int(ch.created_at.timestamp()) if ch.created_at else 0
-    return _json_response(
-        {
-            "ok": True,
-            "channel": {
-                "id": _format_channel_id(ch.channel_id),
-                "name": name,
-                "is_channel": not ch.is_private,
-                "created": created_timestamp,
-                "is_archived": ch.is_archived,
-                "is_general": False,
-            },
-        }
+    actor_id = _principal_user_id(request)
+    team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor_id)
+
+    serialized = _serialize_conversation(
+        session,
+        ch,
+        actor_id=actor_id,
+        team_id=team_id,
+        flavor="info",
+        include_num_members=True,
+        is_member=session.get(ChannelMember, (channel_id, actor_id)) is not None,
     )
+
+    return _json_response({"ok": True, "channel": serialized})
 
 
 async def conversations_set_topic(request: Request) -> JSONResponse:
@@ -1278,7 +1324,7 @@ async def conversations_set_topic(request: Request) -> JSONResponse:
     # Set the topic
     ops.set_channel_topic(session=session, channel_id=channel_id, topic=topic)
 
-    return _json_response({"ok": True, "topic": topic})
+    return _json_response({"ok": True})
 
 
 async def conversations_kick(request: Request) -> JSONResponse:
@@ -1319,10 +1365,10 @@ async def conversations_kick(request: Request) -> JSONResponse:
 
     # Validate user exists and is a member
     if session.get(ChannelMember, (channel_id, user_id)) is None:
-        _slack_error("user_not_in_channel")
+        _slack_error("not_in_channel")
 
     ops.kick_user_from_channel(session=session, channel_id=channel_id, user_id=user_id)
-    return _json_response({"ok": True, "errors": {}})
+    return _json_response({"ok": True})
 
 
 async def conversations_leave(request: Request) -> JSONResponse:
@@ -1361,8 +1407,21 @@ async def conversations_leave(request: Request) -> JSONResponse:
 async def conversations_members(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
     channel = params.get("channel")
-    limit = int(params.get("limit", 100))
-    cursor = int(params.get("cursor", 0) or 0)
+    try:
+        limit = int(params.get("limit", 100))
+    except (TypeError, ValueError):
+        _slack_error("invalid_limit")
+    if limit < 1 or limit > 1000:
+        _slack_error("invalid_limit")
+
+    cursor_param = params.get("cursor")
+    if cursor_param is None or cursor_param == "":
+        cursor = 0
+    else:
+        try:
+            cursor = _decode_cursor(cursor_param)
+        except ValueError:
+            _slack_error("invalid_cursor")
 
     if not channel:
         _slack_error("channel_not_found")
@@ -1400,7 +1459,7 @@ async def conversations_members(request: Request) -> JSONResponse:
     # Convert to user IDs
     member_ids = [_format_user_id(m.user_id) for m in members]
 
-    next_cursor = str(cursor + limit) if has_more else ""
+    next_cursor = _encode_cursor(cursor + limit) if has_more else ""
     return _json_response(
         {
             "ok": True,
@@ -1417,14 +1476,13 @@ async def reactions_add(request: Request) -> JSONResponse:
     ts = payload.get("timestamp") or payload.get("ts")
 
     # Validate required parameters
-    if not name:
+    normalized_name = _normalize_reaction_name(name)
+    if not normalized_name:
         _slack_error("invalid_name")
     if not channel or not ts:
         _slack_error("no_item_specified")
 
-    # Validate reaction type - remove colons if present (e.g., ":thumbsup:" -> "thumbsup")
-    clean_name = name.strip(":")
-    if clean_name not in COMMON_REACTIONS:
+    if normalized_name not in COMMON_REACTIONS:
         _slack_error("invalid_name")  # Slack returns this error for invalid reactions
 
     session = _session(request)
@@ -1457,7 +1515,7 @@ async def reactions_add(request: Request) -> JSONResponse:
     existing = [
         r
         for r in ops.get_reactions(session=session, message_id=msg.message_id)
-        if r.user_id == actor and r.reaction_type == name
+        if r.user_id == actor and r.reaction_type == normalized_name
     ]
     if existing:
         _slack_error("already_reacted")
@@ -1466,7 +1524,7 @@ async def reactions_add(request: Request) -> JSONResponse:
         session=session,
         message_id=msg.message_id,
         user_id=actor,
-        reaction_type=name,
+        reaction_type=normalized_name,
     )
     return _json_response({"ok": True})
 
@@ -1478,7 +1536,8 @@ async def reactions_remove(request: Request) -> JSONResponse:
     ts = payload.get("timestamp") or payload.get("ts")
 
     # Validate required parameter
-    if not name:
+    normalized_name = _normalize_reaction_name(name)
+    if not normalized_name:
         _slack_error("invalid_name")
 
     # Validate channel+timestamp provided (per docs: one of file, file_comment, or channel+timestamp required)
@@ -1487,12 +1546,33 @@ async def reactions_remove(request: Request) -> JSONResponse:
 
     session = _session(request)
 
+    try:
+        channel_id = _resolve_channel_id(channel)
+    except (ValueError, AttributeError):
+        _slack_error("channel_not_found")
+
+    ch = session.get(Channel, channel_id)
+    if ch is None:
+        _slack_error("channel_not_found")
+
+    actor = _principal_user_id(request)
+
+    if session.get(ChannelMember, (channel_id, actor)) is None:
+        _slack_error("not_in_channel")
+
+    msg = session.get(Message, ts)
+    if msg is None or msg.channel_id != channel_id:
+        _slack_error("message_not_found")
+
+    if normalized_name not in COMMON_REACTIONS:
+        _slack_error("invalid_name")
+
     reactions = ops.get_reactions(session=session, message_id=ts)
     found = next(
         (
             r
             for r in reactions
-            if r.user_id == _principal_user_id(request) and r.reaction_type == name
+            if r.user_id == actor and r.reaction_type == normalized_name
         ),
         None,
     )
@@ -1501,7 +1581,7 @@ async def reactions_remove(request: Request) -> JSONResponse:
 
     ops.remove_emoji_reaction(
         session=session,
-        user_id=_principal_user_id(request),
+        user_id=actor,
         reaction_id=found.reaction_type,
     )
     return _json_response({"ok": True})
@@ -1536,30 +1616,33 @@ async def reactions_get(request: Request) -> JSONResponse:
     # Get reactions
     reactions = ops.get_reactions(session=session, message_id=timestamp)
 
+    grouped: dict[str, dict[str, Any]] = {}
+    for reaction in reactions:
+        key = reaction.reaction_type
+        entry = grouped.setdefault(
+            key,
+            {"name": key, "users": [], "count": 0},
+        )
+        entry["users"].append(_format_user_id(reaction.user_id))
+        entry["count"] += 1
+
     # Build message object with reactions
     message_obj = {
         "type": "message",
         "text": msg.message_text,
         "user": _format_user_id(msg.user_id),
         "ts": msg.message_id,
-        "team": "T00000000",  # Placeholder team ID
+        "team": ch.team_id or "T00000000",
     }
 
-    if reactions:
-        message_obj["reactions"] = [
-            {
-                "name": reaction.reaction_type,
-                "users": [_format_user_id(reaction.user_id)],
-                "count": 1,
-            }
-            for reaction in reactions
-        ]
+    if grouped:
+        message_obj["reactions"] = list(grouped.values())
 
     return _json_response(
         {
             "ok": True,
             "type": "message",
-            "channel": channel,
+            "channel": _format_channel_id(channel_id),
             "message": message_obj,
         }
     )
@@ -1571,19 +1654,39 @@ async def users_info(request: Request) -> JSONResponse:
     if user is None:
         _slack_error("user_not_found")
 
+    include_locale = params.get("include_locale", "false").lower() == "true"
+
     session = _session(request)
 
     try:
         user_row = ops.get_user(session=session, user_id=user)
-        return _json_response({"ok": True, "user": _serialize_user(user_row)})
+        user_payload = _serialize_user(user_row)
+        if include_locale:
+            user_payload["locale"] = user_row.timezone or "en-US"
+        return _json_response({"ok": True, "user": user_payload})
     except Exception:
         _slack_error("user_not_found")
 
 
 async def users_list(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
-    limit = int(params.get("limit", 100))
-    cursor = int(params.get("cursor", 0) or 0)
+    try:
+        limit = int(params.get("limit", 100))
+    except (TypeError, ValueError):
+        _slack_error("invalid_limit")
+    if limit < 1 or limit > 1000:
+        _slack_error("invalid_limit")
+
+    cursor_param = params.get("cursor")
+    if cursor_param is None or cursor_param == "":
+        cursor = 0
+    else:
+        try:
+            cursor = _decode_cursor(cursor_param)
+        except ValueError:
+            _slack_error("invalid_cursor")
+
+    include_locale = params.get("include_locale", "false").lower() == "true"
     session = _session(request)
     actor = _principal_user_id(request)
     team_id = _get_env_team_id(request, channel_id=None, actor_user_id=actor)
@@ -1597,15 +1700,22 @@ async def users_list(request: Request) -> JSONResponse:
     if has_more:
         users = users[:limit]
 
-    next_cursor = str(cursor + limit) if has_more else ""
+    next_cursor = _encode_cursor(cursor + limit) if has_more else ""
 
     # Get current timestamp for cache_ts
     from time import time
 
+    members = []
+    for user_row in users:
+        serialized = _serialize_user(user_row)
+        if include_locale:
+            serialized["locale"] = user_row.timezone or "en-US"
+        members.append(serialized)
+
     return _json_response(
         {
             "ok": True,
-            "members": [_serialize_user(u) for u in users],
+            "members": members,
             "cache_ts": int(time()),
             "response_metadata": {"next_cursor": next_cursor},
         }
@@ -1671,8 +1781,21 @@ def _serialize_user(user) -> dict[str, Any]:
 
 async def users_conversations(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
-    limit = int(params.get("limit", 100))
-    cursor = int(params.get("cursor", 0) or 0)
+    try:
+        limit = int(params.get("limit", 100))
+    except (TypeError, ValueError):
+        _slack_error("invalid_limit")
+    if limit < 1 or limit > 1000:
+        _slack_error("invalid_limit")
+
+    cursor_param = params.get("cursor")
+    if cursor_param is None or cursor_param == "":
+        cursor = 0
+    else:
+        try:
+            cursor = _decode_cursor(cursor_param)
+        except ValueError:
+            _slack_error("invalid_cursor")
     session = _session(request)
     actor = _principal_user_id(request)
     user_param = params.get("user")
@@ -1692,16 +1815,21 @@ async def users_conversations(request: Request) -> JSONResponse:
     if has_more:
         channels = channels[:limit]
 
-    data = [
-        {
-            "id": _format_channel_id(ch.channel_id),
-            "name": ch.channel_name,
-            "is_private": ch.is_private,
-            "is_archived": ch.is_archived,
-        }
-        for ch in channels
-    ]
-    next_cursor = str(cursor + limit) if has_more else ""
+    data = []
+    for ch in channels:
+        serialized = _serialize_conversation(
+            session,
+            ch,
+            actor_id=target_user,
+            team_id=team_id,
+            flavor="list",
+            include_num_members=False,
+        )
+        serialized.pop("is_member", None)
+        serialized.pop("num_members", None)
+        data.append(serialized)
+
+    next_cursor = _encode_cursor(cursor + limit) if has_more else ""
     return _json_response(
         {
             "ok": True,
@@ -1728,9 +1856,10 @@ async def slack_endpoint(request: Request) -> JSONResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     except SlackAPIError as exc:
-        return JSONResponse(
-            {"ok": False, "error": exc.detail}, status_code=exc.status_code
-        )
+        payload = {"ok": False, "error": exc.detail}
+        if exc.extra:
+            payload.update(exc.extra)
+        return JSONResponse(payload, status_code=exc.status_code)
     except Exception:  # pragma: no cover - defensive
         return JSONResponse(
             {"ok": False, "error": "internal_error"},
@@ -2082,10 +2211,7 @@ async def search_messages(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
     query_str = (params.get("query") or params.get("q") or "").strip()
     if not query_str:
-        return _json_response(
-            {"ok": False, "error": "No query passed"},
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        _slack_error("No query passed")
 
     highlight = str(params.get("highlight", "false")).lower() == "true"
     sort = (params.get("sort") or "score").lower()
