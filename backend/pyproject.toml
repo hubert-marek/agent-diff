@@ -15,6 +15,7 @@ dependencies = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "python-dotenv>=1.1.1",
+    "python-multipart>=0.0.18",
     "requests>=2.32.5",
     "ruff>=0.14.0",
     "sqlalchemy>=2.0.43",

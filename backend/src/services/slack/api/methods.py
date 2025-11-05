@@ -166,7 +166,7 @@ def _get_env_team_id(
 
 
 async def chat_post_message(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     text = payload.get("text")
     thread_ts = payload.get("thread_ts")
@@ -218,7 +218,7 @@ async def chat_post_message(request: Request) -> JSONResponse:
 
 
 async def chat_update(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     ts = payload.get("ts")
     text = payload.get("text")
     channel = payload.get("channel")
@@ -246,7 +246,9 @@ async def chat_update(request: Request) -> JSONResponse:
 
     # Validate and get message
     msg = session.get(Message, ts)
-    if msg is None or msg.channel_id != channel_id:
+    if msg is None:
+        _slack_error("message_not_found")
+    if msg.channel_id != channel_id:
         _slack_error("message_not_found")
 
     # Check permission: only author can update
@@ -273,7 +275,7 @@ async def chat_update(request: Request) -> JSONResponse:
 
 
 async def chat_delete(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     ts = payload.get("ts")
     if not channel or not ts:
@@ -306,7 +308,7 @@ async def chat_delete(request: Request) -> JSONResponse:
 
 
 async def conversations_create(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     name = payload.get("name")
     is_private = payload.get("is_private", False)
 
@@ -378,7 +380,7 @@ async def conversations_create(request: Request) -> JSONResponse:
 
 
 async def conversations_list(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     limit = min(int(params.get("limit", 100)), 1000)  # Max 1000 per docs
     cursor = int(params.get("cursor", 0) or 0)
     exclude_archived = params.get("exclude_archived", "false").lower() == "true"
@@ -481,7 +483,7 @@ async def conversations_list(request: Request) -> JSONResponse:
 async def conversations_history(request: Request) -> JSONResponse:
     from datetime import datetime
 
-    params = request.query_params
+    params = await _get_params_async(request)
     channel = params.get("channel")
     limit = min(int(params.get("limit", 100)), 999)  # Max 999 per docs
     cursor = int(params.get("cursor", 0) or 0)
@@ -561,7 +563,7 @@ async def conversations_history(request: Request) -> JSONResponse:
 
 
 async def conversations_join(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     if channel is None:
         _slack_error("channel_not_found")
@@ -620,7 +622,7 @@ async def conversations_join(request: Request) -> JSONResponse:
 
 
 async def conversations_invite(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     users_param = payload.get("users", "")
     force = payload.get("force", False)
@@ -743,7 +745,7 @@ async def conversations_invite(request: Request) -> JSONResponse:
 
 
 async def conversations_open(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     users_param = payload.get("users")
     return_im = payload.get("return_im", False)
@@ -978,7 +980,7 @@ async def conversations_open(request: Request) -> JSONResponse:
 
 
 async def conversations_info(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     channel = params.get("channel")
     include_locale = params.get("include_locale", "false").lower() == "true"
     include_num_members = params.get("include_num_members", "false").lower() == "true"
@@ -1118,7 +1120,7 @@ async def conversations_info(request: Request) -> JSONResponse:
 
 
 async def conversations_archive(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
 
     # Validate required parameter
@@ -1152,7 +1154,7 @@ async def conversations_archive(request: Request) -> JSONResponse:
 
 
 async def conversations_unarchive(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
 
     # Validate required parameter
@@ -1182,7 +1184,7 @@ async def conversations_unarchive(request: Request) -> JSONResponse:
 
 
 async def conversations_rename(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     name = payload.get("name")
 
@@ -1244,7 +1246,7 @@ async def conversations_rename(request: Request) -> JSONResponse:
 
 
 async def conversations_set_topic(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     topic = payload.get("topic", "")
 
@@ -1280,7 +1282,7 @@ async def conversations_set_topic(request: Request) -> JSONResponse:
 
 
 async def conversations_kick(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
     user = payload.get("user")
 
@@ -1324,7 +1326,7 @@ async def conversations_kick(request: Request) -> JSONResponse:
 
 
 async def conversations_leave(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     channel = payload.get("channel")
 
     # Validate required parameter
@@ -1357,7 +1359,7 @@ async def conversations_leave(request: Request) -> JSONResponse:
 
 
 async def conversations_members(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     channel = params.get("channel")
     limit = int(params.get("limit", 100))
     cursor = int(params.get("cursor", 0) or 0)
@@ -1409,7 +1411,7 @@ async def conversations_members(request: Request) -> JSONResponse:
 
 
 async def reactions_add(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     name = payload.get("name")
     channel = payload.get("channel") or payload.get("channel_id")
     ts = payload.get("timestamp") or payload.get("ts")
@@ -1470,7 +1472,7 @@ async def reactions_add(request: Request) -> JSONResponse:
 
 
 async def reactions_remove(request: Request) -> JSONResponse:
-    payload = await request.json()
+    payload = await _get_params_async(request)
     name = payload.get("name")
     channel = payload.get("channel") or payload.get("channel_id")
     ts = payload.get("timestamp") or payload.get("ts")
@@ -1506,7 +1508,7 @@ async def reactions_remove(request: Request) -> JSONResponse:
 
 
 async def reactions_get(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     channel = params.get("channel")
     timestamp = params.get("timestamp")
 
@@ -1564,7 +1566,7 @@ async def reactions_get(request: Request) -> JSONResponse:
 
 
 async def users_info(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     user = params.get("user")
     if user is None:
         _slack_error("user_not_found")
@@ -1579,7 +1581,7 @@ async def users_info(request: Request) -> JSONResponse:
 
 
 async def users_list(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     limit = int(params.get("limit", 100))
     cursor = int(params.get("cursor", 0) or 0)
     session = _session(request)
@@ -1668,7 +1670,7 @@ def _serialize_user(user) -> dict[str, Any]:
 
 
 async def users_conversations(request: Request) -> JSONResponse:
-    params = request.query_params
+    params = await _get_params_async(request)
     limit = int(params.get("limit", 100))
     cursor = int(params.get("cursor", 0) or 0)
     session = _session(request)
@@ -1812,9 +1814,15 @@ def _get_params(request: Request) -> dict[str, Any]:
 async def _get_params_async(request: Request) -> dict[str, Any]:
     if request.method.upper() == "GET":
         return _get_params(request)
+
     try:
-        # Prefer JSON body; fall back to empty
         return await request.json()
+    except Exception:
+        pass
+
+    try:
+        form = await request.form()
+        return dict(form)
     except Exception:
         return {}
 
@@ -2072,9 +2080,6 @@ def _resolve_channel_filter(
 
 async def search_messages(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
-    if request.method.upper() == "GET":
-        params.update(_get_params(request))
-
     query_str = (params.get("query") or params.get("q") or "").strip()
     if not query_str:
         return _json_response(
