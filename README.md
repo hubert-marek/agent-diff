@@ -136,7 +136,7 @@ Collections of test cases with assertions that you can run against agent runs us
 <img width="2516" height="1020" alt="image" src="https://github.com/user-attachments/assets/3270f1f1-5afa-4db2-97b0-c35c070ef44f" />
 
 
-To run evaluations:
+### To run evaluations:
 
 ```python
 from agent_diff import AgentDiff, PythonExecutorProxy, BashExecutorProxy, create_openai_tool
@@ -186,59 +186,9 @@ for test in suite.tests:
     client.delete_env(envId=env.environmentId)
 ```
 
-## Training & Fine-tuning
+### Example output:
 
-### With Hugging Face (smolagents)
-
-```python
-from agent_diff import AgentDiff, PythonExecutorProxy, BashExecutorProxy, create_smolagents_tool
-from smolagents import CodeAgent, InferenceClientModel
-
-# Setup and evaluation
-client = AgentDiff()
-
-# Load test suite with prompts
-suite_list = client.list_test_suites(name="Slack Bench")
-slack_suite = suite_list.testSuites[0]
-test_suite = client.get_test_suite(slack_suite.id, expand=True)
-
-training_data = []
-
-for test in test_suite.tests:
-    # Initialize environment for each test
-    env = client.init_env(testId=test.id)
-    run = client.start_run(envId=env.environmentId, testId=test.id)
-
-    # Create HF agent with Python and/ or Bash tools
-    python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
-    bash_executor = BashExecutorProxy(env.environmentId, base_url=client.base_url)
-    python_tool = create_smolagents_tool(python_executor)
-    bash_tool = create_smolagents_tool(bash_executor)
-
-    model = InferenceClientModel("meta-llama/Meta-Llama-3-70B-Instruct")
-    agent = CodeAgent(tools=[python_tool, bash_tool], model=model)
-
-    # Execute task with prompt from test suite
-    prompt = test.prompt
-    response = agent.run(prompt)
-    trace = agent.get_last_run_trace()  # Full execution history
-
-    # Evaluate against expected outcomes
-    eval_result = client.evaluate_run(runId=run.runId)
-
-    training_data.append({
-            "prompt": prompt,
-            "completion": json.dumps(trace),  # Full trace for learning reasoning
-            "label": eval_result.score == 1,  # True=passed, False=failed assertions
-        })
-
-    client.delete_env(envId=env.environmentId)
-
-
-# Use with HuggingFace TRL trainers (KTOTrainer, DPOTrainer, etc.)
-dataset = Dataset.from_list(training_data)
-dataset.save_to_disk("agent_training_data")
-```
+<img width="1669" height="878" alt="image" src="https://github.com/user-attachments/assets/096393d2-e464-4a3d-b0a8-b188af5cf8a9" />
 
 
 ## Documentation
