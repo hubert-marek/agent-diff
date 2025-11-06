@@ -1782,6 +1782,35 @@ async def reactions_get(request: Request) -> JSONResponse:
     )
 
 
+async def auth_test(request: Request) -> JSONResponse:
+    """Check authentication and return user/bot identity."""
+    session = _session(request)
+    actor_id = _principal_user_id(request)
+
+    # Get user info
+    user = session.get(User, actor_id)
+    if user is None:
+        _slack_error("user_not_found")
+
+    # Get team info
+    team_id = _get_env_team_id(request, channel_id=None, actor_user_id=actor_id)
+
+    response = {
+        "ok": True,
+        "url": f"https://{team_id}.slack.com/",
+        "team": f"Workspace {team_id}",
+        "user": user.display_name or user.real_name or user.user_id,
+        "team_id": team_id,
+        "user_id": user.user_id,
+    }
+
+    # Add bot_id if user is a bot
+    if user.is_bot:
+        response["bot_id"] = user.user_id
+
+    return _json_response(response)
+
+
 async def users_info(request: Request) -> JSONResponse:
     params = await _get_params_async(request)
     user = params.get("user")
@@ -2641,6 +2670,7 @@ async def search_all(request: Request) -> JSONResponse:
 
 
 SLACK_HANDLERS: dict[str, Callable[[Request], Awaitable[JSONResponse]]] = {
+    "auth.test": auth_test,
     "chat.postMessage": chat_post_message,
     "chat.update": chat_update,
     "chat.delete": chat_delete,
