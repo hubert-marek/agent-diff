@@ -393,7 +393,7 @@
     {
       "id": "test_15",
       "name": "Delete old message",
-      "prompt": "Delete the message about deployment from #general",
+      "prompt": "Delete the message about new feature you posted in #general",
       "type": "actionEval",
       "seed_template": "slack_bench_default",
       "impersonate_user_id": "U01AGENBOT9",
@@ -406,7 +406,7 @@
               "eq": "C01ABCD1234"
             },
             "message_text": {
-              "contains": "deployment"
+              "contains": "new feature"
             }
           },
           "expected_count": 1
