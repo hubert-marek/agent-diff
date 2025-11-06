@@ -494,7 +494,55 @@
               "regex": "^D"
             },
             "message_text": {
-              "regex": "(?=.*'500 errors')(?=.*'invalid_grant')(?=.*'login rate limit')(?=.*'login endpoint')"
+              "contains": "500 errors"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "channel_id": {
+              "regex": "^D"
+            },
+            "message_text": {
+              "contains": "invalid_grant"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "channel_id": {
+              "regex": "^D"
+            },
+            "message_text": {
+              "contains": "login rate limit"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "channel_id": {
+              "regex": "^D"
+            },
+            "message_text": {
+              "contains": "login endpoint"
             }
           },
           "expected_count": 1
@@ -537,7 +585,72 @@
               "eq": "U01AGENBOT9"
             },
             "message_text": {
-              "regex": "(?=.*'500 errors')(?=.*'invalid_grant')(?=.*'login rate limit')(?=.*'login endpoint')(?=.*'captcha')(?=.*'empty password')"
+              "contains": "500 errors"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "invalid_grant"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "login rate limit"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "login endpoint"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "captcha"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "empty password"
             }
           },
           "expected_count": 1
@@ -566,7 +679,102 @@
           "expected_changes": {
             "message_text": {
               "to": {
-                "regex": "(?=.*'500 errors')(?=.*'invalid_grant')(?=.*'login rate limit')(?=.*'login endpoint')(?=.*'captcha')(?=.*'empty password')"
+                "contains": "500 errors"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_id": {
+              "eq": "1700143200.000999"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "invalid_grant"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_id": {
+              "eq": "1700143200.000999"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "login rate limit"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_id": {
+              "eq": "1700143200.000999"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "login endpoint"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_id": {
+              "eq": "1700143200.000999"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "captcha"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_id": {
+              "eq": "1700143200.000999"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "empty password"
               }
             }
           }
@@ -601,7 +809,7 @@
           "expected_changes": {
             "message_text": {
               "to": {
-                "contains": "I will make a proposal for auth improvements tomorrow EOD"
+                "contains": "proposal for auth improvements tommorow EOD"
               }
             }
           }
