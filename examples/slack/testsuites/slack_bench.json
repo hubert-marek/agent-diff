@@ -308,7 +308,7 @@
       "prompt": "Find the message that says 'Hey team' and edit it to say 'Hello everyone'",
       "type": "actionEval",
       "seed_template": "slack_bench_default",
-      "impersonate_user_id": "U02JOHNDOE1",
+      "impersonate_user_id": "U01AGENBOT9",
       "assertions": [
         {
           "diff_type": "changed",
