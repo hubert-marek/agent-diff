@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+from typing import Optional, Dict, Any
 
 # Constants from linear_default seed data (UUID-based)
 USER_AGENT = "2790a7ee-fde0-4537-9588-e233aa5a68d1"
@@ -2158,6 +2159,106 @@ class TestWorkflowStatesQueryExtended:
 @pytest.mark.asyncio
 class TestIssueLabelQueryExtended:
     """Extended tests for issue label operations."""
+
+    async def _create_label(
+        self, client: AsyncClient, name: str, team_id: Optional[str] = None
+    ) -> str:
+        mutation = """
+          mutation($input: IssueLabelCreateInput!) {
+            issueLabelCreate(input: $input) {
+              issueLabel {
+                id
+              }
+            }
+          }
+        """
+        variables = {"input": {"name": name, "color": "#3b82f6"}}
+        if team_id:
+            variables["input"]["teamId"] = team_id
+
+        response = await client.post(
+            "/graphql", json={"query": mutation, "variables": variables}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        return data["data"]["issueLabelCreate"]["issueLabel"]["id"]
+
+    async def _query_issue_labels(
+        self, client: AsyncClient, filter_payload: Optional[Dict[str, Any]]
+    ) -> list[dict]:
+        query = """
+          query($filter: IssueLabelFilter) {
+            issueLabels(filter: $filter) {
+              nodes {
+                id
+                name
+                team {
+                  id
+                }
+              }
+            }
+          }
+        """
+        response = await client.post(
+            "/graphql", json={"query": query, "variables": {"filter": filter_payload}}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        return data["data"]["issueLabels"]["nodes"]
+
+    async def test_filter_by_team_null(self, linear_client: AsyncClient):
+        """Verify team null filter returns labels with/without teams appropriately."""
+        label_without_team = await self._create_label(linear_client, "Null Team Label")
+        label_with_team = await self._create_label(
+            linear_client, "Team Label", team_id=TEAM_ENG
+        )
+
+        null_results = await self._query_issue_labels(
+            linear_client, {"team": {"null": True}}
+        )
+        null_ids = {label["id"] for label in null_results}
+        assert label_without_team in null_ids
+        assert label_with_team not in null_ids
+
+        not_null_results = await self._query_issue_labels(
+            linear_client, {"team": {"null": False}}
+        )
+        not_null_ids = {label["id"] for label in not_null_results}
+        assert label_with_team in not_null_ids
+
+    async def test_filter_by_team_id_neq(self, linear_client: AsyncClient):
+        """Verify team id neq comparator excludes specified team labels."""
+        without_team = await self._create_label(linear_client, "No Team Neq")
+        other_team = await self._create_label(
+            linear_client, "Prod Label", team_id=TEAM_PROD
+        )
+        eng_label = await self._create_label(
+            linear_client, "Eng Label", team_id=TEAM_ENG
+        )
+
+        results = await self._query_issue_labels(
+            linear_client, {"team": {"id": {"neq": TEAM_ENG}}}
+        )
+        result_ids = {label["id"] for label in results}
+        assert eng_label not in result_ids
+        assert other_team in result_ids
+        assert without_team in result_ids
+
+    async def test_filter_by_team_id_not_in(self, linear_client: AsyncClient):
+        """Verify team id nin comparator excludes list of team IDs."""
+        prod_label = await self._create_label(
+            linear_client, "NotIn Prod", team_id=TEAM_PROD
+        )
+        eng_label = await self._create_label(
+            linear_client, "NotIn Eng", team_id=TEAM_ENG
+        )
+
+        results = await self._query_issue_labels(
+            linear_client, {"team": {"id": {"nin": [TEAM_ENG]}}}
+        )
+        result_ids = {label["id"] for label in results}
+        assert eng_label not in result_ids
+        assert prod_label in result_ids
 
     async def test_query_labels_by_team(self, linear_client: AsyncClient):
         """Test querying all labels for a specific team."""

@@ -11605,9 +11605,9 @@ def resolve_issueLabels(
                         base_query = base_query.filter(
                             IssueLabel.teamId.in_(id_filter["in"])
                         )
-                    if "notIn" in id_filter:
+                    if "nin" in id_filter:
                         base_query = base_query.filter(
-                            IssueLabel.teamId.notin_(id_filter["notIn"])
+                            IssueLabel.teamId.notin_(id_filter["nin"])
                         )
 
                 null_filter = team_filter.get("null")

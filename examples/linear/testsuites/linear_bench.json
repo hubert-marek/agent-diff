@@ -569,10 +569,10 @@
           "expected_changes": {
             "archivedAt": {
               "from": {
-                "is_null": true
+                "exists": false
               },
               "to": {
-                "is_not_null": true
+                "exists": true
               }
             }
           }
