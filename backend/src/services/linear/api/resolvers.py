@@ -1537,12 +1537,20 @@ def resolve_searchIssues(
     # Build base query for issues
     base_query = session.query(Issue)
 
-    # Apply search term filter (search in title and description)
+    # Apply search term filter (search in title, description, and identifier)
     if term:
-        search_pattern = f"%{term}%"
+        # Escape SQL LIKE special characters to treat them as literals
+        # Production treats '%', '_' as literal characters, not wildcards
+        escaped_term = term.replace("%", "\\%").replace("_", "\\_")
+        search_pattern = f"%{escaped_term}%"
+
+        # Production uses case-insensitive search
         search_conditions = [
-            Issue.title.like(search_pattern),
-            Issue.description.like(search_pattern),
+            Issue.title.ilike(search_pattern),  # Case-insensitive
+            Issue.description.ilike(search_pattern),  # Case-insensitive
+            Issue.identifier.ilike(
+                search_pattern
+            ),  # Production searches identifiers too
         ]
 
         # If includeComments is true, search in comments too
@@ -1550,7 +1558,7 @@ def resolve_searchIssues(
             # Subquery to find issue IDs that have matching comments
             comment_subquery = (
                 session.query(Comment.issueId)
-                .filter(Comment.body.like(search_pattern))
+                .filter(Comment.body.ilike(search_pattern))  # Case-insensitive
                 .distinct()
             )
 
