@@ -21398,8 +21398,8 @@ type Query {
   """One specific set of settings."""
   integrationsSettings(id: String!): IntegrationsSettings!
 
-  """One specific issue."""
-  issue(id: String, identifier: String): Issue!
+  """One specific issue. The 'id' parameter accepts both UUID and identifier formats (e.g., 'ENG-123')."""
+  issue(id: String!): Issue!
 
   """Find issues that are related to a given Figma file key."""
   issueFigmaFileKeySearch(
