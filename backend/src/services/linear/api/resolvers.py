@@ -11598,16 +11598,27 @@ def resolve_issueLabels(
                             IssueLabel.teamId == id_filter["eq"]
                         )
                     if "neq" in id_filter:
+                        # SQL NULL semantics: NULL != value is NULL (not TRUE)
+                        # So we need to explicitly include NULLs with OR
+                        neq_value = id_filter["neq"]
                         base_query = base_query.filter(
-                            IssueLabel.teamId != id_filter["neq"]
+                            or_(
+                                IssueLabel.teamId != neq_value,
+                                IssueLabel.teamId.is_(None),
+                            )
                         )
                     if "in" in id_filter:
                         base_query = base_query.filter(
                             IssueLabel.teamId.in_(id_filter["in"])
                         )
                     if "nin" in id_filter:
+                        # Similar to neq, include NULLs in the result
+                        nin_values = id_filter["nin"]
                         base_query = base_query.filter(
-                            IssueLabel.teamId.notin_(id_filter["nin"])
+                            or_(
+                                IssueLabel.teamId.notin_(nin_values),
+                                IssueLabel.teamId.is_(None),
+                            )
                         )
 
                 null_filter = team_filter.get("null")
