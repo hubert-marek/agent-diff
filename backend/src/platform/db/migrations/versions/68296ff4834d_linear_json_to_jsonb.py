@@ -103,6 +103,21 @@ def _fetch_linear_schemas(conn) -> list[str]:
     return [row[0] for row in result]
 
 
+def _table_exists(conn, schema: str, table: str) -> bool:
+    result = conn.execute(
+        text(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = :schema
+              AND table_name = :table
+            """
+        ),
+        {"schema": schema, "table": table},
+    )
+    return result.scalar() is not None
+
+
 def _column_exists(conn, schema: str, table: str, column: str) -> bool:
     result = conn.execute(
         text(
@@ -119,21 +134,34 @@ def _column_exists(conn, schema: str, table: str, column: str) -> bool:
     return result.scalar() is not None
 
 
+def _quote_ident(ident: str) -> str:
+    # Safely quote an identifier, doubling any embedded quotes
+    return f'"{ident.replace('"', '""')}"'
+
+
 def _alter_columns(conn, schemas: list[str], *, to_jsonb: bool) -> None:
     target_type = "JSONB" if to_jsonb else "JSON"
     cast = "::jsonb" if to_jsonb else "::json"
     for schema in schemas:
         for table, columns in TABLE_COLUMN_MAP.items():
+            if not _table_exists(conn, schema, table):
+                # Skip gracefully when a schema lacks a mapped table
+                continue
             for column in columns:
                 if not _column_exists(conn, schema, table, column):
                     continue
-                conn.execute(
-                    text(
-                        f'ALTER TABLE "{schema}"."{table}" '
-                        f'ALTER COLUMN "{column}" TYPE {target_type} '
-                        f'USING "{column}"{cast}'
+                try:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {_quote_ident(schema)}.{_quote_ident(table)} "
+                            f"ALTER COLUMN {_quote_ident(column)} TYPE {target_type} "
+                            f"USING {_quote_ident(column)}{cast}"
+                        )
                     )
-                )
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Failed altering {schema}.{table}.{column} to {target_type}: {e}"
+                    ) from e
 
 
 # revision identifiers, used by Alembic.

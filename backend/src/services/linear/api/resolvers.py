@@ -25,6 +25,7 @@ from src.services.linear.database.schema import (
     Initiative,
     Comment,
     Document,
+    DocumentContent,
     Cycle,
     TeamMembership,
     IssueRelation,
@@ -362,7 +363,12 @@ def resolve_issue_documents(
     session: Session = info.context["session"]
     validate_pagination_params(after, before, first, last)
 
-    base_query = session.query(Document).filter(Document.issueId == issue.id)
+    # Documents associated to an issue are linked via DocumentContent.issueId
+    base_query = (
+        session.query(Document)
+        .join(DocumentContent, DocumentContent.documentId == Document.id)
+        .filter(DocumentContent.issueId == issue.id)
+    )
 
     if not includeArchived:
         base_query = base_query.filter(Document.archivedAt.is_(None))
@@ -504,6 +510,145 @@ def resolve_team_states(
         base_query = base_query.order_by(order_column.desc(), WorkflowState.id.desc())
     else:
         base_query = base_query.order_by(order_column.asc(), WorkflowState.id.asc())
+
+    # Determine limit
+    limit = first if first else (last if last else 50)
+
+    # Fetch limit + 1 to detect if there are more pages
+    items = base_query.limit(limit + 1).all()
+
+    # Use the centralized pagination helper
+    return apply_pagination(items, after, before, first, last, order_field)
+
+
+def _get_child_team_ids(session: Session, parent_team_id: str) -> list[str]:
+    """
+    Recursively get all child team IDs for a given parent team.
+
+    Args:
+        session: SQLAlchemy session
+        parent_team_id: ID of the parent team
+
+    Returns:
+        List of child team IDs (all descendants)
+    """
+    child_ids = []
+    direct_children = (
+        session.query(Team.id).filter(Team.parentId == parent_team_id).all()
+    )
+
+    for (child_id,) in direct_children:
+        child_ids.append(child_id)
+        # Recursively get grandchildren
+        child_ids.extend(_get_child_team_ids(session, child_id))
+
+    return child_ids
+
+
+@team_type.field("issues")
+def resolve_team_issues(
+    team,
+    info,
+    after=None,
+    before=None,
+    filter=None,
+    first=None,
+    includeArchived=False,
+    includeSubTeams=False,
+    last=None,
+    orderBy="createdAt",
+):
+    """
+    Resolve the issues field to return an IssueConnection for issues belonging to this team.
+
+    Args:
+        team: The parent Team object
+        info: GraphQL resolve info
+        after: Cursor for forward pagination
+        before: Cursor for backward pagination
+        filter: IssueFilter to filter results
+        first: Number of items for forward pagination (default: 50)
+        includeArchived: Include archived issues (default: False)
+        includeSubTeams: Include issues from sub-teams (default: False)
+        last: Number of items for backward pagination
+        orderBy: Order by field - "createdAt" or "updatedAt" (default: "createdAt")
+
+    Returns:
+        IssueConnection with nodes, edges, and pageInfo
+    """
+    session: Session = info.context["session"]
+
+    # Validate pagination parameters
+    validate_pagination_params(after, before, first, last)
+
+    # Build base query for issues belonging to this team
+    base_query = session.query(Issue).filter(Issue.teamId == team.id)
+
+    # Include sub-team issues if requested
+    if includeSubTeams:
+        # Get all child team IDs recursively
+        child_team_ids = _get_child_team_ids(session, team.id)
+        if child_team_ids:
+            base_query = session.query(Issue).filter(
+                Issue.teamId.in_([team.id] + child_team_ids)
+            )
+
+    # Filter archived issues unless includeArchived is True
+    if not includeArchived:
+        base_query = base_query.filter(Issue.archivedAt.is_(None))
+
+    # Apply custom filter if provided
+    if filter:
+        validate_issue_filter(filter)
+        base_query = apply_issue_filter(base_query, filter)
+
+    # Determine order field
+    order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
+
+    # Apply cursor-based pagination
+    if after:
+        cursor_data = decode_cursor(after)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        # Convert cursor field value to datetime if needed
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        # Apply cursor filter for forward pagination
+        order_column = getattr(Issue, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column > cursor_field_value,
+                and_(order_column == cursor_field_value, Issue.id > cursor_id),
+            )
+        )
+
+    if before:
+        cursor_data = decode_cursor(before)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        # Convert cursor field value to datetime if needed
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        # Apply cursor filter for backward pagination
+        order_column = getattr(Issue, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column < cursor_field_value,
+                and_(order_column == cursor_field_value, Issue.id < cursor_id),
+            )
+        )
+
+    # Apply ordering
+    order_column = getattr(Issue, order_field)
+    if last or before:
+        # For backward pagination, reverse the order
+        base_query = base_query.order_by(order_column.desc(), Issue.id.desc())
+    else:
+        base_query = base_query.order_by(order_column.asc(), Issue.id.asc())
 
     # Determine limit
     limit = first if first else (last if last else 50)
@@ -2150,7 +2295,12 @@ def apply_date_comparator(query, column, comparator):
         if isinstance(val, str) and (val.startswith("P") or val.startswith("-P")):
             return _apply_duration_offset(val)
         if isinstance(val, str):
-            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+            if isinstance(dt, datetime) and dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        if isinstance(val, datetime) and val.tzinfo is None:
+            return val.replace(tzinfo=timezone.utc)
         return val
 
     if "eq" in comparator:
@@ -7580,7 +7730,7 @@ def resolve_attachmentCreate(obj, info, **kwargs):
                 attachment.metadata_ = input_data.get("metadata", {})
 
             # Update timestamp
-            attachment.updatedAt = datetime.utcnow()
+            attachment.updatedAt = datetime.now(timezone.utc)
 
         else:
             # Create new attachment
@@ -7599,8 +7749,8 @@ def resolve_attachmentCreate(obj, info, **kwargs):
                 "iconUrl": input_data.get("iconUrl"),
                 "groupBySource": input_data.get("groupBySource", False),
                 "metadata_": input_data.get("metadata", {}),
-                "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow(),
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc),
             }
 
             # Create the attachment entity
@@ -7623,8 +7773,8 @@ def resolve_attachmentCreate(obj, info, **kwargs):
                 "bodyData": json.dumps(comment_body_data)
                 if comment_body_data
                 else comment_body or "",
-                "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow(),
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc),
             }
 
             # Handle createAsUser - this would set externalUserId
@@ -8439,9 +8589,7 @@ def resolve_attachmentLinkJiraIssue(obj, info, **kwargs):
             raise Exception("Field 'issueId' is required")
 
         # Verify the issue exists
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Generate a URL for the Jira issue
         # Use the provided URL fallback if available, otherwise construct a generic URL
@@ -8568,9 +8716,7 @@ def resolve_attachmentLinkSalesforce(obj, info, **kwargs):
             raise Exception("Field 'issueId' is required")
 
         # Verify the issue exists
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Check if attachment with same URL and issueId already exists
         existing_attachment = (
@@ -8690,9 +8836,7 @@ def resolve_attachmentLinkSlack(obj, info, **kwargs):
             raise Exception("Field 'issueId' is required")
 
         # Verify the issue exists
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Check if attachment with same URL and issueId already exists
         existing_attachment = (
@@ -13207,7 +13351,7 @@ def resolve_userFlagUpdate(obj, info, **kwargs):
         )
 
         # Generate a new sync ID (incrementing timestamp)
-        new_sync_id = datetime.utcnow().timestamp()
+        new_sync_id = datetime.now(timezone.utc).timestamp()
 
         if user_flag is None:
             # Create new flag entry
@@ -13217,8 +13361,8 @@ def resolve_userFlagUpdate(obj, info, **kwargs):
                 flag=flag,
                 value=0,
                 lastSyncId=new_sync_id,
-                createdAt=datetime.utcnow(),
-                updatedAt=datetime.utcnow(),
+                createdAt=datetime.now(timezone.utc),
+                updatedAt=datetime.now(timezone.utc),
             )
             session.add(user_flag)
             session.flush()
@@ -13238,7 +13382,7 @@ def resolve_userFlagUpdate(obj, info, **kwargs):
 
         # Update metadata
         user_flag.lastSyncId = new_sync_id
-        user_flag.updatedAt = datetime.utcnow()
+        user_flag.updatedAt = datetime.now(timezone.utc)
 
         # Return the payload
         return {
@@ -13281,7 +13425,7 @@ def resolve_userSettingsFlagsReset(obj, info, **kwargs):
         flags_to_reset = kwargs.get("flags")
 
         # Generate a new sync ID
-        new_sync_id = datetime.utcnow().timestamp()
+        new_sync_id = datetime.now(timezone.utc).timestamp()
 
         if flags_to_reset:
             # Reset specific flags
@@ -13301,8 +13445,8 @@ def resolve_userSettingsFlagsReset(obj, info, **kwargs):
                         flag=flag,
                         value=0,
                         lastSyncId=new_sync_id,
-                        createdAt=datetime.utcnow(),
-                        updatedAt=datetime.utcnow(),
+                        createdAt=datetime.now(timezone.utc),
+                        updatedAt=datetime.now(timezone.utc),
                     )
                     session.add(user_flag)
                     session.flush()
@@ -13310,7 +13454,7 @@ def resolve_userSettingsFlagsReset(obj, info, **kwargs):
                     # Reset existing flag to 0
                     user_flag.value = 0
                     user_flag.lastSyncId = new_sync_id
-                    user_flag.updatedAt = datetime.utcnow()
+                    user_flag.updatedAt = datetime.now(timezone.utc)
         else:
             # Reset all flags for the user
             user_flags = session.query(UserFlag).filter_by(userId=current_user_id).all()
@@ -13318,7 +13462,7 @@ def resolve_userSettingsFlagsReset(obj, info, **kwargs):
             for user_flag in user_flags:
                 user_flag.value = 0
                 user_flag.lastSyncId = new_sync_id
-                user_flag.updatedAt = datetime.utcnow()
+                user_flag.updatedAt = datetime.now(timezone.utc)
 
         # Create and return the payload
         # Return the proper UserSettingsFlagsResetPayload structure
@@ -13408,7 +13552,7 @@ def resolve_userSettingsUpdate(obj, info, **kwargs):
             user_settings.usageWarningHistory = input_data["usageWarningHistory"]
 
         # Update the updatedAt timestamp
-        user_settings.updatedAt = datetime.utcnow()
+        user_settings.updatedAt = datetime.now(timezone.utc)
 
         return user_settings
 

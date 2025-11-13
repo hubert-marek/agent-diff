@@ -26,74 +26,103 @@ def _fetch_linear_schemas(conn) -> list[str]:
     return [row[0] for row in result]
 
 
+def _table_exists(conn, schema: str, table: str) -> bool:
+    result = conn.execute(
+        text(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = :schema
+              AND table_name = :table
+            """
+        ),
+        {"schema": schema, "table": table},
+    )
+    return result.scalar() is not None
+
+
+def _quote_ident(ident: str) -> str:
+    return f'"{ident.replace('"', '""')}"'
+
+
 def _create_indexes(conn, schemas: list[str]) -> None:
     for schema in schemas:
+        schema_q = _quote_ident(schema)
+        # Skip missing tables gracefully
+        issues_exists = _table_exists(conn, schema, "issues")
+        comments_exists = _table_exists(conn, schema, "comments")
+        labels_exists = _table_exists(conn, schema, "issue_labels")
+
         # Issues hot paths
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issues_teamId_idx" ON "{schema}"."issues" ("teamId")'
+        if issues_exists:
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issues_teamId_idx")} ON {schema_q}."issues" ("teamId")'
+                )
             )
-        )
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issues_stateId_idx" ON "{schema}"."issues" ("stateId")'
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issues_stateId_idx")} ON {schema_q}."issues" ("stateId")'
+                )
             )
-        )
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issues_createdAt_idx" ON "{schema}"."issues" ("createdAt")'
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issues_createdAt_idx")} ON {schema_q}."issues" ("createdAt")'
+                )
             )
-        )
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issues_updatedAt_idx" ON "{schema}"."issues" ("updatedAt")'
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issues_updatedAt_idx")} ON {schema_q}."issues" ("updatedAt")'
+                )
             )
-        )
         # Comments
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_comments_issueId_idx" ON "{schema}"."comments" ("issueId")'
+        if comments_exists:
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_comments_issueId_idx")} ON {schema_q}."comments" ("issueId")'
+                )
             )
-        )
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_comments_createdAt_idx" ON "{schema}"."comments" ("createdAt")'
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_comments_createdAt_idx")} ON {schema_q}."comments" ("createdAt")'
+                )
             )
-        )
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_comments_archivedAt_idx" ON "{schema}"."comments" ("archivedAt")'
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_comments_archivedAt_idx")} ON {schema_q}."comments" ("archivedAt")'
+                )
             )
-        )
         # Issue labels
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issue_labels_teamId_idx" ON "{schema}"."issue_labels" ("teamId")'
+        if labels_exists:
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issue_labels_teamId_idx")} ON {schema_q}."issue_labels" ("teamId")'
+                )
             )
-        )
-        # Case-insensitive name search (expression index on lower(name))
-        conn.execute(
-            text(
-                f'CREATE INDEX IF NOT EXISTS "{schema}_issue_labels_lower_name_idx" ON "{schema}"."issue_labels" (lower("name"))'
+            # Case-insensitive name search (expression index on lower(name))
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS {_quote_ident(schema + "_issue_labels_lower_name_idx")} ON {schema_q}."issue_labels" (lower("name"))'
+                )
             )
-        )
         # Association table has PK(issue_id, issue_label_id) - sufficient for lookups and counts
 
 
 def _drop_indexes(conn, schemas: list[str]) -> None:
     for schema in schemas:
+        schema_q = _quote_ident(schema)
         for idx in [
-            f"{schema}_issues_teamId_idx",
-            f"{schema}_issues_stateId_idx",
-            f"{schema}_issues_createdAt_idx",
-            f"{schema}_issues_updatedAt_idx",
-            f"{schema}_comments_issueId_idx",
-            f"{schema}_comments_createdAt_idx",
-            f"{schema}_comments_archivedAt_idx",
-            f"{schema}_issue_labels_teamId_idx",
-            f"{schema}_issue_labels_lower_name_idx",
+            _quote_ident(f"{schema}_issues_teamId_idx"),
+            _quote_ident(f"{schema}_issues_stateId_idx"),
+            _quote_ident(f"{schema}_issues_createdAt_idx"),
+            _quote_ident(f"{schema}_issues_updatedAt_idx"),
+            _quote_ident(f"{schema}_comments_issueId_idx"),
+            _quote_ident(f"{schema}_comments_createdAt_idx"),
+            _quote_ident(f"{schema}_comments_archivedAt_idx"),
+            _quote_ident(f"{schema}_issue_labels_teamId_idx"),
+            _quote_ident(f"{schema}_issue_labels_lower_name_idx"),
         ]:
-            conn.execute(text(f'DROP INDEX IF EXISTS "{idx}"'))
+            conn.execute(text(f"DROP INDEX IF EXISTS {schema_q}.{idx}"))
 
 
 # revision identifiers, used by Alembic.
