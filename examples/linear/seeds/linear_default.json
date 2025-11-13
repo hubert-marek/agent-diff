@@ -543,5 +543,37 @@
       "updatedAt": "2025-01-01T00:00:00",
       "url": "https://linear.app/test-org/issue/ENG-1#comments"
     }
+  ],
+  "team_memberships": [
+    {
+      "id": "tm-agent-eng",
+      "userId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "owner": false,
+      "sortOrder": 0.0,
+      "archivedAt": null,
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "tm-john-eng",
+      "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "owner": true,
+      "sortOrder": 0.0,
+      "archivedAt": null,
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    },
+    {
+      "id": "tm-sarah-eng",
+      "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
+      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+      "owner": false,
+      "sortOrder": 0.0,
+      "archivedAt": null,
+      "createdAt": "2025-01-01T00:00:00",
+      "updatedAt": "2025-01-01T00:00:00"
+    }
   ]
 }

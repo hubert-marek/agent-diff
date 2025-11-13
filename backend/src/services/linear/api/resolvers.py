@@ -1,4 +1,4 @@
-from ariadne import QueryType, MutationType
+from ariadne import QueryType, MutationType, ObjectType, ScalarType
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import or_, and_, select, func
 from src.services.linear.database.schema import (
@@ -45,12 +45,59 @@ query = QueryType()
 mutation = MutationType()
 issue_type = ObjectType("Issue")
 team_type = ObjectType("Team")
+user_type = ObjectType("User")
+
+# DateTime scalar serializer
+datetime_scalar = ScalarType("DateTime")
+
+
+@datetime_scalar.serializer
+def serialize_datetime(value):
+    """Serialize Python datetime to ISO 8601 string."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, str):
+        return value  # Already serialized
+    raise ValueError(f"Cannot serialize {type(value)} as DateTime")
+
+
+@datetime_scalar.value_parser
+def parse_datetime_value(value):
+    """Parse ISO 8601 string to Python datetime."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        # Parse ISO 8601 string
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return datetime.fromisoformat(value)
+    raise ValueError(f"Cannot parse {type(value)} as DateTime")
+
+
+@datetime_scalar.literal_parser
+def parse_datetime_literal(ast, variable_values=None):
+    """Parse GraphQL literal value."""
+    value = ast.value
+    return parse_datetime_value(value)
+
 
 # Export query and mutation objects for use in schema binding
-__all__ = ["query", "mutation", "issue_type", "team_type"]
+__all__ = [
+    "query",
+    "mutation",
+    "issue_type",
+    "team_type",
+    "user_type",
+    "datetime_scalar",
+]
 
 # Convenience export for all bindables
-bindables = [query, mutation, issue_type, team_type]
+bindables = [query, mutation, issue_type, team_type, user_type, datetime_scalar]
 
 
 @issue_type.field("labels")
@@ -201,6 +248,112 @@ def resolve_team_states(
         base_query = base_query.order_by(order_column.desc(), WorkflowState.id.desc())
     else:
         base_query = base_query.order_by(order_column.asc(), WorkflowState.id.asc())
+
+    # Determine limit
+    limit = first if first else (last if last else 50)
+
+    # Fetch limit + 1 to detect if there are more pages
+    items = base_query.limit(limit + 1).all()
+
+    # Use the centralized pagination helper
+    return apply_pagination(items, after, before, first, last, order_field)
+
+
+@user_type.field("teams")
+def resolve_user_teams(
+    user,
+    info,
+    after=None,
+    before=None,
+    filter=None,
+    first=None,
+    includeArchived=False,
+    last=None,
+    orderBy="createdAt",
+):
+    """
+    Resolve the teams field to return a TeamConnection for teams the user is a member of.
+
+    Args:
+        user: The parent User object
+        info: GraphQL resolve info
+        after: Cursor for forward pagination
+        before: Cursor for backward pagination
+        filter: TeamFilter to filter results
+        first: Number of items for forward pagination (default: 50)
+        includeArchived: Include archived teams (default: False)
+        last: Number of items for backward pagination
+        orderBy: Order by field - "createdAt" or "updatedAt" (default: "createdAt")
+
+    Returns:
+        TeamConnection with nodes field
+    """
+    from src.services.linear.database.schema import TeamMembership
+
+    session: Session = info.context["session"]
+
+    # Build base query for teams the user is a member of
+    base_query = (
+        session.query(Team)
+        .join(TeamMembership, Team.id == TeamMembership.teamId)
+        .filter(TeamMembership.userId == user.id)
+    )
+
+    # Filter archived teams unless includeArchived is True
+    if not includeArchived:
+        base_query = base_query.filter(Team.archivedAt.is_(None))
+
+    # Apply custom filter if provided
+    if filter:
+        base_query = apply_team_filter(base_query, filter)
+
+    # Determine order field
+    order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
+
+    # Apply cursor-based pagination (similar to workflow states)
+    if after:
+        cursor_data = decode_cursor(after)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        # Parse datetime if needed
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        # Apply cursor filter for forward pagination
+        order_column = getattr(Team, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column > cursor_field_value,
+                and_(order_column == cursor_field_value, Team.id > cursor_id),
+            )
+        )
+
+    if before:
+        cursor_data = decode_cursor(before)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        # Parse datetime if needed
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        # Apply cursor filter for backward pagination
+        order_column = getattr(Team, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column < cursor_field_value,
+                and_(order_column == cursor_field_value, Team.id < cursor_id),
+            )
+        )
+
+    # Apply ordering
+    order_column = getattr(Team, order_field)
+    if last or before:
+        # For backward pagination, reverse the order
+        base_query = base_query.order_by(order_column.desc(), Team.id.desc())
+    else:
+        base_query = base_query.order_by(order_column.asc(), Team.id.asc())
 
     # Determine limit
     limit = first if first else (last if last else 50)

@@ -106,8 +106,8 @@ class Differ:
                 )
 
                 proj_cols = ", ".join(
-                    [f"a.{self.q(c)} AS after_{c}" for c in cols]
-                    + [f"b.{self.q(c)} AS before_{c}" for c in cols]
+                    [f"a.{self.q(c)} AS {self.q(f'after_{c}')}" for c in cols]
+                    + [f"b.{self.q(c)} AS {self.q(f'before_{c}')}" for c in cols]
                 )
                 sql = f"""
                     SELECT {proj_cols}

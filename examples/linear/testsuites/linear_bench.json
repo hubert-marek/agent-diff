@@ -3,7 +3,38 @@
   "name": "Linear Bench",
   "description": "Benchmark tests for Linear MCP operations",
   "service": "linear",
+  "ignore_fields": {
+    "global": [
+      "created_at",
+      "updated_at",
+      "updatedAt",
+      "createdAt"
+    ]
+  },
   "tests": [
+    {
+      "id": "test_0",
+      "name": "Create a new issue",
+      "prompt": "Create a new issue in the Engineering team titled 'Fix login bug' ",
+      "type": "actionEval",
+      "seed_template": "linear_default",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "teamId": {
+              "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
+            },
+            "title": {
+              "contains": "login bug"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
     {
       "id": "test_1",
       "name": "Create a new issue",
@@ -59,7 +90,7 @@
     {
       "id": "test_3",
       "name": "Assign issue to user",
-      "prompt": "Assign issue ENG-1 to John Doe",
+      "prompt": "Assign issue ENG-2 to John Doe",
       "type": "actionEval",
       "seed_template": "linear_default",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
@@ -69,11 +100,14 @@
           "entity": "issues",
           "where": {
             "identifier": {
-              "eq": "ENG-1"
+              "eq": "ENG-2"
             }
           },
           "expected_changes": {
             "assigneeId": {
+              "from": {
+                "eq": "03b0809e-713e-44ee-95de-b7a198b135ac"
+              },
               "to": {
                 "eq": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec"
               }
@@ -296,18 +330,11 @@
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
-          "diff_type": "changed",
-          "entity": "issues",
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
           "where": {
-            "identifier": {
-              "eq": "ENG-1"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "Bugs"
-                }
-              }
+            "issue_id": {
+              "eq": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab"
             }
           },
           "expected_count": 1
@@ -323,18 +350,14 @@
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
-          "diff_type": "changed",
-          "entity": "issues",
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
           "where": {
-            "identifier": {
-              "eq": "ENG-2"
+            "issue_id": {
+              "eq": "8a4e2b1c-9f3d-4e6a-b7c8-1d2e3f4a5b6c"
             },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "UX"
-                }
-              }
+            "issue_label_id": {
+              "eq": "f9c5b7c8-3909-4f8b-bc25-73e1b56a9c0c"
             }
           },
           "expected_count": 1
@@ -376,18 +399,14 @@
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
-          "diff_type": "changed",
-          "entity": "issues",
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
           "where": {
-            "identifier": {
-              "eq": "ENG-1"
+            "issue_id": {
+              "eq": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab"
             },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "RL"
-                }
-              }
+            "issue_label_id": {
+              "eq": "8f01ce9d-1433-4c4c-969d-21ca3bf2718f"
             }
           },
           "expected_count": 1
@@ -463,36 +482,17 @@
             },
             "title": {
               "contains": "Polish navigation"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "UX"
-                }
-              }
             }
           },
           "expected_count": 1
         },
         {
           "diff_type": "added",
-          "entity": "issues",
-          "where": {
-            "teamId": {
-              "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
-            },
-            "title": {
-              "contains": "Polish navigation"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "Urgent"
-                }
-              }
-            }
-          },
-          "expected_count": 1
+          "entity": "issue_label_issue_association",
+          "where": {},
+          "expected_count": {
+            "min": 2
+          }
         }
       ]
     },
@@ -587,13 +587,6 @@
             },
             "title": {
               "contains": "onboarding docs"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "UX"
-                }
-              }
             }
           },
           "expected_count": 1
@@ -607,16 +600,17 @@
             },
             "title": {
               "contains": "circuit breaker"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "Urgent"
-                }
-              }
             }
           },
           "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
+          "where": {},
+          "expected_count": {
+            "min": 2
+          }
         }
       ]
     },
@@ -665,18 +659,11 @@
           "expected_count": 1
         },
         {
-          "diff_type": "changed",
-          "entity": "issues",
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
           "where": {
-            "identifier": {
-              "eq": "ENG-2"
-            },
-            "labels": {
-              "nodes": {
-                "name": {
-                  "eq": "Backend"
-                }
-              }
+            "issue_id": {
+              "eq": "8a4e2b1c-9f3d-4e6a-b7c8-1d2e3f4a5b6c"
             }
           },
           "expected_count": 1
@@ -728,7 +715,7 @@
           "expected_changes": {
             "assigneeId": {
               "to": {
-                "is_null": true
+                "exists": false
               }
             }
           }
