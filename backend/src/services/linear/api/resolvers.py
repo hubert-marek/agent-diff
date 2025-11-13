@@ -32,7 +32,7 @@ from src.services.linear.database.schema import (
     WorkflowState,
     Template,
 )
-from typing import Optional
+from typing import Optional, Dict, Any
 import base64
 import json
 import re
@@ -189,6 +189,7 @@ def resolve_issue_comments(
         CommentConnection with nodes field
     """
     session: Session = info.context["session"]
+    validate_pagination_params(after, before, first, last)
 
     # Build base query for comments on this issue
     base_query = session.query(Comment).filter(Comment.issueId == issue.id)
@@ -198,8 +199,7 @@ def resolve_issue_comments(
         base_query = base_query.filter(Comment.archivedAt.is_(None))
 
     # Apply custom filter if provided
-    if filter:
-        base_query = apply_comment_filter(base_query, filter)
+    base_query = apply_comment_filter(base_query, filter)
 
     # Determine order field
     order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
@@ -1788,6 +1788,76 @@ def apply_attachment_filter(query, filter_dict):
             query = apply_id_comparator(
                 query, Attachment.creatorId, creator_filter["id"]
             )
+
+    return query
+
+
+def apply_comment_filter(query, filter_dict: Optional[Dict[str, Any]]):
+    """
+    Apply CommentFilter criteria to a SQLAlchemy query.
+
+    Args:
+        query: SQLAlchemy query object
+        filter_dict: Dictionary containing filter criteria
+
+    Returns:
+        Modified query with filters applied
+    """
+    if not filter_dict:
+        return query
+
+    # Handle compound filters
+    if "and" in filter_dict:
+        for sub_filter in filter_dict["and"]:
+            query = apply_comment_filter(query, sub_filter)
+
+    if "or" in filter_dict:
+        raise Exception("OR filters are not currently supported for comments")
+
+    if "id" in filter_dict:
+        query = apply_id_comparator(query, Comment.id, filter_dict["id"])
+
+    if "body" in filter_dict:
+        query = apply_string_comparator(query, Comment.body, filter_dict["body"])
+
+    if "authorId" in filter_dict:
+        query = apply_id_comparator(query, Comment.userId, filter_dict["authorId"])
+
+    if "user" in filter_dict and isinstance(filter_dict["user"], dict):
+        user_filter = filter_dict["user"]
+        if "id" in user_filter:
+            query = apply_id_comparator(query, Comment.userId, user_filter["id"])
+
+    if "issue" in filter_dict and isinstance(filter_dict["issue"], dict):
+        issue_filter = filter_dict["issue"]
+        if "id" in issue_filter:
+            query = apply_id_comparator(query, Comment.issueId, issue_filter["id"])
+
+    if "createdAt" in filter_dict:
+        query = apply_date_comparator(
+            query, Comment.createdAt, filter_dict["createdAt"]
+        )
+
+    if "createdAfter" in filter_dict:
+        created_after = filter_dict["createdAfter"]
+        if isinstance(created_after, str):
+            created_after = parse_datetime_value(created_after)
+        query = query.filter(Comment.createdAt > created_after)
+
+    if "createdBefore" in filter_dict:
+        created_before = filter_dict["createdBefore"]
+        if isinstance(created_before, str):
+            created_before = parse_datetime_value(created_before)
+        query = query.filter(Comment.createdAt < created_before)
+
+    if "archived" in filter_dict:
+        archived_value = filter_dict["archived"]
+        if isinstance(archived_value, dict):
+            archived_value = archived_value.get("eq")
+        if archived_value is True:
+            query = query.filter(Comment.archivedAt.isnot(None))
+        elif archived_value is False:
+            query = query.filter(Comment.archivedAt.is_(None))
 
     return query
 
@@ -11520,16 +11590,37 @@ def resolve_issueLabels(
         # Apply team filter
         if "team" in filter and filter["team"]:
             team_filter = filter["team"]
-            if "id" in team_filter:
-                id_filter = team_filter["id"]
-                if "eq" in id_filter:
-                    base_query = base_query.filter(IssueLabel.teamId == id_filter["eq"])
-                elif "in" in id_filter:
-                    base_query = base_query.filter(
-                        IssueLabel.teamId.in_(id_filter["in"])
-                    )
-                elif "null" in id_filter and id_filter["null"]:
-                    base_query = base_query.filter(IssueLabel.teamId.is_(None))
+            if isinstance(team_filter, dict):
+                id_filter = team_filter.get("id")
+                if isinstance(id_filter, dict):
+                    if "eq" in id_filter:
+                        base_query = base_query.filter(
+                            IssueLabel.teamId == id_filter["eq"]
+                        )
+                    if "neq" in id_filter:
+                        base_query = base_query.filter(
+                            IssueLabel.teamId != id_filter["neq"]
+                        )
+                    if "in" in id_filter:
+                        base_query = base_query.filter(
+                            IssueLabel.teamId.in_(id_filter["in"])
+                        )
+                    if "notIn" in id_filter:
+                        base_query = base_query.filter(
+                            IssueLabel.teamId.notin_(id_filter["notIn"])
+                        )
+
+                null_filter = team_filter.get("null")
+                if null_filter is not None:
+                    if isinstance(null_filter, dict):
+                        null_value = null_filter.get("eq")
+                    else:
+                        null_value = null_filter
+
+                    if null_value is True:
+                        base_query = base_query.filter(IssueLabel.teamId.is_(None))
+                    elif null_value is False:
+                        base_query = base_query.filter(IssueLabel.teamId.isnot(None))
 
     # Apply cursor-based pagination
     if after:
@@ -11643,6 +11734,7 @@ def resolve_comments(
         CommentConnection: Connection object with nodes and pageInfo
     """
     session: Session = info.context["session"]
+    validate_pagination_params(after, before, first, last)
 
     # Build base query
     base_query = session.query(Comment)
@@ -11652,23 +11744,7 @@ def resolve_comments(
         base_query = base_query.filter(Comment.archivedAt.is_(None))
 
     # Apply custom filter if provided
-    if filter:
-        # Basic filters we can support without a full apply_comment_filter function
-        if "id" in filter:
-            base_query = apply_id_comparator(base_query, Comment.id, filter["id"])
-
-        if "body" in filter:
-            base_query = apply_string_comparator(
-                base_query, Comment.body, filter["body"]
-            )
-
-        # Nested issue filter
-        if "issue" in filter:
-            issue_filter = filter["issue"]
-            if "id" in issue_filter:
-                base_query = apply_id_comparator(
-                    base_query, Comment.issueId, issue_filter["id"]
-                )
+    base_query = apply_comment_filter(base_query, filter)
 
     # Determine order field
     order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"

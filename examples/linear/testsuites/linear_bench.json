@@ -672,7 +672,7 @@
           "entity": "issue_label_issue_association",
           "where": {
             "issue_id": {
-              "eq": "8a4e2b1c-9f3d-4e6a-b7c8-1d2e3f4a5b6c"
+              "eq": "5c62f29d-0f6a-4c4d-9d25-52293e2a8d4f"
             }
           },
           "expected_count": 1
