@@ -521,6 +521,38 @@ def resolve_team_states(
     return apply_pagination(items, after, before, first, last, order_field)
 
 
+def _resolve_issue_id(session: Session, id: str) -> Issue:
+    """
+    Resolve an issue by ID (UUID or identifier).
+
+    Production Linear accepts both UUIDs and identifiers (e.g., "ENG-123")
+    in the 'id' parameter throughout the API.
+
+    Args:
+        session: SQLAlchemy session
+        id: Issue UUID or identifier (e.g., "ENG-123")
+
+    Returns:
+        Issue: The resolved issue
+
+    Raises:
+        Exception: If issue not found
+    """
+    # Try by id (UUID primary key) first
+    issue = session.query(Issue).filter(Issue.id == id).first()
+    if issue:
+        return issue
+
+    # Try by identifier column (e.g., "ENG-123")
+    # The identifier column is unique and indexed
+    issue = session.query(Issue).filter(Issue.identifier == id).first()
+    if issue:
+        return issue
+
+    # Not found by either UUID or identifier
+    raise Exception(f"Issue with id '{id}' not found")
+
+
 def _get_child_team_ids(session: Session, parent_team_id: str) -> list[str]:
     """
     Recursively get all child team IDs for a given parent team.
@@ -891,54 +923,27 @@ def apply_pagination(items, after, before, first, last, order_field="createdAt")
 
 # Resolver functions will be added here as queries are implemented
 @query.field("issue")
-def resolve_issue(obj, info, **kwargs):
+def resolve_issue(obj, info, id: str):
     """
-    Query one specific issue by its id.
+    Query one specific issue by its id (UUID or identifier).
+
+    Production Linear's 'id' parameter is polymorphic - it accepts both:
+    - UUID format: "0c5a4300-933d-4876-b830-1ba43dff8a09"
+    - Identifier format: "ENG-123"
 
     Args:
         obj: Parent object (None for root queries)
         info: GraphQL resolve info containing context
-        id: The issue id to look up (UUID)
-        identifier: Linear identifier (e.g., "ENG-2")
+        id: Issue UUID or identifier (e.g., "ENG-2")
 
     Returns:
-        Issue: The issue with the specified id
+        Issue: The issue with the specified id/identifier
+
+    Raises:
+        Exception: If issue not found
     """
     session: Session = info.context["session"]
-
-    issue_id: Optional[str] = kwargs.get("id")
-    identifier: Optional[str] = kwargs.get("identifier")
-
-    # Prefer explicit id when provided (matches production precedence)
-    if issue_id:
-        issue = session.query(Issue).filter(Issue.id == issue_id).first()
-        if not issue:
-            raise Exception(f"Issue with id '{issue_id}' not found")
-        return issue
-
-    if identifier:
-        # Parse identifier: TEAMKEY-NUMBER without relying on regex escaping pitfalls
-        ident = identifier.strip()
-        parts = ident.split("-")
-        if len(parts) != 2 or not parts[0].isalpha() or not parts[1].isdigit():
-            raise Exception(
-                "Invalid identifier format. Expected 'KEY-NUMBER', e.g., 'ENG-2'."
-            )
-        team_key = parts[0].upper()
-        number = int(parts[1])
-
-        issue = (
-            session.query(Issue)
-            .join(Team, Team.id == Issue.teamId)
-            .filter(Team.key == team_key, Issue.number == number)
-            .first()
-        )
-        if not issue:
-            raise Exception(f"Issue with identifier '{identifier}' not found")
-        return issue
-
-    # Neither id nor identifier provided
-    raise Exception("Either 'id' or 'identifier' must be provided")
+    return _resolve_issue_id(session, id)
 
 
 @query.field("issueRelation")
@@ -1890,10 +1895,10 @@ def apply_issue_filter(query, filter_dict):
             query, Issue.description, filter_dict["description"]
         )
 
-    if "identifier" in filter_dict:
-        query = apply_string_comparator(
-            query, Issue.identifier, filter_dict["identifier"]
-        )
+    # NOTE: 'identifier' is NOT a valid IssueFilter field in production Linear.
+    # Production accepts identifiers in the 'id' parameter instead:
+    #   - Use issue(id: "TEAM-123") for single issue lookup
+    #   - Use issues(filter: { team: { key: { eq: "TEAM" } }, number: { eq: 123 } }) for filtering
 
     # Number comparators
     if "number" in filter_dict:
@@ -2339,16 +2344,17 @@ def _apply_duration_offset(duration: str) -> datetime:
     if not s.startswith("P"):
         return now
     body = s[1:]
-    # Support W, D, M, Y simple forms
-    match = re.fullmatch(r"(?:(\\d+)W)?(?:(\\d+)D)?(?:(\\d+)M)?(?:(\\d+)Y)?", body)
+    # Support Y, M, W, D in ISO 8601 order
+    # Fixed: Use \d (single backslash) in raw string, and correct ISO 8601 order (YMWD)
+    match = re.fullmatch(r"(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?", body)
     if not match:
         # Fallback: zero offset
         return now
-    weeks = int(match.group(1) or 0)
-    days = int(match.group(2) or 0)
-    months = int(match.group(3) or 0)
-    years = int(match.group(4) or 0)
-    total_days = weeks * 7 + days + months * 30 + years * 365
+    years = int(match.group(1) or 0)
+    months = int(match.group(2) or 0)
+    weeks = int(match.group(3) or 0)
+    days = int(match.group(4) or 0)
+    total_days = years * 365 + months * 30 + weeks * 7 + days
     return now + sign * timedelta(days=total_days)
 
 
@@ -10315,11 +10321,8 @@ def resolve_issueAddLabel(obj, info, **kwargs):
         raise Exception("Label ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Fetch the label
         label = session.query(IssueLabel).filter_by(id=label_id).first()
@@ -10392,11 +10395,8 @@ def resolve_issueRemoveLabel(obj, info, **kwargs):
         raise Exception("Label ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Fetch the label
         label = session.query(IssueLabel).filter_by(id=label_id).first()
@@ -10466,11 +10466,8 @@ def resolve_issueArchive(obj, info, **kwargs):
         raise Exception("Issue ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Soft delete: set archivedAt timestamp
         if issue.archivedAt is None:
@@ -10506,11 +10503,8 @@ def resolve_issueUnarchive(obj, info, **kwargs):
         raise Exception("Issue ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Unarchive: clear the archivedAt timestamp
         issue.archivedAt = None
@@ -10549,11 +10543,8 @@ def resolve_issueUnsubscribe(obj, info, **kwargs):
         raise Exception("Issue ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Determine which user to unsubscribe
         # Priority: userId, then userEmail, then current user from context
@@ -10614,11 +10605,8 @@ def resolve_issueDelete(obj, info, **kwargs):
         raise Exception("Issue ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         if permanently_delete:
             # Hard delete: permanently remove from database
@@ -10670,11 +10658,8 @@ def resolve_issueUpdate(obj, info, **kwargs):
         if not issue_id:
             raise ValueError("Issue ID is required")
 
-        # Query for the issue to update
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise ValueError(f"Issue not found with ID: {issue_id}")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         now = datetime.now(timezone.utc)
 
@@ -11491,11 +11476,8 @@ def resolve_issueDescriptionUpdateFromFront(obj, info, **kwargs):
         if description is None:  # Allow empty string but not None
             raise ValueError("Description is required")
 
-        # Query for the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise ValueError(f"Issue with ID {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Update the description
         issue.description = description
@@ -12117,11 +12099,8 @@ def resolve_issueReminder(obj, info, **kwargs):
         raise Exception("reminderAt is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Set the reminder time
         issue.reminderAt = reminder_at
@@ -12162,11 +12141,8 @@ def resolve_issueSubscribe(obj, info, **kwargs):
         raise Exception("Issue ID is required")
 
     try:
-        # Fetch the issue
-        issue = session.query(Issue).filter_by(id=issue_id).first()
-
-        if not issue:
-            raise Exception(f"Issue with id {issue_id} not found")
+        # Resolve issue (supports both UUID and identifier like "ENG-123")
+        issue = _resolve_issue_id(session, issue_id)
 
         # Determine which user to subscribe
         user = None
