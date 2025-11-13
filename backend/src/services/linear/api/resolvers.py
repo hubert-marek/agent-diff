@@ -11656,15 +11656,19 @@ def resolve_comments(
         # Basic filters we can support without a full apply_comment_filter function
         if "id" in filter:
             base_query = apply_id_comparator(base_query, Comment.id, filter["id"])
-        
+
         if "body" in filter:
-            base_query = apply_string_comparator(base_query, Comment.body, filter["body"])
-        
+            base_query = apply_string_comparator(
+                base_query, Comment.body, filter["body"]
+            )
+
         # Nested issue filter
         if "issue" in filter:
             issue_filter = filter["issue"]
             if "id" in issue_filter:
-                base_query = apply_id_comparator(base_query, Comment.issueId, issue_filter["id"])
+                base_query = apply_id_comparator(
+                    base_query, Comment.issueId, issue_filter["id"]
+                )
 
     # Determine order field
     order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
