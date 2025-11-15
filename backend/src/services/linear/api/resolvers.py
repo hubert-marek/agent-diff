@@ -10673,25 +10673,71 @@ def resolve_issueUpdate(obj, info, **kwargs):
 
         # Handle label updates (addedLabelIds and removedLabelIds)
         if "addedLabelIds" in input_data:
-            added_labels = input_data["addedLabelIds"]
+            added_label_ids = input_data["addedLabelIds"]
             current_labels = issue.labelIds if issue.labelIds else []
             # Add new labels that aren't already present
-            for label_id in added_labels:
+            for label_id in added_label_ids:
                 if label_id not in current_labels:
                     current_labels.append(label_id)
             issue.labelIds = current_labels
 
+            # Sync the relationship
+            if added_label_ids:
+                labels_to_add = (
+                    session.query(IssueLabel)
+                    .filter(IssueLabel.id.in_(added_label_ids))
+                    .all()
+                )
+                found_ids = {label.id for label in labels_to_add}
+                missing_ids = set(added_label_ids) - found_ids
+                if missing_ids:
+                    raise Exception(f"Label(s) not found: {', '.join(missing_ids)}")
+
+                # Add to the relationship (avoiding duplicates)
+                current_label_objects = set(issue.labels)
+                for label in labels_to_add:
+                    if label not in current_label_objects:
+                        issue.labels.append(label)
+
         if "removedLabelIds" in input_data:
-            removed_labels = input_data["removedLabelIds"]
+            removed_label_ids = input_data["removedLabelIds"]
             current_labels = issue.labelIds if issue.labelIds else []
             # Remove labels
             issue.labelIds = [
-                lid for lid in current_labels if lid not in removed_labels
+                lid for lid in current_labels if lid not in removed_label_ids
             ]
+
+            # Sync the relationship
+            if removed_label_ids:
+                # Remove from the relationship
+                issue.labels = [
+                    label for label in issue.labels if label.id not in removed_label_ids
+                ]
 
         # Handle labelIds (direct replacement)
         if "labelIds" in input_data:
-            issue.labelIds = input_data["labelIds"]
+            label_ids = input_data["labelIds"]
+            issue.labelIds = label_ids
+
+            # CRITICAL: Also sync the many-to-many relationship via issue_label_issue_association
+            # This ensures the join table is properly maintained
+            if label_ids:
+                # Fetch all IssueLabel objects for the given IDs
+                new_labels = (
+                    session.query(IssueLabel).filter(IssueLabel.id.in_(label_ids)).all()
+                )
+
+                # Validate that all label IDs exist
+                found_ids = {label.id for label in new_labels}
+                missing_ids = set(label_ids) - found_ids
+                if missing_ids:
+                    raise Exception(f"Label(s) not found: {', '.join(missing_ids)}")
+
+                # Update the relationship (SQLAlchemy will handle the join table)
+                issue.labels = new_labels
+            else:
+                # Clear all labels
+                issue.labels = []
 
         # Handle subscriberIds (direct replacement)
         if "subscriberIds" in input_data:

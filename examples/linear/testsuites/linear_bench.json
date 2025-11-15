@@ -311,7 +311,7 @@
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Bugs"
@@ -659,7 +659,7 @@
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Backend"
@@ -689,7 +689,7 @@
       "assertions": [
         {
           "diff_type": "changed",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "id": {
               "eq": "f9c5b7c8-3909-4f8b-bc25-73e1b56a9c0c"
