@@ -10684,10 +10684,13 @@ def resolve_issueUpdate(obj, info, **kwargs):
         # NOTE: labelIds (direct replacement) takes precedence if provided
         # Skip incremental updates if labelIds is provided (it will overwrite them anyway)
         if "addedLabelIds" in input_data and "labelIds" not in input_data:
-            # Deduplicate while preserving order (prevent constraint violation on join table)
-            added_label_ids = list(dict.fromkeys(input_data["addedLabelIds"]))
+            added_label_ids = input_data["addedLabelIds"]
 
-            # Validate UUID format first (matching Linear's validation)
+            # Validate no duplicates (matching Linear's validation)
+            if len(added_label_ids) != len(set(added_label_ids)):
+                raise Exception("Argument Validation Error")
+
+            # Validate UUID format (matching Linear's validation)
             for label_id in added_label_ids:
                 validate_uuid(label_id, "addedLabelIds")
 
@@ -10734,10 +10737,13 @@ def resolve_issueUpdate(obj, info, **kwargs):
         # Handle labelIds (direct replacement)
         # NOTE: This takes precedence over addedLabelIds/removedLabelIds
         if "labelIds" in input_data:
-            # Deduplicate while preserving order (prevent constraint violation on join table)
-            label_ids = list(dict.fromkeys(input_data["labelIds"]))
+            label_ids = input_data["labelIds"]
 
-            # Validate UUID format first (matching Linear's validation)
+            # Validate no duplicates (matching Linear's validation)
+            if len(label_ids) != len(set(label_ids)):
+                raise Exception("Argument Validation Error")
+
+            # Validate UUID format (matching Linear's validation)
             for label_id in label_ids:
                 validate_uuid(label_id, "labelIds")
 
