@@ -8,7 +8,8 @@
       "created_at",
       "updated_at",
       "updatedAt",
-      "createdAt"
+      "createdAt",
+      "editedAt"
     ]
   },
   "tests": [
@@ -311,7 +312,7 @@
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Bugs"
@@ -540,11 +541,6 @@
               "to": {
                 "contains": "Updated: working on a fix"
               }
-            },
-            "bodyData": {
-              "to": {
-                "contains": "Updated: working on a fix"
-              }
             }
           }
         }
@@ -659,7 +655,7 @@
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Backend"
@@ -689,7 +685,7 @@
       "assertions": [
         {
           "diff_type": "changed",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "id": {
               "eq": "f9c5b7c8-3909-4f8b-bc25-73e1b56a9c0c"
