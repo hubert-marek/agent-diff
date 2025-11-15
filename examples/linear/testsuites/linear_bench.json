@@ -8,7 +8,8 @@
       "created_at",
       "updated_at",
       "updatedAt",
-      "createdAt"
+      "createdAt",
+      "editedAt"
     ]
   },
   "tests": [
@@ -537,11 +538,6 @@
           },
           "expected_changes": {
             "body": {
-              "to": {
-                "contains": "Updated: working on a fix"
-              }
-            },
-            "bodyData": {
               "to": {
                 "contains": "Updated: working on a fix"
               }
