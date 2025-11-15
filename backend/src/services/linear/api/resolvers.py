@@ -10351,9 +10351,9 @@ def resolve_issueAddLabel(obj, info, **kwargs):
         # Add the label to the issue
         issue.labels.append(label)
 
-        # Update the labelIds list
+        # Update the labelIds list (must reassign to trigger SQLAlchemy change tracking for JSONB)
         if label_id not in issue.labelIds:
-            issue.labelIds.append(label_id)
+            issue.labelIds = issue.labelIds + [label_id]
 
         # Update the updatedAt timestamp
         now = datetime.now(timezone.utc)
@@ -10425,9 +10425,9 @@ def resolve_issueRemoveLabel(obj, info, **kwargs):
         # Remove the label from the issue
         issue.labels.remove(label)
 
-        # Update the labelIds list
+        # Update the labelIds list (must reassign to trigger SQLAlchemy change tracking for JSONB)
         if label_id in issue.labelIds:
-            issue.labelIds.remove(label_id)
+            issue.labelIds = [lid for lid in issue.labelIds if lid != label_id]
 
         # Update the updatedAt timestamp
         now = datetime.now(timezone.utc)
