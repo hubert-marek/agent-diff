@@ -706,7 +706,7 @@
       "updatedAt": "2025-01-01T00:00:00"
     },
     {
-      "id": "6fc548fb-49f1-48f7-b00f-0fe3b272ab0b",
+      "id": "33a21e17-7c49-4b93-a45d-28f58960a109",
       "identifier": "PROD-2",
       "title": "Add support for OpenTelemetry traces",
       "description": "We need to add suport for opentelemetry traces and add a trace analysis tool to the product that will return a summery to customers.",
