@@ -47,6 +47,7 @@ TABLE_ORDER = [
     "cycles",
     "issue_labels",
     "issues",
+    "issue_label_issue_association",
     "comments",
     "attachments",
     "reactions",

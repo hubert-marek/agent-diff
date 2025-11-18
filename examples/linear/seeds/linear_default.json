@@ -355,6 +355,16 @@
       "lastAppliedAt": null
     }
   ],
+  "issue_label_issue_association": [
+    {
+      "issue_id": "87c1d2f3-66c4-4dd0-bc93-1b99d04dc374",
+      "issue_label_id": "6c2b0d3c-3d6d-4d91-9a77-b93b59b8d5a0"
+    },
+    {
+      "issue_id": "b4f5130f-5c1b-4bc0-a8f6-60a22b0adf5e",
+      "issue_label_id": "8f01ce9d-1433-4c4c-969d-21ca3bf2718f"
+    }
+  ],
   "issues": [
     {
       "id": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab",
