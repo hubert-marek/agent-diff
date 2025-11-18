@@ -1141,6 +1141,36 @@
           "expected_count": 1
         }
       ]
-    }
+    },
+    {
+      "id": "test_40",
+      "name": "Dependency Chain Creation",
+      "prompt": "Create three new issues in Engineering: 'Alpha', 'Beta', and 'Gamma'. Configure them as a dependency chain where Alpha blocks Beta, and Beta blocks Gamma.",
+      "type": "actionEval",
+      "seed_template": "linear_default",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "teamId": {
+              "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
+            }
+          },
+          "expected_count": 3
+        },
+        {
+          "diff_type": "added",
+          "entity": "issue_relations",
+          "where": {
+            "type": {
+              "eq": "blocks"
+            }
+          },
+          "expected_count": 2
+        }
+      ]
+    },
   ]
 }
