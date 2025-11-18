@@ -664,137 +664,146 @@
       "description": "We need to add suport for opentelemetry traces and add a trace analysis tool to the product that will return a summery to customers.",
       "teamId": "cdb85540-5065-4346-8aef-ae2b72d6e940",
       "stateId": "741f29ae-cfb3-4b8a-a1f8-c5161c842366",
-      "assigneeId": "03b0809e-713e-44ee-95de-b7a198b135ac",
+      "assigneeId": "25603d10-0364-407d-bdda-420ce07e9ae5",
       "creatorId": "2790a7ee-fde0-4537-9588-e233aa5a68d1"
-    }
-  ],
-  "comments": [
-    {
-      "id": "e10f59c3-7a49-4d52-8dba-8c8602f8c807",
-      "issueId": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab",
-      "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
-      "body": "This is a seeded comment on ENG-1",
-      "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"This is a seeded comment on ENG-1\"}]}]}",
-      "reactionData": {},
-      "editedAt": null,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00",
-      "url": "https://linear.app/test-org/issue/ENG-1#comments"
     },
     {
-      "id": "b3f7c3f2-1a7b-4d8e-9f21-111111111111",
-      "issueId": "87c1d2f3-66c4-4dd0-bc93-1b99d04dc374",
-      "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
-      "body": "Pulled logs for the 02:00–03:00 UTC window and confirmed a spike in 500s from the evaluation runner. Next step is to cross-check which customers were running jobs at the time and whether any agents looped.",
-      "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pulled logs for the 02:00–03:00 UTC window and confirmed a spike in 500s from the evaluation runner. Next step is to cross-check which customers were running jobs at the time and whether any agents looped.\"}]}]}",
-      "reactionData": {},
-      "editedAt": null,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T07:30:00",
-      "updatedAt": "2025-01-01T07:30:00",
-      "url": "https://linear.app/test-org/issue/ENG-3#comments"
-    },
-    {
-      "id": "c4e8d4a1-2b8c-4c2a-9e32-222222222222",
-      "issueId": "6fc548fb-49f1-48f7-b00f-0fe3b272ab0b",
-      "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
-      "body": "I spoke with the Briefly team on Zoom. They expected to be in the low thousands, not ~100k. Let\u2019s double-check how we meter long-running RL experiments and whether retries or stuck jobs are being billed multiple times.",
-      "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I spoke with the Briefly team on Zoom. They expected to be in the low thousands, not ~100k. Let\u2019s double-check how we meter long-running RL experiments and whether retries or stuck jobs are being billed multiple times.\"}]}]}",
-      "reactionData": {},
-      "editedAt": null,
-      "archivedAt": null,
-      "createdAt": "2025-01-03T12:00:00",
-      "updatedAt": "2025-01-03T12:00:00",
-      "url": "https://linear.app/test-org/issue/ENG-5#comments"
-    },
-    {
-      "id": "d5f9e5b3-3c9d-4e3b-8f43-333333333333",
-      "issueId": "7d3f21ac-89c1-4f3b-9c2e-4fe3a1b71002",
-      "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
-      "body": "Right now it\u2019s very hard to invite a new teammate: we have to manually send them an invite link and they end up with multiple accounts if they log in from a different email. Email sign-in + SSO would also make demos much smoother.",
-      "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Right now it\u2019s very hard to invite a new teammate: we have to manually send them an invite link and they end up with multiple accounts if they log in from a different email. Email sign-in + SSO would also make demos much smoother.\"}]}]}",
-      "reactionData": {},
-      "editedAt": null,
-      "archivedAt": null,
-      "createdAt": "2025-01-03T11:30:00",
-      "updatedAt": "2025-01-03T11:30:00",
-      "url": "https://linear.app/test-org/issue/ENG-6#comments"
-    },
-    {
-      "id": "e6a0f6c4-4d0e-4f4c-9a54-444444444444",
-      "issueId": "f2208c38-16e8-469d-9256-e1e98821c726",
-      "userId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
-      "body": "Once we have basic OpenTelemetry ingestion, we should expose a simple \"trace summary\" view that non-engineers can understand. Think: which services were slow, where retries happened, and whether any agent calls look suspicious or stuck.",
-      "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Once we have basic OpenTelemetry ingestion, we should expose a simple \\\"trace summary\\\" view that non-engineers can understand. Think: which services were slow, where retries happened, and whether any agent calls look suspicious or stuck.\"}]}]}",
-      "reactionData": {},
-      "editedAt": null,
-      "archivedAt": null,
-      "createdAt": "2025-01-04T09:15:00",
-      "updatedAt": "2025-01-04T09:15:00",
-      "url": "https://linear.app/test-org/issue/PROD-1#comments"
-    }
-  ],
-  "team_memberships": [
-    {
-      "id": "tm-artem-eng",
-      "userId": "b55072d7-ccaa-43cd-8ab7-3dca324e3294",
-      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
-      "owner": false,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "tm-hubert-prod",
-      "userId": "25603d10-0364-407d-bdda-420ce07e9ae5",
+      "id": "6fc548fb-49f1-48f7-b00f-0fe3b272ab0b",
+      "identifier": "PROD-2",
+      "title": "Add support for OpenTelemetry traces",
+      "description": "We need to add suport for opentelemetry traces and add a trace analysis tool to the product that will return a summery to customers.",
       "teamId": "cdb85540-5065-4346-8aef-ae2b72d6e940",
-      "owner": false,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "tm-agent-eng",
-      "userId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
-      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
-      "owner": false,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "tm-john-eng",
-      "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
-      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
-      "owner": true,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "tm-sarah-eng",
-      "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
-      "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
-      "owner": false,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    },
-    {
-      "id": "tm-hugo-growth",
-      "userId": "3099eba6-56ac-46f0-82fe-17a1cc6dec38",
-      "teamId": "58c03c85-7b0c-466d-9a4c-120209fccb56",
-      "owner": false,
-      "sortOrder": 0.0,
-      "archivedAt": null,
-      "createdAt": "2025-01-01T00:00:00",
-      "updatedAt": "2025-01-01T00:00:00"
-    }
-  ]
-}
+      "stateId": "741f29ae-cfb3-4b8a-a1f8-c5161c842366",
+      "assigneeId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+      "creatorId": "2790a7ee-fde0-4537-9588-e233aa5a68d1"
+    ],
+    "comments": [
+      {
+        "id": "e10f59c3-7a49-4d52-8dba-8c8602f8c807",
+        "issueId": "c6e168e3-fed4-45d0-b03f-a1c1f89ee7ab",
+        "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+        "body": "This is a seeded comment on ENG-1",
+        "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"This is a seeded comment on ENG-1\"}]}]}",
+        "reactionData": {},
+        "editedAt": null,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00",
+        "url": "https://linear.app/test-org/issue/ENG-1#comments"
+      },
+      {
+        "id": "b3f7c3f2-1a7b-4d8e-9f21-111111111111",
+        "issueId": "87c1d2f3-66c4-4dd0-bc93-1b99d04dc374",
+        "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
+        "body": "Pulled logs for the 02:00–03:00 UTC window and confirmed a spike in 500s from the evaluation runner. Next step is to cross-check which customers were running jobs at the time and whether any agents looped.",
+        "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pulled logs for the 02:00–03:00 UTC window and confirmed a spike in 500s from the evaluation runner. Next step is to cross-check which customers were running jobs at the time and whether any agents looped.\"}]}]}",
+        "reactionData": {},
+        "editedAt": null,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T07:30:00",
+        "updatedAt": "2025-01-01T07:30:00",
+        "url": "https://linear.app/test-org/issue/ENG-3#comments"
+      },
+      {
+        "id": "c4e8d4a1-2b8c-4c2a-9e32-222222222222",
+        "issueId": "6fc548fb-49f1-48f7-b00f-0fe3b272ab0b",
+        "userId": "3099eba6-56ac-46f0-82fe-17a1cc6dec38",
+        "body": "I spoke with the Briefly team on Zoom. They expected to be in the low thousands, not ~100k. Let\u2019s double-check how we meter long-running RL experiments and whether retries or stuck jobs are being billed multiple times.",
+        "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I spoke with the Briefly team on Zoom. They expected to be in the low thousands, not ~100k. Let\u2019s double-check how we meter long-running RL experiments and whether retries or stuck jobs are being billed multiple times.\"}]}]}",
+        "reactionData": {},
+        "editedAt": null,
+        "archivedAt": null,
+        "createdAt": "2025-01-03T12:00:00",
+        "updatedAt": "2025-01-03T12:00:00",
+        "url": "https://linear.app/test-org/issue/ENG-5#comments"
+      },
+      {
+        "id": "d5f9e5b3-3c9d-4e3b-8f43-333333333333",
+        "issueId": "7d3f21ac-89c1-4f3b-9c2e-4fe3a1b71002",
+        "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+        "body": "Right now it\u2019s very hard to invite a new teammate: we have to manually send them an invite link and they end up with multiple accounts if they log in from a different email. Email sign-in + SSO would also make demos much smoother.",
+        "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Right now it\u2019s very hard to invite a new teammate: we have to manually send them an invite link and they end up with multiple accounts if they log in from a different email. Email sign-in + SSO would also make demos much smoother.\"}]}]}",
+        "reactionData": {},
+        "editedAt": null,
+        "archivedAt": null,
+        "createdAt": "2025-01-03T11:30:00",
+        "updatedAt": "2025-01-03T11:30:00",
+        "url": "https://linear.app/test-org/issue/ENG-6#comments"
+      },
+      {
+        "id": "e6a0f6c4-4d0e-4f4c-9a54-444444444444",
+        "issueId": "f2208c38-16e8-469d-9256-e1e98821c726",
+        "userId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+        "body": "Once we have basic OpenTelemetry ingestion, we should expose a simple \"trace summary\" view that non-engineers can understand. Think: which services were slow, where retries happened, and whether any agent calls look suspicious or stuck.",
+        "bodyData": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Once we have basic OpenTelemetry ingestion, we should expose a simple \\\"trace summary\\\" view that non-engineers can understand. Think: which services were slow, where retries happened, and whether any agent calls look suspicious or stuck.\"}]}]}",
+        "reactionData": {},
+        "editedAt": null,
+        "archivedAt": null,
+        "createdAt": "2025-01-04T09:15:00",
+        "updatedAt": "2025-01-04T09:15:00",
+        "url": "https://linear.app/test-org/issue/PROD-1#comments"
+      }
+    ],
+    "team_memberships": [
+      {
+        "id": "tm-artem-eng",
+        "userId": "b55072d7-ccaa-43cd-8ab7-3dca324e3294",
+        "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+        "owner": false,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      },
+      {
+        "id": "tm-hubert-prod",
+        "userId": "25603d10-0364-407d-bdda-420ce07e9ae5",
+        "teamId": "cdb85540-5065-4346-8aef-ae2b72d6e940",
+        "owner": false,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      },
+      {
+        "id": "tm-agent-eng",
+        "userId": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+        "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+        "owner": false,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      },
+      {
+        "id": "tm-john-eng",
+        "userId": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec",
+        "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+        "owner": true,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      },
+      {
+        "id": "tm-sarah-eng",
+        "userId": "03b0809e-713e-44ee-95de-b7a198b135ac",
+        "teamId": "ad608998-915c-4bad-bcd9-85ebfccccee8",
+        "owner": false,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      },
+      {
+        "id": "tm-hugo-growth",
+        "userId": "3099eba6-56ac-46f0-82fe-17a1cc6dec38",
+        "teamId": "58c03c85-7b0c-466d-9a4c-120209fccb56",
+        "owner": false,
+        "sortOrder": 0.0,
+        "archivedAt": null,
+        "createdAt": "2025-01-01T00:00:00",
+        "updatedAt": "2025-01-01T00:00:00"
+      }
+    ]
+  }
