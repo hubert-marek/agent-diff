@@ -235,14 +235,21 @@ def resolve_issue_labels(
     else:  # Default to createdAt
         labels = sorted(labels, key=lambda l: l.createdAt)
 
-    # Apply pagination (simplified - full cursor-based pagination would be more complex)
-    if first and first < len(labels):
-        labels = labels[:first]
-    elif last and last < len(labels):
-        labels = labels[-last:]
+    # Apply proper pagination with edges and pageInfo
+    # Note: This is in-memory pagination since we already loaded the labels from the relationship
+    # For cursor-based pagination, we limit to first+1 or last+1 to detect hasNextPage/hasPreviousPage
+    limit = first if first else (last if last else 50)
 
-    # Return in IssueLabelConnection format
-    return {"nodes": labels}
+    # Slice the list based on pagination
+    if last:
+        # For backward pagination, take from the end
+        items = labels[-limit - 1 :] if len(labels) > limit else labels
+    else:
+        # For forward pagination, take from the start
+        items = labels[: limit + 1] if len(labels) > limit else labels
+
+    # Use the centralized pagination helper to build proper Connection
+    return apply_pagination(items, after, before, first, last, orderBy)
 
 
 @issue_type.field("comments")
