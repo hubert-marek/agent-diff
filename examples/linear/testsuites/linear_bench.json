@@ -934,7 +934,7 @@
     {
       "id": "test_33",
       "name": "Cross-Team Issue Migration",
-      "prompt": "The 'Polish onboarding dashboard UX' issue was filed in Engineering by mistake. Move it to the Product team and reset its status to 'Todo'.",
+      "prompt": "The 'Polish onboarding dashboard UX' issue was filed in Engineering by mistake. Move it to the Product team and reset its status to 'In Review'.",
       "type": "actionEval",
       "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
@@ -958,7 +958,7 @@
             },
             "stateId": {
               "to": {
-                "eq": "0fde0f94-ee5f-4a37-ad23-a3acd0080c57"
+                "eq": "31d46818-d16d-4279-90e6-a7bab45561c0"
               }
             }
           }
