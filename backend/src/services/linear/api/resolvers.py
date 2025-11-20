@@ -47,8 +47,8 @@ import json
 import re
 import uuid
 from datetime import datetime, timezone, timedelta
-
 from ariadne import ObjectType
+from graphql import GraphQLError
 
 query = QueryType()
 mutation = MutationType()
@@ -107,6 +107,27 @@ __all__ = [
 
 # Convenience export for all bindables
 bindables = [query, mutation, issue_type, team_type, user_type, datetime_scalar]
+
+
+def raise_validation_error(property_name, value, target, message):
+    raise GraphQLError(
+        "Argument Validation Error",
+        extensions={
+            "code": "INVALID_INPUT",
+            "validationErrors": [
+                {
+                    "target": target,
+                    "value": value,
+                    "property": property_name,
+                    "children": [],
+                    "constraints": {"isDefined": message},
+                }
+            ],
+            "type": "invalid input",
+            "userError": True,
+            "userPresentableMessage": message,
+        },
+    )
 
 
 @issue_type.field("labels")
@@ -7700,7 +7721,85 @@ def resolve_commentCreate(obj, info, **kwargs):
         # Fields not yet supported by ORM but in GraphQL schema
         # createAsUser, createOnSyncedSlackThread, displayIconUrl,
         # doNotSubscribeToIssue, subscriberIds - these would require additional logic
+        
+        
+        target_fields = {
+            "issueId": issue_id,
+            "initiativeUpdateId": initiative_update_id,
+            "projectUpdateId": project_update_id,
+            "documentContentId": document_content_id,
+            "postId": post_id,
+        }
 
+        targets = [
+            bool(project_update_id),
+            bool(document_content_id),
+            bool(initiative_update_id),
+            bool(post_id),
+            bool(issue_id),
+        ]
+        
+        if sum(targets) != 1:
+            raise_validation_error(
+                "parentId",
+                parent_id,
+                input_data,
+                "Exactly one of projectUpdateId, documentContentId, initiativeUpdateId, postId or issueId must be defined.",
+            )
+
+        if parent_id:
+            parent = session.query(Comment).filter_by(id=parent_id).first()
+            if not parent:
+                raise_validation_error("parentId", parent_id, input_data, "Parent comment not found.")
+            if parent.parentId:
+                raise GraphQLError(
+                    "incorrect parent",
+                    extensions={
+                        "type": "invalid input",
+                        "code": "INPUT_ERROR",
+                        "statusCode": 400,
+                        "userError": True,
+                        "userPresentableMessage": "Parent comment must be a top level comment. When creating a reply the `parentId` should be set to the same value as the comment you're replying to.",
+                    },
+                )
+                
+            # Ensure parent’s owning entity matches
+            if issue_id and parent.issueId != issue_id:
+                raise_validation_error(
+                    "issueId",
+                    issue_id,
+                    input_data,
+                    "parentId must belong to the same issue.",
+                )
+            if initiative_update_id and parent.initiativeUpdateId != initiative_update_id:
+                raise_validation_error(
+                    "initiativeUpdateId",
+                    initiative_update_id,
+                    input_data,
+                    "parentId must belong to the same initiative update.",
+                )
+            if project_update_id and parent.projectUpdateId != project_update_id:
+                raise_validation_error(
+                    "projectUpdateId",
+                    project_update_id,
+                    input_data,
+                    "parentId must belong to the same project update.",
+                )
+            if document_content_id and parent.documentContentId != document_content_id:
+                raise_validation_error(
+                    "documentContentId",
+                    document_content_id,
+                    input_data,
+                    "parentId must belong to the same document.",
+                )
+            if post_id and parent.postId != post_id:
+                raise_validation_error(
+                    "postId",
+                    post_id,
+                    input_data,
+                    "parentId must belong to the same post.",
+                )
+        
         # Generate URL (simplified - in production this would be based on issue/post context)
         url = f"https://linear.app/comment/{comment_id}"
 
