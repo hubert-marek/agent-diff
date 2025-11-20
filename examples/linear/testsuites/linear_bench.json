@@ -1171,6 +1171,36 @@
           "expected_count": 2
         }
       ]
+    },
+    {
+      "id": "test_41",
+      "name": "Hydration create and fetch",
+      "prompt": "Create a new team named Hydration Squad and immediately create an issue in that team titled 'Hydration chain regression'. Return the issue details with team and assignee data.",
+      "type": "actionEval",
+      "seed_template": "linear_default",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "teams",
+          "where": {
+            "name": {
+              "eq": "Hydration Squad"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "title": {
+              "contains": "Hydration chain regression"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
     }
   ]
 }
