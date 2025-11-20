@@ -4,10 +4,10 @@ import sys
 
 def setup_logging():
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -19,4 +19,4 @@ def setup_logging():
         root_logger.addHandler(console_handler)
 
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("alembic").setLevel(logging.DEBUG)
+    logging.getLogger("alembic").setLevel(logging.INFO)

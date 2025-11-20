@@ -8,7 +8,8 @@
       "created_at",
       "updated_at",
       "updatedAt",
-      "createdAt"
+      "createdAt",
+      "editedAt"
     ]
   },
   "tests": [
@@ -17,7 +18,7 @@
       "name": "Create a new issue",
       "prompt": "Create a new issue in the Engineering team titled 'Fix login bug' ",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -40,7 +41,7 @@
       "name": "Create a new issue",
       "prompt": "Create a new issue in the Engineering team titled 'Fix login bug' with high priority",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -66,7 +67,7 @@
       "name": "Update issue status to In Progress",
       "prompt": "Move issue ENG-1 to 'In Progress' status",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -92,7 +93,7 @@
       "name": "Assign issue to user",
       "prompt": "Assign issue ENG-2 to John Doe",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -121,7 +122,7 @@
       "name": "Add comment to issue",
       "prompt": "Add a comment to issue ENG-1 saying 'I am working on this now'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -144,7 +145,7 @@
       "name": "Create a new team",
       "prompt": "Create a new team called 'Design'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -174,7 +175,7 @@
       "name": "Change issue priority to Urgent",
       "prompt": "Change the priority of issue ENG-1 to Urgent",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -205,7 +206,7 @@
       "name": "Create issue with assignee and description",
       "prompt": "Create a new issue 'Improve performance' in Engineering team, assign to John, with description 'Optimize database queries'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -234,7 +235,7 @@
       "name": "Update issue description",
       "prompt": "Update the description of issue ENG-1 to include 'Root cause: session timeout issue'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -260,7 +261,7 @@
       "name": "Create multiple issues in batch",
       "prompt": "Create three new issues in the Engineering team: 'Update documentation', 'Refactor API endpoints', and 'Add unit tests'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -280,7 +281,7 @@
       "name": "Complete issue (move to Done)",
       "prompt": "Mark issue ENG-1 as completed",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -306,12 +307,12 @@
       "name": "Create a new label",
       "prompt": "Create a new label called 'Bugs' ",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Bugs"
@@ -326,7 +327,7 @@
       "name": "Apply Bugs label to login issue",
       "prompt": "Add the newly created 'Bugs' label to the Engineering login issue currently assigned to John Doe.",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -346,7 +347,7 @@
       "name": "Add UX label to onboarding issue",
       "prompt": "Add the 'UX' label to the onboarding dashboard issue that Sarah Smith owns.",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -369,7 +370,7 @@
       "name": "Update login issue title",
       "prompt": "Rename the Engineering issue describing intermittent login failures to 'Fix login bug - follow up'.",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -395,7 +396,7 @@
       "name": "Tag commented issue with RL label",
       "prompt": "Add the 'RL' label to the login issue that John Doe recently commented on.",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -418,7 +419,7 @@
       "name": "Move ENG-2 to In Review",
       "prompt": "Move issue ENG-2 to 'In Review'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -444,7 +445,7 @@
       "name": "Reassign ENG-3 to Sarah",
       "prompt": "Assign ENG-3 to Sarah Smith",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -470,7 +471,7 @@
       "name": "Create issue with labels UX and Urgent",
       "prompt": "Create a new Engineering issue 'Polish navigation' with labels 'UX' and 'Urgent'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -501,7 +502,7 @@
       "name": "Add a comment to ENG-3",
       "prompt": "Add a comment to ENG-3: 'Please add logs for the error path'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -524,7 +525,7 @@
       "name": "Update seeded comment on ENG-1",
       "prompt": "Update the seeded comment on ENG-1 to: 'Updated: working on a fix and adding tests'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -540,11 +541,6 @@
               "to": {
                 "contains": "Updated: working on a fix"
               }
-            },
-            "bodyData": {
-              "to": {
-                "contains": "Updated: working on a fix"
-              }
             }
           }
         }
@@ -555,7 +551,7 @@
       "name": "Delete seeded comment on ENG-1",
       "prompt": "Delete the seeded comment on ENG-1",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -584,7 +580,7 @@
       "name": "Batch create issues with labels",
       "prompt": "Create two Engineering issues: 'Update onboarding docs' (label UX) and 'Add circuit breaker' (label Urgent)",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -628,7 +624,7 @@
       "name": "Move ENG-1 to Canceled",
       "prompt": "Cancel issue ENG-1 (set its status to Canceled)",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -654,12 +650,12 @@
       "name": "Create temporary label and apply to ENG-2",
       "prompt": "Create a new label 'Backend' and add it to ENG-2",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
           "diff_type": "added",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "name": {
               "eq": "Backend"
@@ -684,12 +680,12 @@
       "name": "Rename a label",
       "prompt": "Rename the label 'UX' to 'User Experience'",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
           "diff_type": "changed",
-          "entity": "labels",
+          "entity": "issue_labels",
           "where": {
             "id": {
               "eq": "f9c5b7c8-3909-4f8b-bc25-73e1b56a9c0c"
@@ -710,7 +706,7 @@
       "name": "Remove assignee from ENG-1",
       "prompt": "Unassign ENG-1 so it has no assignee",
       "type": "actionEval",
-      "seed_template": "linear_default",
+      "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
       "assertions": [
         {
@@ -728,6 +724,451 @@
               }
             }
           }
+        }
+      ]
+    },
+    {
+      "id": "test_27",
+      "name": "Create State, Issue, and Comment flow",
+      "prompt": "Add a new workflow state for the product team called 'Done'. Then, create a new issue in this team called 'Mini-demo', mark it as done, and add a comment to it saying 'Marking it as done because Hubert already prepped the demo but forgot to create an issue'.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "workflow_states",
+          "where": {
+            "name": {
+              "eq": "Done"
+            },
+            "teamId": {
+              "eq": "cdb85540-5065-4346-8aef-ae2b72d6e940"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "title": {
+              "eq": "Mini-demo"
+            },
+            "teamId": {
+              "eq": "cdb85540-5065-4346-8aef-ae2b72d6e940"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "comments",
+          "where": {
+            "body": {
+              "contains": "Hubert already prepped"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_28",
+      "name": "Remove workflow state",
+      "prompt": "Remove the 'Duplicate' workflow state from the Engineering team.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "workflow_states",
+          "where": {
+            "id": {
+              "eq": "ab04ec5f-1292-48b0-9426-50d354957357"
+            }
+          },
+          "expected_changes": {
+            "archivedAt": {
+              "from": {
+                "exists": false
+              },
+              "to": {
+                "exists": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_29",
+      "name": "Resolve duplicate issues (requires creating state)",
+      "prompt": "Find duplicated issues regarding 'trace analysis' in the Product team and mark the 2nd one (the newer one) as a duplicate.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "workflow_states",
+          "where": {
+            "name": {
+              "eq": "Duplicate"
+            },
+            "teamId": {
+              "eq": "cdb85540-5065-4346-8aef-ae2b72d6e940"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "PROD-2"
+            }
+          },
+          "expected_changes": {
+            "stateId": {
+              "from": {
+                "eq": "0fde0f94-ee5f-4a37-ad23-a3acd0080c57"
+              },
+              "to": {
+                "exists": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_30",
+      "name": "Add member to team",
+      "prompt": "Add Artem (b55072d7-ccaa-43cd-8ab7-3dca324e3294) to the Product team.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "team_memberships",
+          "where": {
+            "userId": {
+              "eq": "b55072d7-ccaa-43cd-8ab7-3dca324e3294"
+            },
+            "teamId": {
+              "eq": "cdb85540-5065-4346-8aef-ae2b72d6e940"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_31",
+      "name": "Edit comment with link",
+      "prompt": "Please edit the comment (id: e6a0f6c4-4d0e-4f4c-9a54-444444444444) about open telemetry and include the link 'https://smith.langchain.com/' as an example.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "comments",
+          "where": {
+            "id": {
+              "eq": "e6a0f6c4-4d0e-4f4c-9a54-444444444444"
+            }
+          },
+          "expected_changes": {
+            "body": {
+              "to": {
+                "contains": "smith.langchain.com"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_32",
+      "name": "Vacation Handoff (Conditional Batch Reassignment)",
+      "prompt": "John Doe is going on vacation. Reassign all of his 'Urgent' issues to Sarah Smith, but leave his non-urgent work as is.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "ENG-3"
+            }
+          },
+          "expected_changes": {
+            "assigneeId": {
+              "from": {
+                "eq": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec"
+              },
+              "to": {
+                "eq": "03b0809e-713e-44ee-95de-b7a198b135ac"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "unchanged",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "ENG-1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_33",
+      "name": "Cross-Team Issue Migration",
+      "prompt": "The 'Polish onboarding dashboard UX' issue was filed in Engineering by mistake. Move it to the Product team and reset its status to 'Todo'.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "ENG-2"
+            }
+          },
+          "expected_changes": {
+            "teamId": {
+              "from": {
+                "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
+              },
+              "to": {
+                "eq": "cdb85540-5065-4346-8aef-ae2b72d6e940"
+              }
+            },
+            "stateId": {
+              "to": {
+                "eq": "0fde0f94-ee5f-4a37-ad23-a3acd0080c57"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_34",
+      "name": "Create Follow-up Task from Incident Comments",
+      "prompt": "Read the comments on the 'production incident' ticket. Create a new Engineering ticket titled 'Fix 500 errors in eval runner' with a description based on the analysis in the comments. Mark this new ticket as being blocked by ENG-3.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "title": {
+              "contains": "Fix 500 errors"
+            },
+            "description": {
+              "contains": "agent"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issue_relations",
+          "where": {
+            "type": {
+              "eq": "blocks"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_35",
+      "name": "Load Balancer (Logic & Aggregation)",
+      "prompt": "Assign the 'email sign-in' ticket to the Engineering team member who currently has the fewest assigned issues. If there is a tie, pick anyone with the lowest count.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "ENG-6"
+            }
+          },
+          "expected_changes": {
+            "assigneeId": {
+              "to": {
+                "eq": "b55072d7-ccaa-43cd-8ab7-3dca324e3294"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_36",
+      "name": "Label Migration (Batch & Sequence)",
+      "prompt": "We are replacing the 'RL' label with a new 'AI' label. Create a new label named 'AI'. Find all tickets with the 'RL' label, tag them with 'AI', and remove the 'RL' label.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issue_labels",
+          "where": {
+            "name": {
+              "eq": "AI"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "removed",
+          "entity": "issue_label_issue_association",
+          "where": {
+            "issue_id": {
+              "eq": "b4f5130f-5c1b-4bc0-a8f6-60a22b0adf5e"
+            },
+            "issue_label_id": {
+              "eq": "8f01ce9d-1433-4c4c-969d-21ca3bf2718f"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issue_label_issue_association",
+          "where": {
+            "issue_id": {
+              "eq": "b4f5130f-5c1b-4bc0-a8f6-60a22b0adf5e"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_37",
+      "name": "SLA Enforcement (Dates & States)",
+      "prompt": "Find any Engineering tickets in 'In Progress' that were created before Jan 2nd, 2025. Move them back to 'Todo' and add a comment: 'Demoted due to lack of progress'.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "identifier": {
+              "eq": "ENG-3"
+            }
+          },
+          "expected_changes": {
+            "stateId": {
+              "to": {
+                "eq": "741f29ae-cfb3-4b8a-a1f8-c5161c842366"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "added",
+          "entity": "comments",
+          "where": {
+            "issueId": {
+              "eq": "87c1d2f3-66c4-4dd0-bc93-1b99d04dc374"
+            },
+            "body": {
+              "contains": "Demoted"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_39",
+      "name": "Issue Decomposition (Hierarchy)",
+      "prompt": "Break down the 'SSO' ticket into two sub-issues: 'Frontend Implementation' (assigned to Sarah) and 'Backend API' (assigned to John). Ensure the previous ticket is set as the parent for both.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "parentId": {
+              "eq": "7d3f21ac-89c1-4f3b-9c2e-4fe3a1b71002"
+            },
+            "assigneeId": {
+              "eq": "03b0809e-713e-44ee-95de-b7a198b135ac"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "parentId": {
+              "eq": "7d3f21ac-89c1-4f3b-9c2e-4fe3a1b71002"
+            },
+            "assigneeId": {
+              "eq": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_40",
+      "name": "Dependency Chain Creation",
+      "prompt": "Create three new issues in Engineering: 'Alpha', 'Beta', and 'Gamma'. Configure them as a dependency chain where Alpha blocks Beta, and Beta blocks Gamma.",
+      "type": "actionEval",
+      "seed_template": "linear_expanded",
+      "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "issues",
+          "where": {
+            "teamId": {
+              "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
+            }
+          },
+          "expected_count": 3
+        },
+        {
+          "diff_type": "added",
+          "entity": "issue_relations",
+          "where": {
+            "type": {
+              "eq": "blocks"
+            }
+          },
+          "expected_count": 2
         }
       ]
     }

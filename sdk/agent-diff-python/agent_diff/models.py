@@ -31,6 +31,7 @@ class Test(BaseModel):
     name: str
     prompt: str
     type: str
+    seed_template: str
     expected_output: dict[str, Any]
     created_at: datetime
     updated_at: datetime

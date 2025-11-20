@@ -78,7 +78,7 @@ class AgentDiff:
         response = requests.get(
             f"{self.base_url}/api/platform/templates",
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
         return TemplateEnvironmentListResponse.model_validate(response.json())
@@ -87,7 +87,7 @@ class AgentDiff:
         response = requests.get(
             f"{self.base_url}/api/platform/templates/{template_id}",
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
         return TemplateEnvironmentDetail.model_validate(response.json())
@@ -146,7 +146,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/testSuites",
             params=params or None,
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
         return TestSuiteListResponse.model_validate(response.json())
@@ -198,7 +198,7 @@ class AgentDiff:
         response = requests.get(
             f"{self.base_url}/api/platform/testSuites/{suite_id}{query}",
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
 
@@ -215,7 +215,7 @@ class AgentDiff:
         response = requests.get(
             f"{self.base_url}/api/platform/tests/{tid}",
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
         return Test.model_validate(response.json())
@@ -227,7 +227,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/testSuites/{suite_id}/tests",
             json=request.model_dump(mode="json"),
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return CreateTestsResponse.model_validate(response.json())
@@ -247,7 +247,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/testSuites",
             json=request.model_dump(mode="json"),
             headers=self._headers(),
-            timeout=5,
+            timeout=20,
         )
         response.raise_for_status()
         return CreateTestSuiteResponse.model_validate(response.json())
@@ -262,7 +262,7 @@ class AgentDiff:
         response = requests.get(
             f"{self.base_url}/api/platform/results/{rid}",
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return TestResultResponse.model_validate(response.json())
@@ -275,7 +275,7 @@ class AgentDiff:
         response = requests.delete(
             f"{self.base_url}/api/platform/env/{eid}",
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return DeleteEnvResponse.model_validate(response.json())
@@ -290,7 +290,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/startRun",
             json=request.model_dump(mode="json"),
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return StartRunResponse.model_validate(response.json())
@@ -308,7 +308,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/evaluateRun",
             json=request.model_dump(mode="json"),
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return EndRunResponse.model_validate(response.json())
@@ -323,7 +323,7 @@ class AgentDiff:
             f"{self.base_url}/api/platform/diffRun",
             json=request.model_dump(mode="json"),
             headers=self._headers(),
-            timeout=10,
+            timeout=20,
         )
         response.raise_for_status()
         return DiffRunResponse.model_validate(response.json())

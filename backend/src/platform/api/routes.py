@@ -355,6 +355,7 @@ async def get_test_suite(request: Request) -> JSONResponse:
                     id=t.id,
                     name=t.name,
                     prompt=t.prompt,
+                    seed_template=t.template_schema,
                     type=t.type,
                     expected_output=t.expected_output,
                     created_at=t.created_at,

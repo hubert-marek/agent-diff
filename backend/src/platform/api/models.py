@@ -50,6 +50,7 @@ class Test(BaseModel):
     name: str
     prompt: str
     type: str
+    seed_template: str
     expected_output: dict[str, Any]
     created_at: datetime
     updated_at: datetime
@@ -146,7 +147,7 @@ class InitEnvResponse(BaseModel):
     expiresAt: Optional[datetime]
 
     class Config:
-        allow_population_by_field_name = True
+        validate_by_name = True
 
 
 class StartRunRequest(BaseModel):

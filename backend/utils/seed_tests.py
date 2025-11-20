@@ -12,15 +12,43 @@ from sqlalchemy.orm import Session
 from src.platform.db.schema import Test, TestRun, TestSuite, TestMembership
 
 
-def _normalize_expected_output(test_data: dict) -> dict:
+def _normalize_expected_output(
+    test_data: dict, suite_ignore_fields: dict | None = None
+) -> dict:
+    # Case 1: Test has explicit expected_output dict
     if "expected_output" in test_data and isinstance(
         test_data["expected_output"], dict
     ):
-        return test_data["expected_output"]
+        result = dict(test_data["expected_output"])  # Copy to avoid mutation
 
+        # Merge suite-level ignore_fields if present
+        if suite_ignore_fields is not None:
+            if "ignore_fields" not in result:
+                result["ignore_fields"] = {}
+
+            # Merge global ignore fields
+            if "global" in suite_ignore_fields:
+                existing_global = result["ignore_fields"].get("global", [])
+                # Combine and deduplicate
+                combined = list(set(existing_global + suite_ignore_fields["global"]))
+                result["ignore_fields"]["global"] = combined
+
+            # Merge entity-specific ignore fields
+            for key, value in suite_ignore_fields.items():
+                if key != "global":
+                    existing = result["ignore_fields"].get(key, [])
+                    combined = list(set(existing + value))
+                    result["ignore_fields"][key] = combined
+
+        return result
+
+    # Case 2: Test has assertions list (shorthand)
     assertions = test_data.get("assertions")
     if isinstance(assertions, list):
-        return {"assertions": assertions}
+        result: dict = {"assertions": assertions}
+        if suite_ignore_fields is not None:
+            result["ignore_fields"] = dict(suite_ignore_fields)
+        return result
 
     return {}
 
@@ -96,14 +124,16 @@ def main():
                 session.flush()
 
             # Create test suite for dev user
-            # Create tests and link to suite
             test_count = 0
+            suite_ignore_fields = data.get("ignore_fields")
             for test_data in data.get("tests", []):
                 test = Test(
                     name=test_data["name"],
                     prompt=test_data["prompt"],
                     type=test_data["type"],
-                    expected_output=_normalize_expected_output(test_data),
+                    expected_output=_normalize_expected_output(
+                        test_data, suite_ignore_fields
+                    ),
                     template_schema=test_data.get("seed_template"),
                     impersonate_user_id=test_data.get("impersonate_user_id"),
                 )

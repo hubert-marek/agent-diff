@@ -1398,6 +1398,9 @@ input CommentCollectionFilter {
   """Filters that needs to be matched by some comments."""
   some: CommentFilter
 
+  """Filters that must not be matched by any comments."""
+  none: CommentFilter
+
   """Comparator for the updated at date."""
   updatedAt: DateComparator
 
@@ -8082,6 +8085,36 @@ type Issue implements Node {
     orderBy: PaginationOrderBy
   ): CommentConnection!
 
+  """Documents associated with the issue."""
+  documents(
+    """A cursor to be used with first for forward pagination"""
+    after: String
+
+    """A cursor to be used with last for backward pagination."""
+    before: String
+
+    """Filter returned documents."""
+    filter: DocumentFilter
+
+    """
+    The number of items to forward paginate (used with after). Defaults to 50.
+    """
+    first: Int
+
+    """Should archived resources be included (default: false)"""
+    includeArchived: Boolean
+
+    """
+    The number of items to backward paginate (used with before). Defaults to 50.
+    """
+    last: Int
+
+    """
+    By which field should the pagination order by. Available options are createdAt (default) and updatedAt.
+    """
+    orderBy: PaginationOrderBy
+  ): DocumentConnection!
+
   """The time at which the issue was moved into completed state."""
   completedAt: DateTime
 
@@ -9052,6 +9085,11 @@ input IssueFilter {
   """Comparator for the issues auto closed at date."""
   autoClosedAt: NullableDateComparator
 
+  """
+  [Internal] Comparator for when the accumulated state was last updated.
+  """
+  accumulatedStateUpdatedAt: NullableDateComparator
+
   """Comparator for the issues canceled at date."""
   canceledAt: NullableDateComparator
 
@@ -9102,6 +9140,11 @@ input IssueFilter {
 
   """Comparator for filtering issues which are duplicates."""
   hasDuplicateRelations: RelationExistsComparator
+
+  """
+  [Internal] Comparator for filtering issues which have suggested teams.
+  """
+  hasSuggestedTeams: RelationExistsComparator
 
   """Comparator for filtering issues with relations."""
   hasRelatedRelations: RelationExistsComparator
@@ -9648,6 +9691,9 @@ type IssueLabel implements Node {
   """[Internal] When the label was retired."""
   retiredAt: DateTime
 
+  """The user who retired the label."""
+  retiredBy: User
+
   """
   The team that the label is associated with. If null, the label is associated with the global workspace.
   """
@@ -9697,6 +9743,9 @@ input IssueLabelCollectionFilter {
 
   """Filters that needs to be matched by some issue labels."""
   some: IssueLabelFilter
+
+  """Filters that must not be matched by any issue labels."""
+  none: IssueLabelFilter
 
   """Filters that the issue labels team must satisfy."""
   team: NullableTeamFilter
@@ -21349,7 +21398,7 @@ type Query {
   """One specific set of settings."""
   integrationsSettings(id: String!): IntegrationsSettings!
 
-  """One specific issue."""
+  """One specific issue. The 'id' parameter accepts both UUID and identifier formats (e.g., 'ENG-123')."""
   issue(id: String!): Issue!
 
   """Find issues that are related to a given Figma file key."""
