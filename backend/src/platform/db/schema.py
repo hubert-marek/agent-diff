@@ -91,6 +91,44 @@ class RunTimeEnvironment(PlatformBase):
     impersonate_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
+class EnvironmentPoolEntry(PlatformBase):
+    __tablename__ = "environment_pool_entries"
+    __table_args__ = (
+        UniqueConstraint("schema_name", name="uq_environment_pool_schema"),
+        {"schema": "public"},
+    )
+
+    id: Mapped[PyUUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    template_id: Mapped[PyUUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("public.environments.id"), nullable=True
+    )
+    template_schema: Mapped[str] = mapped_column(String(255), nullable=False)
+    schema_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(
+        Enum(
+            "ready",
+            "in_use",
+            "refreshing",
+            "dirty",
+            name="environment_pool_status",
+        ),
+        nullable=False,
+        default="ready",
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    claimed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+
+
 class Diff(PlatformBase):
     __tablename__ = "diffs"
     __table_args__ = ({"schema": "public"},)

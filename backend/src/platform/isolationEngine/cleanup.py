@@ -17,10 +17,12 @@ class EnvironmentCleanupService:
         session_manager: SessionManager,
         environment_handler: EnvironmentHandler,
         interval_seconds: int = 30,
+        pool_manager=None,
     ):
         self.session_manager = session_manager
         self.environment_handler = environment_handler
         self.interval_seconds = interval_seconds
+        self.pool_manager = pool_manager
         self._task = None
         self._running = False
 
@@ -124,6 +126,19 @@ class EnvironmentCleanupService:
                         env.status = "cleanup_failed"
                         env.updated_at = datetime.now()
 
+                    finally:
+                        if self.pool_manager:
+                            try:
+                                self.pool_manager.release_in_use(
+                                    env.schema, recycle=True
+                                )
+                            except Exception as pool_error:
+                                logger.warning(
+                                    "Failed to mark schema %s for pool recycle: %s",
+                                    env.schema,
+                                    pool_error,
+                                )
+
         except Exception as e:
             logger.error(f"Error deleting expired environments: {e}", exc_info=True)
             raise
@@ -133,9 +148,11 @@ def create_cleanup_service(
     session_manager: SessionManager,
     environment_handler: EnvironmentHandler,
     interval_seconds: int = 30,
+    pool_manager=None,
 ) -> EnvironmentCleanupService:
     return EnvironmentCleanupService(
         session_manager=session_manager,
         environment_handler=environment_handler,
         interval_seconds=interval_seconds,
+        pool_manager=pool_manager,
     )

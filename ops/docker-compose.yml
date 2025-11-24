@@ -1,21 +1,4 @@
 services:
-  postgres:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_DB: diff_the_universe
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST_AUTH_METHOD: trust # ONLY FOR LOCAL DEVELOPMENT. REMEMBER TO CHANGE TO PASSWORD AUTH IN PRODUCTION
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ../backend
@@ -23,12 +6,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: "postgresql+psycopg2://postgres:postgres@postgres:5432/diff_the_universe"
+      DATABASE_URL: "${DATABASE_URL}"
       ENVIRONMENT: "development"
       CLEANUP_INTERVAL_SECONDS: "${CLEANUP_INTERVAL_SECONDS:-30}"
-    depends_on:
-      postgres:
-        condition: service_healthy
+
     volumes:
       - ../backend:/app
       - ../examples:/examples
