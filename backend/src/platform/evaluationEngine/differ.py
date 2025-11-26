@@ -1,10 +1,12 @@
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from src.platform.isolationEngine.session import SessionManager
-from sqlalchemy import inspect
 from datetime import datetime
-from src.platform.db.schema import Diff
-from typing import Any
+from src.platform.db.schema import Diff, SnapshotMetadata
 from .models import DiffResult
+import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 
 class Differ:
@@ -16,9 +18,14 @@ class Differ:
         self.environment_id = environment_id
         self.engine = session_manager.base_engine
         self.inspector = inspect(self.engine)
-        self.tables = self.inspector.get_table_names(schema=self.schema)
+        self.tables = [
+            name
+            for name in self.inspector.get_table_names(schema=self.schema)
+            if "_snapshot_" not in name
+        ]
         self.q = self.engine.dialect.identifier_preparer.quote
         self._pk_cache = {}
+        self._column_cache: dict[str, list[str]] = {}
 
     def _get_pk_columns(self, table: str) -> list[str]:
         """Get primary key column(s) for a table."""
@@ -28,19 +35,49 @@ class Differ:
         return self._pk_cache[table]
 
     def create_snapshot(self, suffix: str) -> None:
+        start = time.perf_counter()
         with self.engine.begin() as conn:
+            table_count = 0
             for t in self.tables:
+                table_count += 1
+                table_start = time.perf_counter()
                 snapshot_table = f"{t}_snapshot_{suffix}"
                 sql = f""" 
                     CREATE TABLE IF NOT EXISTS {self.q(self.schema)}.{self.q(snapshot_table)} AS 
                     SELECT * FROM {self.q(self.schema)}.{self.q(t)}
                 """
                 conn.execute(text(sql))
+                row_count, checksum = self._compute_snapshot_fingerprint(
+                    conn,
+                    snapshot_table,
+                    self._ordering_columns(t),
+                )
+                self._store_snapshot_metadata(suffix, t, row_count, checksum)
+                table_duration = time.perf_counter() - table_start
+                if table_duration > 1:
+                    logger.debug(
+                        "Snapshot table %s.%s took %.2fs",
+                        self.schema,
+                        snapshot_table,
+                        table_duration,
+                    )
+        logger.info(
+            "Created snapshot %s for schema %s (%d tables) in %.2fs",
+            suffix,
+            self.schema,
+            table_count,
+            time.perf_counter() - start,
+        )
 
-    def get_inserts(self, before_suffix: str, after_suffix: str) -> list[dict]:
+    def get_inserts(
+        self, before_suffix: str, after_suffix: str, tables: list[str]
+    ) -> list[dict]:
         inserts: list[dict] = []
+        start = time.perf_counter()
+        total_rows = 0
+        per_table_stats: list[tuple[str, int, float]] = []
         with self.engine.begin() as conn:
-            for t in self.tables:
+            for t in tables:
                 before_table = f"{t}_snapshot_{before_suffix}"
                 after_table = f"{t}_snapshot_{after_suffix}"
                 pk_cols = self._get_pk_columns(t)
@@ -62,22 +99,47 @@ class Differ:
                     ON {join_conditions}
                     WHERE {where_conditions}
                 """
+                table_start = time.perf_counter()
                 rows = conn.execute(text(q_inserts)).mappings().all()
+                table_duration = time.perf_counter() - table_start
                 for r in rows:
                     item = dict(r)
                     item["__table__"] = t
                     inserts.append(item)
+                stats_count = len(rows)
+                if stats_count:
+                    total_rows += len(rows)
+                per_table_stats.append((t, stats_count, table_duration))
+                if stats_count:
+                    logger.debug(
+                        "Diff inserts %s.%s -> %d rows in %.2fs",
+                        self.schema,
+                        t,
+                        stats_count,
+                        table_duration,
+                    )
+        logger.info(
+            "Computed inserts diff for %s (%d rows, %.2fs)",
+            self.schema,
+            total_rows,
+            time.perf_counter() - start,
+        )
+        self._log_stage_stats("inserts", per_table_stats)
         return inserts
 
     def get_updates(
         self,
         before_suffix: str,
         after_suffix: str,
+        tables: list[str],
         exclude_cols: list[str] | None = None,
     ) -> list[dict]:
         updates = []
+        start = time.perf_counter()
+        total_rows = 0
+        per_table_stats: list[tuple[str, int, float]] = []
         with self.engine.begin() as conn:
-            for t in self.tables:
+            for t in tables:
                 before = f"{t}_snapshot_{before_suffix}"
                 after = f"{t}_snapshot_{after_suffix}"
                 pk_cols = self._get_pk_columns(t)
@@ -116,7 +178,9 @@ class Differ:
                       ON {join_conditions}
                     WHERE {cmp_expr}
                 """
+                table_start = time.perf_counter()
                 rows = conn.exec_driver_sql(sql).mappings().all()
+                table_duration = time.perf_counter() - table_start
                 for r in rows:
                     after_map = {c: r.get(f"after_{c}") for c in cols}
                     before_map = {c: r.get(f"before_{c}") for c in cols}
@@ -127,12 +191,36 @@ class Differ:
                             "before": before_map,
                         }
                     )
+                stats_count = len(rows)
+                if stats_count:
+                    total_rows += len(rows)
+                per_table_stats.append((t, stats_count, table_duration))
+                if stats_count:
+                    logger.debug(
+                        "Diff updates %s.%s -> %d rows in %.2fs",
+                        self.schema,
+                        t,
+                        stats_count,
+                        table_duration,
+                    )
+        logger.info(
+            "Computed updates diff for %s (%d rows, %.2fs)",
+            self.schema,
+            total_rows,
+            time.perf_counter() - start,
+        )
+        self._log_stage_stats("updates", per_table_stats)
         return updates
 
-    def get_deletes(self, before_suffix: str, after_suffix: str) -> list[dict]:
+    def get_deletes(
+        self, before_suffix: str, after_suffix: str, tables: list[str]
+    ) -> list[dict]:
         deletes: list[dict] = []
+        start = time.perf_counter()
+        total_rows = 0
+        per_table_stats: list[tuple[str, int, float]] = []
         with self.engine.begin() as conn:
-            for t in self.tables:
+            for t in tables:
                 before_table = f"{t}_snapshot_{before_suffix}"
                 after_table = f"{t}_snapshot_{after_suffix}"
                 pk_cols = self._get_pk_columns(t)
@@ -154,17 +242,39 @@ class Differ:
                     ON {join_conditions}
                     WHERE {where_conditions}
                 """
+                table_start = time.perf_counter()
                 rows = conn.execute(text(q_deletes)).mappings().all()
+                table_duration = time.perf_counter() - table_start
                 for r in rows:
                     item = dict(r)
                     item["__table__"] = t
                     deletes.append(item)
+                stats_count = len(rows)
+                if stats_count:
+                    total_rows += len(rows)
+                per_table_stats.append((t, stats_count, table_duration))
+                if stats_count:
+                    logger.debug(
+                        "Diff deletes %s.%s -> %d rows in %.2fs",
+                        self.schema,
+                        t,
+                        stats_count,
+                        table_duration,
+                    )
+        logger.info(
+            "Computed deletes diff for %s (%d rows, %.2fs)",
+            self.schema,
+            total_rows,
+            time.perf_counter() - start,
+        )
+        self._log_stage_stats("deletes", per_table_stats)
         return deletes
 
     def get_diff(self, before_suffix: str, after_suffix: str) -> DiffResult:
-        inserts = self.get_inserts(before_suffix, after_suffix)
-        updates = self.get_updates(before_suffix, after_suffix)
-        deletes = self.get_deletes(before_suffix, after_suffix)
+        tables = self._tables_to_compare(before_suffix, after_suffix)
+        inserts = self.get_inserts(before_suffix, after_suffix, tables)
+        updates = self.get_updates(before_suffix, after_suffix, tables)
+        deletes = self.get_deletes(before_suffix, after_suffix, tables)
         return DiffResult(inserts=inserts, updates=updates, deletes=deletes)
 
     def archive_snapshots(self, suffix: str) -> None:
@@ -175,6 +285,7 @@ class Differ:
                     DROP TABLE IF EXISTS {self.q(self.schema)}.{self.q(snapshot_table)}
                 """
                 conn.execute(text(sql))
+        self._delete_snapshot_metadata(suffix)
 
     def store_diff(
         self,
@@ -192,3 +303,142 @@ class Differ:
                 updated_at=datetime.now(),
             )
             session.add(diff_object)
+
+    def _ordering_columns(self, table: str) -> list[str]:
+        pk_cols = self._get_pk_columns(table)
+        if pk_cols:
+            return pk_cols
+        if table not in self._column_cache:
+            cols = [
+                c["name"] for c in self.inspector.get_columns(table, schema=self.schema)
+            ]
+            self._column_cache[table] = cols
+        return self._column_cache[table]
+
+    def _compute_snapshot_fingerprint(
+        self,
+        conn,
+        snapshot_table: str,
+        order_cols: list[str],
+    ) -> tuple[int, str]:
+        agg_order = ""
+        if order_cols:
+            order_expr = ", ".join(f"t.{self.q(col)}" for col in order_cols)
+            agg_order = f" ORDER BY {order_expr}"
+        sql = f"""
+            SELECT COUNT(*) AS row_count,
+                   md5(COALESCE(string_agg(md5(row_to_json(t)::text), ''{agg_order}), '')) AS checksum
+            FROM {self.q(self.schema)}.{self.q(snapshot_table)} AS t
+        """
+        row = conn.execute(text(sql)).one()
+        checksum = row.checksum or ""
+        return int(row.row_count), checksum
+
+    def _store_snapshot_metadata(
+        self,
+        suffix: str,
+        table: str,
+        row_count: int,
+        checksum: str,
+    ) -> None:
+        with self.session_manager.with_meta_session() as session:
+            entry = (
+                session.query(SnapshotMetadata)
+                .filter(
+                    SnapshotMetadata.environment_id == self.environment_id,
+                    SnapshotMetadata.schema_name == self.schema,
+                    SnapshotMetadata.snapshot_suffix == suffix,
+                    SnapshotMetadata.table_name == table,
+                )
+                .one_or_none()
+            )
+            now = datetime.now()
+            if entry is None:
+                entry = SnapshotMetadata(
+                    environment_id=self.environment_id,
+                    schema_name=self.schema,
+                    snapshot_suffix=suffix,
+                    table_name=table,
+                    row_count=row_count,
+                    checksum=checksum,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(entry)
+            else:
+                entry.row_count = row_count
+                entry.checksum = checksum
+                entry.updated_at = now
+
+    def _delete_snapshot_metadata(self, suffix: str) -> None:
+        with self.session_manager.with_meta_session() as session:
+            (
+                session.query(SnapshotMetadata)
+                .filter(
+                    SnapshotMetadata.environment_id == self.environment_id,
+                    SnapshotMetadata.schema_name == self.schema,
+                    SnapshotMetadata.snapshot_suffix == suffix,
+                )
+                .delete(synchronize_session=False)
+            )
+
+    def _load_metadata_map(self, suffix: str) -> dict[str, SnapshotMetadata]:
+        with self.session_manager.with_meta_session() as session:
+            entries = (
+                session.query(SnapshotMetadata)
+                .filter(
+                    SnapshotMetadata.environment_id == self.environment_id,
+                    SnapshotMetadata.schema_name == self.schema,
+                    SnapshotMetadata.snapshot_suffix == suffix,
+                )
+                .all()
+            )
+        return {entry.table_name: entry for entry in entries}
+
+    def _tables_to_compare(
+        self,
+        before_suffix: str,
+        after_suffix: str,
+    ) -> list[str]:
+        before_meta = self._load_metadata_map(before_suffix)
+        after_meta = self._load_metadata_map(after_suffix)
+        tables: list[str] = []
+        for table in self.tables:
+            before_entry = before_meta.get(table)
+            after_entry = after_meta.get(table)
+            if before_entry is None or after_entry is None:
+                tables.append(table)
+                continue
+            if (
+                before_entry.row_count != after_entry.row_count
+                or before_entry.checksum != after_entry.checksum
+            ):
+                tables.append(table)
+        logger.info(
+            "Diff comparison for %s: %d/%d tables flagged (suffixes %s -> %s)",
+            self.schema,
+            len(tables),
+            len(self.tables),
+            before_suffix,
+            after_suffix,
+        )
+        return tables
+
+    def _log_stage_stats(
+        self,
+        stage: str,
+        stats: list[tuple[str, int, float]],
+        limit: int = 5,
+    ) -> None:
+        if not stats:
+            return
+        slowest = sorted(stats, key=lambda item: item[2], reverse=True)[:limit]
+        formatted = ", ".join(
+            f"{table}:{duration:.2f}s/{count}rows" for table, count, duration in slowest
+        )
+        logger.info(
+            "Diff stage %s slowest tables for %s -> %s",
+            stage,
+            self.schema,
+            formatted,
+        )

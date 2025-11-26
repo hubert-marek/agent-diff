@@ -107,13 +107,13 @@ class PoolRefillService:
         )
         table_order = template_meta.table_order if template_meta else None
 
-        logger.info(
-            "Pool schema %s below target (%s ready, target %s). Rebuilding %s entries.",
-            template_schema,
-            ready,
-            target,
-            missing,
-        )
+        # logger.info(
+        #    "Pool schema %s below target (%s ready, target %s). Rebuilding %s entries.",
+        #    template_schema,
+        #    ready,
+        #    target,
+        #    missing,
+        # )
 
         refresh_targets = self.pool_manager.schemas_for_refresh(
             template_schema=template_schema, limit=missing

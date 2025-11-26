@@ -1,10 +1,14 @@
 import logging
 import asyncio
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from src.platform.db.schema import RunTimeEnvironment
 from .session import SessionManager
 from .environment import EnvironmentHandler
+
+if TYPE_CHECKING:
+    from src.platform.evaluationEngine.replication import LogicalReplicationService
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +22,13 @@ class EnvironmentCleanupService:
         environment_handler: EnvironmentHandler,
         interval_seconds: int = 30,
         pool_manager=None,
+        replication_service: "LogicalReplicationService | None" = None,
     ):
         self.session_manager = session_manager
         self.environment_handler = environment_handler
         self.interval_seconds = interval_seconds
         self.pool_manager = pool_manager
+        self.replication_service = replication_service
         self._task = None
         self._running = False
 
@@ -138,10 +144,24 @@ class EnvironmentCleanupService:
                                     env.schema,
                                     pool_error,
                                 )
+                        self._stop_replication(env.id)
 
         except Exception as e:
             logger.error(f"Error deleting expired environments: {e}", exc_info=True)
             raise
+
+    def _stop_replication(self, environment_id):
+        if not self.replication_service:
+            return
+        try:
+            self.replication_service.cleanup_environment(environment_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to cleanup replication slots for env %s: %s",
+                environment_id,
+                exc,
+                exc_info=True,
+            )
 
 
 def create_cleanup_service(
@@ -149,10 +169,12 @@ def create_cleanup_service(
     environment_handler: EnvironmentHandler,
     interval_seconds: int = 30,
     pool_manager=None,
+    replication_service=None,
 ) -> EnvironmentCleanupService:
     return EnvironmentCleanupService(
         session_manager=session_manager,
         environment_handler=environment_handler,
         interval_seconds=interval_seconds,
         pool_manager=pool_manager,
+        replication_service=replication_service,
     )

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Iterable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import MetaData, text
 
@@ -44,6 +44,8 @@ class EnvironmentHandler:
         )
         meta.create_all(translated)
 
+        self._set_replica_identity(target_schema)
+
     def _list_tables(self, conn, schema: str) -> list[str]:
         rows = conn.execute(
             text(
@@ -57,6 +59,21 @@ class EnvironmentHandler:
             {"schema": schema},
         ).fetchall()
         return [r[0] for r in rows]
+
+    def _set_replica_identity(self, schema: str) -> None:
+        """Set REPLICA IDENTITY FULL for all tables in schema to enable logical replication."""
+        with self.session_manager.base_engine.begin() as conn:
+            tables = self._list_tables(conn, schema)
+            for table in tables:
+                try:
+                    conn.execute(
+                        text(f'ALTER TABLE "{schema}"."{table}" REPLICA IDENTITY FULL')
+                    )
+                    logger.debug(f"Set REPLICA IDENTITY FULL for {schema}.{table}")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to set replica identity for {schema}.{table}: {e}"
+                    )
 
     def _reset_sequences(self, conn, schema: str, tables: Iterable[str]) -> None:
         for tbl in tables:
@@ -203,6 +220,27 @@ class EnvironmentHandler:
         env_uuid = self._to_uuid(environment_id)
         template_uuid = self._to_uuid(template_id) if template_id else None
         with self.session_manager.with_meta_session() as s:
+            existing = (
+                s.query(RunTimeEnvironment)
+                .filter(RunTimeEnvironment.schema == schema)
+                .one_or_none()
+            )
+            if existing and existing.id == env_uuid:
+                existing.status = "ready"
+                existing.expires_at = expires_at
+                existing.last_used_at = last_used_at
+                existing.created_by = created_by
+                existing.updated_at = datetime.now()
+                existing.template_id = template_uuid
+                existing.impersonate_user_id = impersonate_user_id
+                existing.impersonate_email = impersonate_email
+                return
+            if existing and existing.id != env_uuid:
+                archive_suffix = uuid4().hex[:6]
+                existing.schema = f"{existing.schema}_archived_{archive_suffix}"
+                existing.status = "deleted"
+                existing.updated_at = datetime.now()
+                existing.expires_at = datetime.now()
             rte = RunTimeEnvironment(
                 id=env_uuid,
                 schema=schema,

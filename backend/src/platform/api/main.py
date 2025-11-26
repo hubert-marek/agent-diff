@@ -5,6 +5,10 @@ from starlette.middleware import Middleware
 from os import environ
 from src.platform.isolationEngine.core import CoreIsolationEngine
 from src.platform.evaluationEngine.core import CoreEvaluationEngine
+from src.platform.evaluationEngine.replication import (
+    LogicalReplicationService,
+    ReplicationConfig,
+)
 from src.platform.isolationEngine.environment import EnvironmentHandler
 from src.platform.isolationEngine.templateManager import TemplateManager
 from src.platform.isolationEngine.cleanup import create_cleanup_service
@@ -75,6 +79,17 @@ def create_app():
     )
 
     app.state.coreIsolationEngine = coreIsolationEngine
+    replication_enabled = (
+        environ.get("LOGICAL_REPLICATION_ENABLED", "false").lower() == "true"
+    )
+    replication_service = None
+    if replication_enabled:
+        replication_config = ReplicationConfig.from_environ(environ, db_url)
+        replication_service = LogicalReplicationService(
+            session_manager=sessions,
+            config=replication_config,
+        )
+
     app.state.coreEvaluationEngine = coreEvaluationEngine
     app.state.coreTestManager = coreTestManager
     app.state.templateManager = templateManager
@@ -82,6 +97,8 @@ def create_app():
     app.state.cleanup_service = cleanup_service
     app.state.pool_refill_service = pool_refill_service
     app.state.pool_manager = pool_manager
+    app.state.replication_service = replication_service
+    app.state.replication_enabled = replication_enabled
 
     app.add_middleware(
         IsolationMiddleware,
