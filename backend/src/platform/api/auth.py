@@ -72,7 +72,12 @@ async def get_principal_id(api_key: Optional[str], action: str = "api_request") 
     if not api_key:
         raise PermissionError("api key required in production mode")
 
-    return await validate_with_control_plane(api_key, action)
+    # Strip "Bearer " prefix if present
+    clean_key = api_key
+    if api_key.lower().startswith("bearer "):
+        clean_key = api_key[7:]  # Remove "Bearer " (7 chars)
+
+    return await validate_with_control_plane(clean_key, action)
 
 
 def require_resource_access(principal_id: str, owner_id: str) -> None:
