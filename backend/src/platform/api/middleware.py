@@ -37,8 +37,13 @@ class PlatformMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Determine action type for rate limiting
+        action = "api_request"
+        if path == "/api/platform/initEnv" and request.method == "POST":
+            action = "environment_created"
+
         try:
-            principal_id = await get_principal_id(api_key_hdr)
+            principal_id = await get_principal_id(api_key_hdr, action=action)
 
             with self.session_manager.with_meta_session() as meta_session:
                 request.state.principal_id = principal_id
@@ -101,7 +106,7 @@ class IsolationMiddleware(BaseHTTPMiddleware):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                 )
 
-            principal_id = await get_principal_id(api_key_hdr)
+            principal_id = await get_principal_id(api_key_hdr, action="api_request")
 
             with self.session_manager.with_meta_session() as meta_session:
                 request.state.principal_id = principal_id
