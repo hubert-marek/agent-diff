@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Iterable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import MetaData, text
 
@@ -44,6 +44,8 @@ class EnvironmentHandler:
         )
         meta.create_all(translated)
 
+        self._set_replica_identity(target_schema)
+
     def _list_tables(self, conn, schema: str) -> list[str]:
         rows = conn.execute(
             text(
@@ -57,6 +59,28 @@ class EnvironmentHandler:
             {"schema": schema},
         ).fetchall()
         return [r[0] for r in rows]
+
+    def _set_replica_identity(self, schema: str) -> None:
+        """Set REPLICA IDENTITY FULL for all tables in schema to enable logical replication."""
+        with self.session_manager.base_engine.begin() as conn:
+            tables = self._list_tables(conn, schema)
+            if not tables:
+                logger.warning(
+                    f"No tables found in schema {schema} to set REPLICA IDENTITY"
+                )
+                return
+            for table in tables:
+                try:
+                    conn.execute(
+                        text(f'ALTER TABLE "{schema}"."{table}" REPLICA IDENTITY FULL')
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to set replica identity for {schema}.{table}: {e}"
+                    )
+            logger.info(
+                f"Set REPLICA IDENTITY FULL for {len(tables)} tables in {schema}"
+            )
 
     def _reset_sequences(self, conn, schema: str, tables: Iterable[str]) -> None:
         for tbl in tables:
@@ -93,6 +117,54 @@ class EnvironmentHandler:
                     {"seq": seq_name},
                 )
 
+    def _ensure_constraints_deferrable(self, conn, schema: str) -> None:
+        rows = conn.execute(
+            text(
+                """
+                SELECT con.conname AS constraint_name,
+                       child.relname AS child_table,
+                       con.condeferrable,
+                       con.condeferred
+                FROM pg_constraint con
+                JOIN pg_class child ON child.oid = con.conrelid
+                JOIN pg_namespace child_ns ON child_ns.oid = child.relnamespace
+                WHERE con.contype = 'f'
+                  AND child_ns.nspname = :schema
+                """
+            ),
+            {"schema": schema},
+        ).fetchall()
+
+        for row in rows:
+            data = row._mapping
+            table = data["child_table"]
+            name = data["constraint_name"]
+            deferrable = bool(data["condeferrable"])
+            initially_deferred = bool(data["condeferred"])
+            try:
+                if not deferrable:
+                    conn.execute(
+                        text(
+                            f'ALTER TABLE "{schema}"."{table}" '
+                            f'ALTER CONSTRAINT "{name}" DEFERRABLE INITIALLY DEFERRED'
+                        )
+                    )
+                elif not initially_deferred:
+                    conn.execute(
+                        text(
+                            f'ALTER TABLE "{schema}"."{table}" '
+                            f'ALTER CONSTRAINT "{name}" INITIALLY DEFERRED'
+                        )
+                    )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Unable to mark constraint %s on %s.%s deferrable: %s",
+                    name,
+                    schema,
+                    table,
+                    exc,
+                )
+
     def seed_data_from_template(
         self,
         template_schema: str,
@@ -104,9 +176,11 @@ class EnvironmentHandler:
             meta = MetaData()
             meta.reflect(bind=engine, schema=template_schema)
             available_tables = [t.name for t in meta.sorted_tables]
-            available_set = set(available_tables)
+            if not available_tables:
+                return
 
-            ordered: list[str] = []
+            available_set = set(available_tables)
+            ordered_tables: list[str] = []
             seen: set[str] = set()
 
             explicit_order = tables_order or self._load_template_table_order(
@@ -115,17 +189,18 @@ class EnvironmentHandler:
             if explicit_order:
                 for tbl in explicit_order:
                     if tbl in available_set and tbl not in seen:
-                        ordered.append(tbl)
+                        ordered_tables.append(tbl)
                         seen.add(tbl)
 
             for tbl in available_tables:
                 if tbl not in seen:
-                    ordered.append(tbl)
+                    ordered_tables.append(tbl)
                     seen.add(tbl)
 
-            conn.execute(text("SET session_replication_role = replica"))
+            self._ensure_constraints_deferrable(conn, target_schema)
+            conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
             try:
-                for tbl in ordered:
+                for tbl in ordered_tables:
                     conn.execute(
                         text(
                             f'INSERT INTO "{target_schema}"."{tbl}" '
@@ -133,9 +208,9 @@ class EnvironmentHandler:
                         )
                     )
             finally:
-                conn.execute(text("SET session_replication_role = DEFAULT"))
+                conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
 
-            self._reset_sequences(conn, target_schema, ordered)
+            self._reset_sequences(conn, target_schema, ordered_tables)
 
     def set_runtime_environment(
         self,
@@ -152,6 +227,27 @@ class EnvironmentHandler:
         env_uuid = self._to_uuid(environment_id)
         template_uuid = self._to_uuid(template_id) if template_id else None
         with self.session_manager.with_meta_session() as s:
+            existing = (
+                s.query(RunTimeEnvironment)
+                .filter(RunTimeEnvironment.schema == schema)
+                .one_or_none()
+            )
+            if existing and existing.id == env_uuid:
+                existing.status = "ready"
+                existing.expires_at = expires_at
+                existing.last_used_at = last_used_at
+                existing.created_by = created_by
+                existing.updated_at = datetime.now()
+                existing.template_id = template_uuid
+                existing.impersonate_user_id = impersonate_user_id
+                existing.impersonate_email = impersonate_email
+                return
+            if existing and existing.id != env_uuid:
+                archive_suffix = uuid4().hex[:6]
+                existing.schema = f"{existing.schema}_archived_{archive_suffix}"
+                existing.status = "deleted"
+                existing.updated_at = datetime.now()
+                existing.expires_at = datetime.now()
             rte = RunTimeEnvironment(
                 id=env_uuid,
                 schema=schema,

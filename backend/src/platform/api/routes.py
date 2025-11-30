@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
+import time
 
 from starlette import status
 from starlette.requests import Request
@@ -220,6 +222,7 @@ async def get_test(request: Request) -> JSONResponse:
         prompt=test.prompt,
         type=test.type,
         expected_output=test.expected_output,
+        seed_template=test.template_schema,
         created_at=test.created_at,
         updated_at=test.updated_at,
     )
@@ -379,6 +382,11 @@ async def get_test_suite(request: Request) -> JSONResponse:
 
 
 async def init_environment(request: Request) -> JSONResponse:
+    maintenance = getattr(request.app.state, "maintenance_service", None)
+    if maintenance:
+        await maintenance.trigger()
+
+    t0 = time.perf_counter()
     try:
         body = await parse_request_body(request, InitEnvRequestBody)
     except ValueError as e:
@@ -408,9 +416,12 @@ async def init_environment(request: Request) -> JSONResponse:
         )
 
     core: CoreIsolationEngine = request.app.state.coreIsolationEngine
+    t1 = time.perf_counter()
+    logger.debug(f"init_environment setup took {t1 - t0:.2f}s")
 
     try:
-        result = core.create_environment(
+        result = await asyncio.to_thread(
+            core.create_environment,
             template_schema=schema,
             ttl_seconds=body.ttlSeconds or 1800,
             created_by=principal_id,
@@ -420,6 +431,11 @@ async def init_environment(request: Request) -> JSONResponse:
     except ValueError as e:
         logger.warning(f"Environment creation failed: {e}")
         return bad_request(str(e))
+
+    t2 = time.perf_counter()
+    logger.info(
+        f"init_environment create_environment took {t2 - t1:.2f}s (total {t2 - t0:.2f}s)"
+    )
 
     service = selected_template_service
     env_url = f"/api/env/{result.environment_id}/services/{service}"
@@ -497,6 +513,7 @@ async def create_tests_in_suite(request: Request) -> JSONResponse:
                 name=t.name,
                 prompt=t.prompt,
                 type=t.type,
+                seed_template=t.template_schema,
                 expected_output=t.expected_output,
                 created_at=t.created_at,
                 updated_at=t.updated_at,
@@ -510,6 +527,11 @@ async def create_tests_in_suite(request: Request) -> JSONResponse:
 
 
 async def start_run(request: Request) -> JSONResponse:
+    maintenance = getattr(request.app.state, "maintenance_service", None)
+    if maintenance:
+        await maintenance.trigger()
+
+    t0 = time.perf_counter()
     try:
         body = await parse_request_body(request, StartRunRequest)
     except ValueError as e:
@@ -531,7 +553,7 @@ async def start_run(request: Request) -> JSONResponse:
         return bad_request("invalid environment id")
 
     try:
-        _ = require_environment_access(session, principal_id, str(env_uuid))
+        rte = require_environment_access(session, principal_id, str(env_uuid))
     except ValueError as e:
         return not_found(str(e))
     except PermissionError:
@@ -540,11 +562,18 @@ async def start_run(request: Request) -> JSONResponse:
         )
         return unauthorized()
 
-    core_eval: CoreEvaluationEngine = request.app.state.coreEvaluationEngine
-    schema = request.app.state.coreIsolationEngine.get_schema_for_environment(
-        body.envId
+    replication_enabled = bool(
+        getattr(request.app.state, "replication_enabled", False)
+        and getattr(request.app.state, "replication_service", None)
     )
-    before_result = core_eval.take_before(schema=schema, environment_id=body.envId)
+    before_result = None
+    if not replication_enabled:
+        logger.error(
+            "Snapshot pipeline temporarily disabled but logical replication is not active."
+        )
+        return bad_request(
+            "Logical replication must be enabled while snapshots are disabled."
+        )
 
     run = TestRun(
         test_id=body.testId,
@@ -552,13 +581,38 @@ async def start_run(request: Request) -> JSONResponse:
         environment_id=body.envId,
         status="running",
         result=None,
-        before_snapshot_suffix=before_result.suffix,
+        before_snapshot_suffix=before_result.suffix if before_result else None,
         created_by=principal_id,
         created_at=datetime.now(),
         updated_at=datetime.now(),
     )
     session.add(run)
     session.flush()
+
+    session.commit()
+
+    t1 = time.perf_counter()
+    replication_service = getattr(request.app.state, "replication_service", None)
+    if replication_service:
+        try:
+            slot_name = await asyncio.to_thread(
+                replication_service.start_stream,
+                environment_id=run.environment_id,
+                run_id=run.id,
+                target_schema=rte.schema,
+            )
+            run.replication_slot = slot_name
+            run.replication_plugin = replication_service.plugin
+            run.replication_started_at = datetime.now()
+            session.commit()
+            t2 = time.perf_counter()
+            logger.info(
+                f"start_run replication setup took {t2 - t1:.2f}s (total {t2 - t0:.2f}s)"
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to start replication for run %s: %s", run.id, exc, exc_info=True
+            )
 
     logger.info(
         f"Started test run {run.id} for test {body.testId} in environment {body.envId}"
@@ -567,7 +621,7 @@ async def start_run(request: Request) -> JSONResponse:
     response = StartRunResponse(
         runId=str(run.id),
         status=run.status,
-        beforeSnapshot=before_result.suffix,
+        beforeSnapshot=before_result.suffix if before_result else "",
     )
     return JSONResponse(
         response.model_dump(mode="json"), status_code=status.HTTP_201_CREATED
@@ -575,6 +629,10 @@ async def start_run(request: Request) -> JSONResponse:
 
 
 async def evaluate_run(request: Request) -> JSONResponse:
+    maintenance = getattr(request.app.state, "maintenance_service", None)
+    if maintenance:
+        await maintenance.trigger()
+
     try:
         body = await parse_request_body(request, EndRunRequest)
     except ValueError as e:
@@ -605,18 +663,52 @@ async def evaluate_run(request: Request) -> JSONResponse:
         .one()
     )
 
-    after = core_eval.take_after(
-        schema=rte.schema, environment_id=str(run.environment_id)
-    )
+    replication_service = getattr(request.app.state, "replication_service", None)
+    replication_enabled = bool(getattr(request.app.state, "replication_enabled", False))
+    use_journal = bool(replication_enabled and run.replication_slot)
+    after_suffix = "journal"
+    if not use_journal:
+        after_suffix = core_eval.take_after(
+            schema=rte.schema, environment_id=str(run.environment_id)
+        ).suffix
+
+    if replication_service and run.replication_slot:
+        try:
+            await asyncio.to_thread(
+                replication_service.stop_stream,
+                environment_id=run.environment_id,
+                run_id=run.id,
+                target_schema=rte.schema,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to stop replication for run %s: %s", run.id, exc, exc_info=True
+            )
+
     diff_payload: DiffResult | None = None
     try:
-        if run.before_snapshot_suffix is None:
-            raise ValueError("before snapshot missing")
-        diff_payload = core_eval.compute_diff(
-            schema=rte.schema,
-            environment_id=str(run.environment_id),
-            before_suffix=run.before_snapshot_suffix,
-            after_suffix=after.suffix,
+        diff_timer = time.perf_counter()
+        if use_journal:
+            diff_payload = await asyncio.to_thread(
+                core_eval.compute_diff_from_journal,
+                environment_id=str(run.environment_id),
+                run_id=str(run.id),
+            )
+        else:
+            if run.before_snapshot_suffix is None:
+                raise ValueError("before snapshot missing")
+            diff_payload = await asyncio.to_thread(
+                core_eval.compute_diff,
+                schema=rte.schema,
+                environment_id=str(run.environment_id),
+                before_suffix=run.before_snapshot_suffix,
+                after_suffix=after_suffix,
+            )
+        logger.info(
+            "evaluate_run diff for run %s (env %s) took %.2fs",
+            run.id,
+            run.environment_id,
+            time.perf_counter() - diff_timer,
         )
         logger.debug(f"Diff payload: {diff_payload}")
         differ = Differ(
@@ -625,10 +717,11 @@ async def evaluate_run(request: Request) -> JSONResponse:
             session_manager=request.app.state.sessions,
         )
         logger.debug(f"Differ: {differ}")
-        differ.store_diff(
+        await asyncio.to_thread(
+            differ.store_diff,
             diff_payload,
-            before_suffix=run.before_snapshot_suffix,
-            after_suffix=after.suffix,
+            before_suffix=run.before_snapshot_suffix or "journal",
+            after_suffix=after_suffix,
         )
         spec = session.query(Test).filter(Test.id == run.test_id).one()
         logger.debug(f"Spec: {spec}")
@@ -652,7 +745,7 @@ async def evaluate_run(request: Request) -> JSONResponse:
     if diff_payload is not None:
         evaluation.setdefault("diff", diff_payload.model_dump(mode="json"))
     run.result = evaluation
-    run.after_snapshot_suffix = after.suffix
+    run.after_snapshot_suffix = after_suffix
     run.updated_at = datetime.now()
 
     response = EndRunResponse(
@@ -746,12 +839,22 @@ async def diff_run(request: Request) -> JSONResponse:
             return unauthorized()
         before_suffix = body.beforeSuffix or ""
 
+    snapshot_timer = time.perf_counter()
     after = core_eval.take_after(schema=env.schema, environment_id=str(env.id))
+    snapshot_duration = time.perf_counter() - snapshot_timer
+    diff_timer = time.perf_counter()
     diff_payload = core_eval.compute_diff(
         schema=env.schema,
         environment_id=str(env.id),
         before_suffix=before_suffix,
         after_suffix=after.suffix,
+    )
+    diff_duration = time.perf_counter() - diff_timer
+    logger.info(
+        "diff_run for env %s: take_after %.2fs, compute_diff %.2fs",
+        env.id,
+        snapshot_duration,
+        diff_duration,
     )
 
     response = DiffRunResponse(
@@ -763,6 +866,10 @@ async def diff_run(request: Request) -> JSONResponse:
 
 
 async def delete_environment(request: Request) -> JSONResponse:
+    maintenance = getattr(request.app.state, "maintenance_service", None)
+    if maintenance:
+        await maintenance.trigger()
+
     env_id = request.path_params["env_id"]
     session = request.state.db_session
     try:

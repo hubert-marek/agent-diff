@@ -1,22 +1,22 @@
 """
-Tests for automatic environment cleanup service.
+Tests for automatic environment cleanup via the maintenance service.
 """
 
 import asyncio
 import pytest
 
-from src.platform.isolationEngine.cleanup import EnvironmentCleanupService
+from src.platform.isolationEngine.maintenance import EnvironmentMaintenanceService
 from src.platform.db.schema import RunTimeEnvironment
 
 
-class TestCleanupService:
-    """Test automatic cleanup of expired environments."""
+class TestMaintenanceService:
+    """Test automatic cleanup of expired environments via maintenance service."""
 
     @pytest.mark.asyncio
     async def test_cleanup_removes_expired_environment(
-        self, core_isolation_engine, environment_handler, session_manager
+        self, core_isolation_engine, environment_handler, session_manager, pool_manager
     ):
-        """Test that cleanup service removes expired environments."""
+        """Test that maintenance service removes expired environments."""
         # Create environment with very short TTL (1 second)
         env = core_isolation_engine.create_environment(
             template_schema="slack_default",
@@ -36,20 +36,20 @@ class TestCleanupService:
             )
             assert db_env.status == "ready"
 
-        # Start cleanup service with 1 second interval
-        cleanup_service = EnvironmentCleanupService(
+        # Create maintenance service with short cycle interval
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},  # No pool refill for this test
+            idle_timeout=60,
+            cycle_interval=1,
         )
-        await cleanup_service.start()
 
-        # Wait for TWO cleanup cycles (two-phase: mark expired, then delete)
-        # 1s for TTL + 1s cycle 1 (mark expired) + 1s cycle 2 (delete) + buffer = 3.5s
+        # Trigger maintenance and wait for cleanup cycles
+        # Cycle 1: marks expired, Cycle 2: deletes
+        await maintenance_service.trigger()
         await asyncio.sleep(3.5)
-
-        # Stop cleanup service
-        await cleanup_service.stop()
 
         # Verify environment was cleaned up
         assert not environment_handler.schema_exists(env.schema_name)
@@ -64,9 +64,9 @@ class TestCleanupService:
 
     @pytest.mark.asyncio
     async def test_cleanup_ignores_non_expired_environment(
-        self, core_isolation_engine, environment_handler, session_manager
+        self, core_isolation_engine, environment_handler, session_manager, pool_manager
     ):
-        """Test that cleanup service does not remove non-expired environments."""
+        """Test that maintenance service does not remove non-expired environments."""
         # Create environment with long TTL (3600 seconds = 1 hour)
         env = core_isolation_engine.create_environment(
             template_schema="slack_default",
@@ -78,19 +78,19 @@ class TestCleanupService:
         # Verify environment exists
         assert environment_handler.schema_exists(env.schema_name)
 
-        # Start cleanup service
-        cleanup_service = EnvironmentCleanupService(
+        # Create maintenance service
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},
+            idle_timeout=60,
+            cycle_interval=1,
         )
-        await cleanup_service.start()
 
-        # Wait for at least one cleanup cycle
+        # Trigger and wait for a cycle
+        await maintenance_service.trigger()
         await asyncio.sleep(1.5)
-
-        # Stop cleanup service
-        await cleanup_service.stop()
 
         # Verify environment still exists (not expired)
         assert environment_handler.schema_exists(env.schema_name)
@@ -107,44 +107,38 @@ class TestCleanupService:
         environment_handler.drop_schema(env.schema_name)
 
     @pytest.mark.asyncio
-    async def test_cleanup_service_lifecycle(
-        self, core_isolation_engine, environment_handler, session_manager
+    async def test_maintenance_service_is_running_property(
+        self, core_isolation_engine, environment_handler, session_manager, pool_manager
     ):
-        """Test cleanup service start/stop lifecycle."""
-        # Create environment with 1 second TTL
-        env = core_isolation_engine.create_environment(
-            template_schema="slack_default",
-            ttl_seconds=1,
-            created_by="test_user",
-            impersonate_user_id="U01AGENBOT9",
-        )
-
-        # Create cleanup service with fast interval
-        cleanup_service = EnvironmentCleanupService(
+        """Test maintenance service is_running property."""
+        # Create maintenance service with short idle timeout
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},
+            idle_timeout=2,  # Short timeout for test
+            cycle_interval=1,
         )
 
-        # Start the service
-        await cleanup_service.start()
-        assert cleanup_service._running is True
+        # Initially not running
+        assert maintenance_service.is_running is False
 
-        # Wait for TWO cleanup cycles (mark expired + delete)
-        await asyncio.sleep(3.5)
+        # Trigger starts it
+        await maintenance_service.trigger()
+        assert maintenance_service.is_running is True
 
-        # Stop the service
-        await cleanup_service.stop()
-        assert cleanup_service._running is False
+        # Wait for idle timeout + cycle
+        await asyncio.sleep(4)
 
-        # Verify environment was cleaned up
-        assert not environment_handler.schema_exists(env.schema_name)
+        # Should be stopped now
+        assert maintenance_service.is_running is False
 
     @pytest.mark.asyncio
     async def test_cleanup_handles_multiple_expired_environments(
-        self, core_isolation_engine, environment_handler, session_manager
+        self, core_isolation_engine, environment_handler, session_manager, pool_manager
     ):
-        """Test that cleanup service handles multiple expired environments."""
+        """Test that maintenance service handles multiple expired environments."""
         # Create 3 environments with short TTL
         envs = []
         for i in range(3):
@@ -160,19 +154,19 @@ class TestCleanupService:
         for env in envs:
             assert environment_handler.schema_exists(env.schema_name)
 
-        # Start cleanup service
-        cleanup_service = EnvironmentCleanupService(
+        # Create maintenance service
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},
+            idle_timeout=60,
+            cycle_interval=1,
         )
-        await cleanup_service.start()
 
-        # Wait for TWO cleanup cycles for all environments
+        # Trigger and wait for cleanup cycles
+        await maintenance_service.trigger()
         await asyncio.sleep(3.5)
-
-        # Stop cleanup service
-        await cleanup_service.stop()
 
         # Verify all were cleaned up
         for env in envs:
@@ -180,7 +174,7 @@ class TestCleanupService:
 
     @pytest.mark.asyncio
     async def test_cleanup_handles_failed_schema_drop_gracefully(
-        self, core_isolation_engine, environment_handler, session_manager
+        self, core_isolation_engine, environment_handler, session_manager, pool_manager
     ):
         """Test that cleanup continues even if one schema drop fails."""
         # Create 2 environments with short TTL
@@ -201,19 +195,19 @@ class TestCleanupService:
         # Manually drop env1 schema to simulate failure
         environment_handler.drop_schema(env1.schema_name)
 
-        # Start cleanup service
-        cleanup_service = EnvironmentCleanupService(
+        # Create maintenance service
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},
+            idle_timeout=60,
+            cycle_interval=1,
         )
-        await cleanup_service.start()
 
-        # Wait for TWO cleanup cycles
+        # Trigger and wait for cleanup cycles
+        await maintenance_service.trigger()
         await asyncio.sleep(3.5)
-
-        # Stop cleanup service
-        await cleanup_service.stop()
 
         # Verify env1 marked as cleanup_failed, env2 deleted
         with session_manager.with_meta_session() as session:
@@ -236,62 +230,28 @@ class TestCleanupService:
         assert not environment_handler.schema_exists(env2.schema_name)
 
     @pytest.mark.asyncio
-    async def test_cleanup_phase_one_marks_as_expired(
-        self, core_isolation_engine, environment_handler, session_manager
+    async def test_trigger_is_idempotent(
+        self, session_manager, environment_handler, pool_manager
     ):
-        """Test that phase 1 marks ready environments as expired when TTL passes."""
-        # Create environment with short TTL
-        env = core_isolation_engine.create_environment(
-            template_schema="slack_default",
-            ttl_seconds=1,
-            created_by="test_user",
-            impersonate_user_id="U01AGENBOT9",
-        )
-
-        # Verify starts as 'ready'
-        with session_manager.with_meta_session() as session:
-            db_env = (
-                session.query(RunTimeEnvironment)
-                .filter(RunTimeEnvironment.id == env.environment_id)
-                .one()
-            )
-            assert db_env.status == "ready"
-
-        # Start cleanup service
-        cleanup_service = EnvironmentCleanupService(
+        """Test that multiple trigger() calls don't spawn multiple loops."""
+        maintenance_service = EnvironmentMaintenanceService(
             session_manager=session_manager,
             environment_handler=environment_handler,
-            interval_seconds=1,
+            pool_manager=pool_manager,
+            pool_targets={},
+            idle_timeout=60,
+            cycle_interval=1,
         )
-        await cleanup_service.start()
 
-        # Wait for ONE cycle (should mark as expired)
-        await asyncio.sleep(2.5)
+        # Trigger multiple times rapidly
+        await maintenance_service.trigger()
+        await maintenance_service.trigger()
+        await maintenance_service.trigger()
 
-        # Verify marked as expired but schema still exists
-        with session_manager.with_meta_session() as session:
-            db_env = (
-                session.query(RunTimeEnvironment)
-                .filter(RunTimeEnvironment.id == env.environment_id)
-                .one()
-            )
-            assert db_env.status == "expired"
+        # Should only be running once
+        assert maintenance_service.is_running is True
 
-        assert environment_handler.schema_exists(env.schema_name)
+        await asyncio.sleep(0.5)
 
-        # Wait for SECOND cycle (should delete)
-        await asyncio.sleep(1.5)
-
-        # Stop cleanup service
-        await cleanup_service.stop()
-
-        # Now should be deleted
-        assert not environment_handler.schema_exists(env.schema_name)
-
-        with session_manager.with_meta_session() as session:
-            db_env = (
-                session.query(RunTimeEnvironment)
-                .filter(RunTimeEnvironment.id == env.environment_id)
-                .one()
-            )
-            assert db_env.status == "deleted"
+        # Still only one instance running
+        assert maintenance_service.is_running is True

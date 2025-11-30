@@ -9,6 +9,7 @@ dependencies = [
     "ariadne>=0.26.2",
     "httpx>=0.28.1",
     "jsonschema>=4.25.1",
+    "psycopg[binary,replication]>=3.2.3",
     "psycopg2-binary>=2.9.10",
     "pydantic>=2.12.0",
     "pyjwt>=2.10.1",

@@ -59,10 +59,19 @@ def environment_handler(session_manager):
 
 
 @pytest.fixture(scope="session")
-def core_isolation_engine(session_manager, environment_handler):
+def pool_manager(session_manager):
+    """PoolManager instance for tests."""
+    from src.platform.isolationEngine.pool import PoolManager
+    return PoolManager(session_manager)
+
+
+@pytest.fixture(scope="session")
+def core_isolation_engine(session_manager, environment_handler, pool_manager):
     """CoreIsolationEngine instance for tests."""
     return CoreIsolationEngine(
-        sessions=session_manager, environment_handler=environment_handler
+        sessions=session_manager,
+        environment_handler=environment_handler,
+        pool_manager=pool_manager,
     )
 
 

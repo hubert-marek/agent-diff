@@ -7,6 +7,8 @@ from src.platform.db.schema import RunTimeEnvironment
 from uuid import uuid4
 from datetime import datetime, timedelta
 
+from .pool import PoolManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,9 +17,11 @@ class CoreIsolationEngine:
         self,
         sessions: SessionManager,
         environment_handler: EnvironmentHandler,
+        pool_manager: PoolManager | None = None,
     ):
         self.sessions = sessions
         self.environment_handler = environment_handler
+        self.pool_manager = pool_manager or PoolManager(sessions)
 
     def create_environment(
         self,
@@ -34,19 +38,51 @@ class CoreIsolationEngine:
 
         evn_uuid = uuid4()
         environment_id = evn_uuid.hex
-        environment_schema = f"state_{environment_id}"
-
-        self.environment_handler.create_schema(environment_schema)
-        self.environment_handler.migrate_schema(template_schema, environment_schema)
-
         template_meta = self.environment_handler.get_template_metadata(
             location=template_schema
         )
         table_order = template_meta.table_order if template_meta else None
+        template_uuid = str(template_meta.id) if template_meta else None
 
-        self.environment_handler.seed_data_from_template(
-            template_schema, environment_schema, tables_order=table_order
+        import time
+
+        t0 = time.perf_counter()
+        pool_entry = self.pool_manager.claim_ready_schema(
+            template_schema=template_schema, requested_by=created_by
         )
+
+        reused_schema = pool_entry is not None
+
+        if reused_schema:
+            environment_schema = pool_entry.schema_name
+            if pool_entry.template_id and template_uuid is None:
+                template_uuid = str(pool_entry.template_id)
+            logger.info(f"Claimed pooled schema in {time.perf_counter() - t0:.2f}s")
+        else:
+            environment_schema = f"state_{environment_id}"
+            logger.warning(f"Pool miss for {template_schema}, building from scratch...")
+
+            t1 = time.perf_counter()
+            self.environment_handler.create_schema(environment_schema)
+            logger.info(f"create_schema took {time.perf_counter() - t1:.2f}s")
+
+            t2 = time.perf_counter()
+            self.environment_handler.migrate_schema(template_schema, environment_schema)
+            logger.info(f"migrate_schema took {time.perf_counter() - t2:.2f}s")
+
+            t3 = time.perf_counter()
+            self.environment_handler.seed_data_from_template(
+                template_schema, environment_schema, tables_order=table_order
+            )
+            logger.info(f"seed_data took {time.perf_counter() - t3:.2f}s")
+
+            self.pool_manager.register_entry(
+                schema_name=environment_schema,
+                template_schema=template_schema,
+                template_id=template_meta.id if template_meta else None,
+                status="in_use",
+            )
+            logger.info(f"Total non-pooled build: {time.perf_counter() - t0:.2f}s")
 
         expires_at = datetime.now() + timedelta(seconds=ttl_seconds)
         self.environment_handler.set_runtime_environment(
@@ -55,13 +91,17 @@ class CoreIsolationEngine:
             expires_at=expires_at,
             last_used_at=datetime.now(),
             created_by=created_by,
-            template_id=str(template_meta.id) if template_meta else None,
+            template_id=template_uuid,
             impersonate_user_id=impersonate_user_id,
             impersonate_email=impersonate_email,
         )
 
         logger.info(
-            f"Created environment {environment_id} from template {template_schema} for user {created_by}"
+            "Created environment %s from template %s for user %s (pooled=%s)",
+            environment_id,
+            template_schema,
+            created_by,
+            reused_schema,
         )
 
         return EnvironmentResponse(

@@ -1,11 +1,11 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: diff_the_universe
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST_AUTH_METHOD: trust # ONLY FOR LOCAL DEVELOPMENT. REMEMBER TO CHANGE TO PASSWORD AUTH IN PRODUCTION
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
@@ -15,6 +15,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    command: >
+      postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
 
   backend:
     build:
@@ -22,13 +24,14 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    environment:
-      DATABASE_URL: "postgresql+psycopg2://postgres:postgres@postgres:5432/diff_the_universe"
-      ENVIRONMENT: "development"
-      CLEANUP_INTERVAL_SECONDS: "${CLEANUP_INTERVAL_SECONDS:-30}"
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/diff_the_universe"
+      LOGICAL_REPLICATION_ENABLED: "true"
+      ENVIRONMENT: "development"
+      SEED: "${SEED:-true}"
     volumes:
       - ../backend:/app
       - ../examples:/examples
@@ -36,13 +39,47 @@ services:
     command: >
       sh -c "
         alembic upgrade head &&
-        python utils/seed_slack_template.py &&
-        python utils/seed_linear_template.py &&
-        python utils/seed_tests.py &&
-        uvicorn src.platform.api.main:app --host 0.0.0.0 --port 8000 --reload
+        if [ \"$$SEED\" = 'true' ]; then
+          echo '=== Seeding database ===' &&
+          python utils/seed_slack_template.py &&
+          python utils/seed_linear_template.py &&
+          python utils/seed_tests.py;
+        else
+          echo '=== Skipping seed (use SEED=true to enable) ===';
+        fi &&
+        uvicorn src.platform.api.main:app --host 0.0.0.0 --port 8000
+      "
+
+  # External DB mode (Neon, etc) - use: docker-compose --profile external up backend-external
+  backend-external:
+    profiles: [ "external" ]
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "${DATABASE_URL}"
+      LOGICAL_REPLICATION_ENABLED: "${LOGICAL_REPLICATION_ENABLED:-true}"
+      ENVIRONMENT: "development"
+      SEED: "${SEED:-false}"
+    volumes:
+      - ../backend:/app
+      - ../examples:/examples
+      - ../sdk:/sdk
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        if [ \"$$SEED\" = 'true' ]; then
+          echo '=== Seeding database ===' &&
+          python utils/seed_slack_template.py &&
+          python utils/seed_linear_template.py &&
+          python utils/seed_tests.py;
+        else
+          echo '=== Skipping seed (use SEED=true to enable) ===';
+        fi &&
+        uvicorn src.platform.api.main:app --host 0.0.0.0 --port 8000
       "
 
 volumes:
   postgres_data:
-
-

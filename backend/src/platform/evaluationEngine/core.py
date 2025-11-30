@@ -6,7 +6,8 @@ from src.platform.evaluationEngine.differ import Differ
 from src.platform.evaluationEngine.assertion import AssertionEngine
 from src.platform.evaluationEngine.models import DiffResult
 from src.platform.isolationEngine.session import SessionManager
-from uuid import uuid4
+from src.platform.db.schema import ChangeJournal
+from uuid import uuid4, UUID
 
 
 @dataclass
@@ -43,7 +44,9 @@ class CoreEvaluationEngine:
             session_manager=self.sessions,
         )
         differ.create_snapshot(suffix)
-        return SnapshotResult(suffix=suffix, schema=schema, environment_id=environment_id)
+        return SnapshotResult(
+            suffix=suffix, schema=schema, environment_id=environment_id
+        )
 
     def take_before(
         self, *, schema: str, environment_id: str, suffix: str | None = None
@@ -78,6 +81,54 @@ class CoreEvaluationEngine:
         )
 
         return differ.get_diff(before_suffix, after_suffix)
+
+    def compute_diff_from_journal(
+        self,
+        *,
+        environment_id: str,
+        run_id: str,
+    ) -> DiffResult:
+        env_uuid = UUID(environment_id)
+        run_uuid = UUID(run_id)
+        with self.sessions.with_meta_session() as session:
+            entries = (
+                session.query(ChangeJournal)
+                .filter(
+                    ChangeJournal.environment_id == env_uuid,
+                    ChangeJournal.run_id == run_uuid,
+                )
+                .order_by(ChangeJournal.recorded_at.asc(), ChangeJournal.lsn.asc())
+                .all()
+            )
+            session.query(ChangeJournal).filter(
+                ChangeJournal.environment_id == env_uuid,
+                ChangeJournal.run_id == run_uuid,
+            ).delete(synchronize_session=False)
+
+        inserts: list[dict] = []
+        updates: list[dict] = []
+        deletes: list[dict] = []
+
+        for entry in entries:
+            table = entry.table_name
+            if entry.operation == "insert":
+                row = dict(entry.after or {})
+                row["__table__"] = table
+                inserts.append(row)
+            elif entry.operation == "delete":
+                row = dict(entry.before or {})
+                row["__table__"] = table
+                deletes.append(row)
+            elif entry.operation == "update":
+                updates.append(
+                    {
+                        "__table__": table,
+                        "before": entry.before or {},
+                        "after": entry.after or {},
+                    }
+                )
+
+        return DiffResult(inserts=inserts, updates=updates, deletes=deletes)
 
     def archive(self, *, schema: str, environment_id: str, suffixes: list[str]) -> None:
         differ = Differ(

@@ -1,7 +1,15 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, DateTime, Enum, UniqueConstraint, Integer, Boolean
+from sqlalchemy import (
+    String,
+    DateTime,
+    Enum,
+    UniqueConstraint,
+    Integer,
+    Boolean,
+    BigInteger,
+)
 from sqlalchemy.dialects.postgresql import UUID as PgUUID, JSONB
-from sqlalchemy import ForeignKey, Text
+from sqlalchemy import ForeignKey, Text, Index
 from datetime import datetime
 from uuid import uuid4, UUID as PyUUID
 
@@ -91,6 +99,44 @@ class RunTimeEnvironment(PlatformBase):
     impersonate_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
+class EnvironmentPoolEntry(PlatformBase):
+    __tablename__ = "environment_pool_entries"
+    __table_args__ = (
+        UniqueConstraint("schema_name", name="uq_environment_pool_schema"),
+        {"schema": "public"},
+    )
+
+    id: Mapped[PyUUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    template_id: Mapped[PyUUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("public.environments.id"), nullable=True
+    )
+    template_schema: Mapped[str] = mapped_column(String(255), nullable=False)
+    schema_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(
+        Enum(
+            "ready",
+            "in_use",
+            "refreshing",
+            "dirty",
+            name="environment_pool_status",
+        ),
+        nullable=False,
+        default="ready",
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    claimed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+
+
 class Diff(PlatformBase):
     __tablename__ = "diffs"
     __table_args__ = ({"schema": "public"},)
@@ -107,6 +153,69 @@ class Diff(PlatformBase):
     )  # TODO: Add models for diff, expected output, and snapshots for run-time validation
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class SnapshotMetadata(PlatformBase):
+    __tablename__ = "snapshot_metadata"
+    __table_args__ = (
+        UniqueConstraint(
+            "environment_id",
+            "schema_name",
+            "snapshot_suffix",
+            "table_name",
+            name="uq_snapshot_metadata_entry",
+        ),
+        {"schema": "public"},
+    )
+
+    id: Mapped[PyUUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    environment_id: Mapped[PyUUID] = mapped_column(
+        ForeignKey("public.run_time_environments.id"), nullable=False
+    )
+    schema_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    snapshot_suffix: Mapped[str] = mapped_column(String(64), nullable=False)
+    table_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    row_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
+
+
+class ChangeJournal(PlatformBase):
+    __tablename__ = "change_journal"
+    __table_args__ = (
+        # No unique constraint on LSN - multiple changes can share the same LSN
+        # (same transaction) and same table (batch inserts). UUID primary key
+        # ensures uniqueness. Index for fast lookups by run_id.
+        Index("ix_change_journal_run_id", "run_id"),
+        {"schema": "public"},
+    )
+
+    id: Mapped[PyUUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    environment_id: Mapped[PyUUID] = mapped_column(
+        ForeignKey("public.run_time_environments.id"), nullable=False
+    )
+    run_id: Mapped[PyUUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    lsn: Mapped[str] = mapped_column(String(64), nullable=False)
+    table_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    operation: Mapped[str] = mapped_column(
+        Enum("insert", "update", "delete", name="change_journal_operation"),
+        nullable=False,
+    )
+    primary_key: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    before: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    after: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, nullable=False
+    )
 
 
 class Test(PlatformBase):
@@ -195,6 +304,11 @@ class TestRun(PlatformBase):
     )
     after_snapshot_suffix: Mapped[str | None] = mapped_column(
         String(255), nullable=True
+    )
+    replication_slot: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    replication_plugin: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    replication_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
     )
     created_by: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
