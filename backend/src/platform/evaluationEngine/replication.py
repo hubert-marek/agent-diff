@@ -83,6 +83,7 @@ class ActiveRun:
     environment_id: UUID
     run_id: UUID
     schema: str
+    started_at: float = 0.0  # time.time() when run was registered
 
 
 class GlobalReplicationWorker(threading.Thread):
@@ -332,6 +333,8 @@ class LogicalReplicationService:
 
     def _idle_check_loop(self) -> None:
         """Background loop that checks for idle timeout."""
+        stale_run_max_age = 3600  # 1 hour
+
         while not self._stop_idle_checker.is_set():
             # Check every 30 seconds
             self._stop_idle_checker.wait(30)
@@ -342,12 +345,14 @@ class LogicalReplicationService:
                 if not self._started:
                     continue
 
-                # If there are active runs, update activity and skip shutdown
                 if self._active_runs:
-                    self._last_activity = time.time()
-                    continue
+                    self._cleanup_stale_runs_by_age(stale_run_max_age)
+                    # If still have active runs after cleanup, update activity and stay alive
+                    if self._active_runs:
+                        self._last_activity = time.time()
+                        continue
 
-                # Check if idle timeout exceeded
+                # No active runs - check if idle timeout exceeded
                 idle_duration = time.time() - self._last_activity
                 if idle_duration >= self._idle_timeout:
                     logger.info(
@@ -355,6 +360,26 @@ class LogicalReplicationService:
                         idle_duration,
                     )
                     self._stop_worker_locked()
+
+    def _cleanup_stale_runs_by_age(self, max_age_seconds: float) -> None:
+        """Remove runs older than max_age_seconds. No DB query - uses local timestamps."""
+        if not self._active_runs:
+            return
+
+        now = time.time()
+        to_remove = [
+            schema
+            for schema, run in self._active_runs.items()
+            if run.started_at > 0 and (now - run.started_at) > max_age_seconds
+        ]
+
+        for schema in to_remove:
+            del self._active_runs[schema]
+            logger.info(
+                "Cleaned up stale run (age > %ds, schema=%s)",
+                int(max_age_seconds),
+                schema,
+            )
 
     def _stop_worker_locked(self) -> None:
         """Stop the worker. Must hold _lock."""
@@ -410,6 +435,7 @@ class LogicalReplicationService:
             environment_id=env_id,
             run_id=r_id,
             schema=target_schema,
+            started_at=time.time(),
         )
 
         with self._lock:
