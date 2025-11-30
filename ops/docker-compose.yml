@@ -21,7 +21,7 @@ services:
   backend:
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.local
     ports:
       - "8000:8000"
     depends_on:
@@ -55,7 +55,7 @@ services:
     profiles: [ "external" ]
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.local
     ports:
       - "8000:8000"
     environment:

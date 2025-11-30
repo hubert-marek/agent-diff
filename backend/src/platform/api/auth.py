@@ -20,9 +20,13 @@ def is_dev_mode() -> bool:
     return ENVIRONMENT == "development"
 
 
-async def validate_with_control_plane(api_key: str) -> str:
+async def validate_with_control_plane(api_key: str, action: str = "api_request") -> str:
     """
     Validate API key with control plane and return principal_id.
+
+    Args:
+        api_key: The API key to validate
+        action: The action being performed ('api_request' or 'environment_created')
     """
     if not CONTROL_PLANE_URL:
         raise RuntimeError("CONTROL_PLANE_URL not configured for production mode")
@@ -31,7 +35,7 @@ async def validate_with_control_plane(api_key: str) -> str:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{CONTROL_PLANE_URL}/validate",
-                json={"api_key": api_key},
+                json={"api_key": api_key, "action": action},
                 timeout=2.0,
             )
 
@@ -54,14 +58,21 @@ async def validate_with_control_plane(api_key: str) -> str:
         raise RuntimeError(f"control plane unavailable: {e}")
 
 
-async def get_principal_id(api_key: Optional[str]) -> str:
+async def get_principal_id(api_key: Optional[str], action: str = "api_request") -> str:
+    """
+    Get the principal (user) ID from API key.
+
+    Args:
+        api_key: The API key to validate
+        action: The action being performed ('api_request' or 'environment_created')
+    """
     if is_dev_mode():
         return "dev-user"
 
     if not api_key:
         raise PermissionError("api key required in production mode")
 
-    return await validate_with_control_plane(api_key)
+    return await validate_with_control_plane(api_key, action)
 
 
 def require_resource_access(principal_id: str, owner_id: str) -> None:
