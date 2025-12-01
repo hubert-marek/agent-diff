@@ -1,10 +1,10 @@
-version = 1
+git version = 1
 revision = 3
 requires-python = ">=3.11"
 
 [[package]]
 name = "agent-diff"
-version = "0.1.12"
+version = "0.1.13"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },

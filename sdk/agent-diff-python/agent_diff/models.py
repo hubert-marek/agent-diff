@@ -180,8 +180,8 @@ class DiffRunRequest(BaseModel):
 
 
 class DiffRunResponse(BaseModel):
-    beforeSnapshot: str
-    afterSnapshot: str
+    beforeSnapshot: Optional[str] = None  # None for journal-based diff
+    afterSnapshot: Optional[str] = None  # None for journal-based diff
     diff: Any
 
 

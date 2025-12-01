@@ -809,6 +809,7 @@ async def diff_run(request: Request) -> JSONResponse:
     if has_run == has_pair:
         return bad_request("provide exactly one of runId or (envId and beforeSuffix)")
 
+    run = None
     if body.runId:
         run_uuid = parse_uuid(body.runId)
         if run_uuid is None:
@@ -825,8 +826,6 @@ async def diff_run(request: Request) -> JSONResponse:
             .one()
         )
         before_suffix = run.before_snapshot_suffix
-        if before_suffix is None:
-            return bad_request("before snapshot missing for run")
     else:
         env_uuid = parse_uuid(body.envId or "")
         if env_uuid is None:
@@ -839,27 +838,50 @@ async def diff_run(request: Request) -> JSONResponse:
             return unauthorized()
         before_suffix = body.beforeSuffix or ""
 
-    snapshot_timer = time.perf_counter()
-    after = core_eval.take_after(schema=env.schema, environment_id=str(env.id))
-    snapshot_duration = time.perf_counter() - snapshot_timer
+    # Check if using logical replication (journal-based diff)
+    replication_enabled = bool(getattr(request.app.state, "replication_enabled", False))
+    use_journal = bool(replication_enabled and run and run.replication_slot)
+
     diff_timer = time.perf_counter()
-    diff_payload = core_eval.compute_diff(
-        schema=env.schema,
-        environment_id=str(env.id),
-        before_suffix=before_suffix,
-        after_suffix=after.suffix,
-    )
+    after_suffix: str | None = None
+    if use_journal:
+        # Use journal-based diff for logical replication
+        # run is guaranteed non-None here because use_journal requires run.replication_slot
+        assert run is not None
+        diff_payload = await asyncio.to_thread(
+            core_eval.compute_diff_from_journal,
+            environment_id=str(run.environment_id),
+            run_id=str(run.id),
+        )
+        before_suffix = None  # Not applicable for journal
+        after_suffix = None  # Not applicable for journal
+    else:
+        # Use snapshot-based diff
+        if before_suffix is None:
+            return bad_request("before snapshot missing for run")
+        snapshot_timer = time.perf_counter()
+        after = core_eval.take_after(schema=env.schema, environment_id=str(env.id))
+        snapshot_duration = time.perf_counter() - snapshot_timer
+        logger.info("diff_run take_after for env %s: %.2fs", env.id, snapshot_duration)
+        after_suffix = after.suffix
+        diff_payload = core_eval.compute_diff(
+            schema=env.schema,
+            environment_id=str(env.id),
+            before_suffix=before_suffix,
+            after_suffix=after_suffix,
+        )
+
     diff_duration = time.perf_counter() - diff_timer
     logger.info(
-        "diff_run for env %s: take_after %.2fs, compute_diff %.2fs",
+        "diff_run for env %s: compute_diff %.2fs (journal=%s)",
         env.id,
-        snapshot_duration,
         diff_duration,
+        use_journal,
     )
 
     response = DiffRunResponse(
         beforeSnapshot=before_suffix,
-        afterSnapshot=after.suffix,
+        afterSnapshot=after_suffix,
         diff=diff_payload,
     )
     return JSONResponse(response.model_dump(mode="json"))
