@@ -19,15 +19,32 @@ uv add agent-diff
 npm install agent-diff
 ```
 
-### 2. Set up backend
+### 2. Configure
+
+<details>
+<summary><b> Hosted</b></summary>
+
+1. Sign up at [agentdiff.dev](https://agentdiff.dev) and get your API key
+2. Set environment variables:
+
+```bash
+export AGENT_DIFF_API_KEY="ad_live_sk_..."
+export AGENT_DIFF_BASE_URL="https://api.agentdiff.dev"
+```
+
+</details>
+
+<details>
+<summary><b>Self-Hosted</b></summary>
+
 ```bash
 git clone https://github.com/hubertpysklo/agent-diff.git
-cd agent-diff
-cd ops
+cd agent-diff/ops
 docker-compose up --build
-
 # Backend runs on http://localhost:8000
 ```
+
+</details>
 
 ### 3. Flow
 ```python
@@ -52,8 +69,8 @@ run = client.start_run(envId=env.environmentId)
 from agent_diff import PythonExecutorProxy, create_openai_tool
 from agents import Agent, Runner
 
-# Pass base_url (Where requests will be routed) from the client and create a tool
-python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
+# Create executor (auto-loads from AGENT_DIFF_API_KEY and AGENT_DIFF_BASE_URL env vars)
+python_executor = PythonExecutorProxy(env.environmentId)
 python_tool = create_openai_tool(python_executor) 
 
 agent = Agent(
@@ -165,7 +182,7 @@ for test in suite.tests:
     run = client.start_run(envId=env.environmentId, testId=test_id)
 
 
-    bash_executor = BashExecutorProxy(env.environmentId, base_url=client.base_url)
+    bash_executor = BashExecutorProxy(env.environmentId)  # Auto-loads from env vars
     bash_tool = create_openai_tool(bash_executor)
 
     agent = Agent(
