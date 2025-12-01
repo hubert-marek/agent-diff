@@ -149,11 +149,12 @@ class StartRunRequest(BaseModel):
 class StartRunResponse(BaseModel):
     runId: str
     status: str
-    beforeSnapshot: str
+    beforeSnapshot: Optional[str] = None  # None for journal-based replication
 
 
 class EndRunRequest(BaseModel):
     runId: str
+    expectedOutput: Optional[dict] = None
 
 
 class EndRunResponse(BaseModel):

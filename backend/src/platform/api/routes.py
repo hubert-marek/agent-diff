@@ -723,10 +723,20 @@ async def evaluate_run(request: Request) -> JSONResponse:
             before_suffix=run.before_snapshot_suffix or "journal",
             after_suffix=after_suffix,
         )
-        spec = session.query(Test).filter(Test.id == run.test_id).one()
-        logger.debug(f"Spec: {spec}")
+        if body.expectedOutput:
+            compiled_spec = body.expectedOutput
+            logger.debug(f"Using expectedOutput from request: {compiled_spec}")
+        elif run.test_id:
+            spec = session.query(Test).filter(Test.id == run.test_id).one()
+            compiled_spec = spec.expected_output
+            logger.debug(f"Using expected_output from test: {spec.name}")
+        else:
+            # No assertions - return empty evaluation
+            compiled_spec = {"assertions": []}
+            logger.debug("No expectedOutput or test_id - using empty assertions")
+
         evaluation = core_eval.evaluate(
-            compiled_spec=spec.expected_output,
+            compiled_spec=compiled_spec,
             diff=diff_payload,
         )
         logger.debug(f"Evaluation: {evaluation}")

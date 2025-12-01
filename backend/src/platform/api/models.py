@@ -164,6 +164,7 @@ class StartRunResponse(BaseModel):
 
 class EndRunRequest(BaseModel):
     runId: str
+    expectedOutput: Optional[dict[str, Any]] = None
 
 
 class EndRunResponse(BaseModel):
