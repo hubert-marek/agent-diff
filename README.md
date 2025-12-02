@@ -4,6 +4,12 @@
 
 Run it locally (or deploy it). Agents call sandboxed replicas of APIs that behave like the real ones, and you get deterministic diffs of every state change — no external services, no side effects, no rate limits.
 
+<p align="center">
+  <a href="https://agentdiff.dev">Website</a> •
+  <a href="https://agentdiff.mintlify.app/introduction">Docs</a> •
+  <a href="mailto:hubert@uni.minerva.edu">Feedback</a>
+</p>
+
 
 ## Quick Start
 
