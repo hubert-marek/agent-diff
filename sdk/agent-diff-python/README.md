@@ -5,7 +5,36 @@ Python SDK for testing AI agents against isolated replicas of production service
 ## Installation
 
 ```bash
+pip install agent-diff
+# or
 uv add agent-diff
+```
+
+## Configuration
+
+### Option 1: Environment Variables 
+
+Set these environment variables and the SDK will use them automatically:
+
+```bash
+export AGENT_DIFF_API_KEY="ad_live_sk_..."
+export AGENT_DIFF_BASE_URL="https://api.agentdiff.dev/api/platform"
+```
+
+Then initialize the client without arguments:
+
+```python
+from agent_diff import AgentDiff
+
+client = AgentDiff()  # Reads from environment variables
+```
+
+### Local Development
+
+For self-hosted instances, point to your local server:
+
+```python
+client = AgentDiff(base_url="http://localhost:8000")
 ```
 
 ## Environments
@@ -55,9 +84,23 @@ SDK provides **code execution proxies** that automatically intercept API calls a
 
 When your agent executes Python or Bash code:
 1. The executor wraps your code with interception logic
-2. API calls to `https://slack.com/api/*` → `http://localhost:8000/api/env/{env_id}/services/slack/api/*`
-3. API calls to `https://api.linear.app/*` → `http://localhost:8000/api/env/{env_id}/services/linear/*`
+2. API calls to `https://slack.com/api/*` → routed to your sandbox
+3. API calls to `https://api.linear.app/*` → routed to your sandbox
 4. Your agent sees real API responses from the isolated environment
+
+### Important: Executor Configuration
+
+Executors run code in a **subprocess**, so environment variables from your main process don't automatically transfer. Always pass `base_url` and `api_key` explicitly:
+
+```python
+executor = PythonExecutorProxy(
+    env.environmentId,
+    base_url=client.base_url,
+    api_key=client.api_key
+)
+
+executor = PythonExecutorProxy(env.environmentId)
+```
 
 ### Available Executors
 
@@ -68,7 +111,11 @@ Intercepts Python `requests` and `urllib` libraries:
 ```python
 from agent_diff import PythonExecutorProxy, create_openai_tool
 
-python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
+python_executor = PythonExecutorProxy(
+    env.environmentId,
+    base_url=client.base_url,
+    api_key=client.api_key
+)
 python_tool = create_openai_tool(python_executor)
 
 # Works with OpenAI Agents SDK, LangChain, smolagents
@@ -87,7 +134,11 @@ Intercepts `curl` commands:
 ```python
 from agent_diff import BashExecutorProxy, create_openai_tool
 
-bash_executor = BashExecutorProxy(env.environmentId, base_url=client.base_url)
+bash_executor = BashExecutorProxy(
+    env.environmentId,
+    base_url=client.base_url,
+    api_key=client.api_key
+)
 bash_tool = create_openai_tool(bash_executor)
 
 agent = Agent(
@@ -120,7 +171,11 @@ smolagents_tool = create_smolagents_tool(python_executor)
 For custom frameworks or direct usage:
 
 ```python
-python_executor = PythonExecutorProxy(env.environmentId, base_url=client.base_url)
+python_executor = PythonExecutorProxy(
+    env.environmentId,
+    base_url=client.base_url,
+    api_key=client.api_key
+)
 
 result = python_executor.execute("""
 import requests

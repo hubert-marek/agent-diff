@@ -30,12 +30,18 @@ from .models import (
 
 class AgentDiff:
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
-        self.api_key = api_key or os.getenv("AGENT_DIFF_API_KEY")
-        self.base_url = (
+        raw_api_key = api_key or os.getenv("AGENT_DIFF_API_KEY")
+        raw_base_url = (
             base_url
             if base_url is not None
             else (os.getenv("AGENT_DIFF_BASE_URL") or "http://localhost:8000")
         )
+
+        stripped_api_key = raw_api_key.strip() if raw_api_key else ""
+        stripped_base_url = raw_base_url.strip().rstrip("/") if raw_base_url else ""
+
+        self.api_key = stripped_api_key or None
+        self.base_url = stripped_base_url or "http://localhost:8000"
 
     def _headers(self) -> dict[str, str]:
         """Build request headers, including API key if provided."""

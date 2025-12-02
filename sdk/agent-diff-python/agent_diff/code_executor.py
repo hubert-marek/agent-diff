@@ -16,28 +16,34 @@ class BaseExecutorProxy:
         self,
         environment_id: str,
         base_url: Optional[str] = None,
-        token: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self.environment_id = environment_id
-        self.base_url = (
-            base_url or os.getenv("AGENT_DIFF_BASE_URL") or "http://localhost:8000"
-        )
-        self.token = token or os.getenv("AGENT_DIFF_API_KEY")
+
+        # Get raw values
+        raw_base_url = base_url or os.getenv("AGENT_DIFF_BASE_URL") or ""
+        raw_api_key = api_key or os.getenv("AGENT_DIFF_API_KEY") or ""
+
+        stripped_base_url = raw_base_url.strip().rstrip("/")
+        stripped_api_key = raw_api_key.strip()
+
+        self.base_url = stripped_base_url or "http://localhost:8000"
+        self.api_key = stripped_api_key or None
 
         self.url_mappings = [
             # Real Slack Web API (https://slack.com/api/*)
             (
                 "https://slack.com",
-                f"{base_url}/api/env/{environment_id}/services/slack",
+                f"{self.base_url}/api/env/{environment_id}/services/slack",
             ),
             (
                 "https://api.slack.com",
-                f"{base_url}/api/env/{environment_id}/services/slack",
+                f"{self.base_url}/api/env/{environment_id}/services/slack",
             ),
             # Linear API
             (
                 "https://api.linear.app",
-                f"{base_url}/api/env/{environment_id}/services/linear",
+                f"{self.base_url}/api/env/{environment_id}/services/linear",
             ),
         ]
 
@@ -89,7 +95,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 url_mappings = {json.dumps(self.url_mappings)}
-auth_token = {json.dumps(self.token or "")}
+auth_token = {json.dumps(self.api_key or "")}
 
 # Monkey-patch requests library
 try:
@@ -181,10 +187,10 @@ class BashExecutorProxy(BaseExecutorProxy):
         """Execute Bash code with curl interception."""
         import shlex
 
-        # Safely escape token for shell if present
+        # Safely escape api_key for shell if present
         auth_header_line = ""
-        if self.token:
-            escaped_token = shlex.quote(self.token)
+        if self.api_key:
+            escaped_token = shlex.quote(self.api_key)
             auth_header_line = (
                 f'new_args+=("-H" "Authorization: Bearer {escaped_token}")'
             )
