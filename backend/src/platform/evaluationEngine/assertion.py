@@ -156,7 +156,9 @@ class AssertionEngine:
             diff_type: Kind = a["diff_type"]
             entity = a["entity"]
             where = a.get("where", {})
-            ignore = _get_ignore_sets(self.spec, entity, a.get("ignore", []))
+            ignore = _get_ignore_sets(
+                self.spec, entity, a.get("ignore_fields", a.get("ignore", []))
+            )
 
             if diff_type == "added":
                 rows = [
