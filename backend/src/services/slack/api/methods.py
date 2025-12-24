@@ -368,6 +368,259 @@ def _serialize_conversation(
     return base_payload
 
 
+# Valid top-level block types for messages
+VALID_BLOCK_TYPES = {
+    "rich_text",
+    "markdown",
+    "section",
+    "header",
+    "divider",
+    "image",
+    "context",
+    "actions",
+    "input",
+    "file",
+    "video",
+    "table",
+    "context_actions",
+}
+
+# Valid element types inside rich_text blocks
+VALID_RICH_TEXT_ELEMENTS = {
+    "rich_text_section",
+    "rich_text_list",
+    "rich_text_preformatted",
+    "rich_text_quote",
+}
+
+# Valid element types inside rich_text_section/list/quote/preformatted
+VALID_RICH_TEXT_INNER_ELEMENTS = {
+    "text",
+    "emoji",
+    "link",
+    "user",
+    "usergroup",
+    "channel",
+    "broadcast",
+    "color",
+    "date",
+}
+
+MAX_BLOCKS = 50
+
+
+class BlockValidationError(Exception):
+    """Raised when block validation fails."""
+
+    def __init__(self, message: str, pointer: str):
+        self.message = message
+        self.pointer = pointer
+        super().__init__(f"{message} [json-pointer:{pointer}]")
+
+
+def _validate_rich_text_inner_elements(elements: list[Any], base_pointer: str) -> None:
+    """Validate elements inside rich_text_section/list/quote/preformatted."""
+    if not isinstance(elements, list):
+        raise BlockValidationError(
+            "elements must be an array", f"{base_pointer}/elements"
+        )
+    for i, elem in enumerate(elements):
+        if not isinstance(elem, dict):
+            raise BlockValidationError(
+                "element must be an object", f"{base_pointer}/elements/{i}"
+            )
+        elem_type = elem.get("type")
+        if elem_type not in VALID_RICH_TEXT_INNER_ELEMENTS:
+            raise BlockValidationError(
+                f"unsupported type: {elem_type}", f"{base_pointer}/elements/{i}/type"
+            )
+
+
+def _validate_rich_text_elements(elements: list[Any], base_pointer: str) -> None:
+    """Validate rich_text block elements (sections, lists, etc.)."""
+    if not isinstance(elements, list):
+        raise BlockValidationError("elements must be an array", f"{base_pointer}")
+    for i, elem in enumerate(elements):
+        if not isinstance(elem, dict):
+            raise BlockValidationError(
+                "element must be an object", f"{base_pointer}/{i}"
+            )
+        elem_type = elem.get("type")
+        if elem_type not in VALID_RICH_TEXT_ELEMENTS:
+            raise BlockValidationError(
+                f"unsupported type: {elem_type}", f"{base_pointer}/{i}/type"
+            )
+        # Validate nested elements
+        inner_elements = elem.get("elements")
+        if inner_elements is not None:
+            _validate_rich_text_inner_elements(inner_elements, f"{base_pointer}/{i}")
+
+
+def _validate_section_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate section block has required fields."""
+    has_text = "text" in block and block["text"]
+    has_fields = "fields" in block and block["fields"]
+    has_accessory = "accessory" in block and block["accessory"]
+    if not has_text and not has_fields and not has_accessory:
+        raise BlockValidationError(
+            "must define either `text` or `fields`", f"{pointer}/type"
+        )
+
+
+def _validate_header_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate header block has required text field."""
+    if "text" not in block or not block["text"]:
+        raise BlockValidationError("missing required field: text", pointer)
+
+
+def _validate_image_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate image block has required fields."""
+    if "image_url" not in block and "slack_file" not in block:
+        raise BlockValidationError(
+            "missing required field: image_url or slack_file", pointer
+        )
+    if "alt_text" not in block:
+        raise BlockValidationError("missing required field: alt_text", pointer)
+
+
+def _validate_context_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate context block has elements."""
+    if "elements" not in block or not block["elements"]:
+        raise BlockValidationError("missing required field: elements", pointer)
+
+
+def _validate_actions_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate actions block has elements."""
+    if "elements" not in block or not block["elements"]:
+        raise BlockValidationError("missing required field: elements", pointer)
+
+
+def _validate_input_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate input block has required fields."""
+    if "element" not in block:
+        raise BlockValidationError("missing required field: element", pointer)
+    if "label" not in block:
+        raise BlockValidationError("missing required field: label", pointer)
+
+
+def _validate_table_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate table block has rows."""
+    if "rows" not in block or not block["rows"]:
+        raise BlockValidationError("missing required field: rows", pointer)
+
+
+def _validate_markdown_block(block: dict[str, Any], pointer: str) -> None:
+    """Validate markdown block has text."""
+    if "text" not in block or not block["text"]:
+        raise BlockValidationError("missing required field: text", pointer)
+
+
+def _validate_block(block: dict[str, Any], index: int) -> None:
+    """Validate a single block."""
+    pointer = f"/blocks/{index}"
+
+    if not isinstance(block, dict):
+        raise BlockValidationError("block must be an object", pointer)
+
+    block_type = block.get("type")
+    if not block_type:
+        raise BlockValidationError("missing required field: type", pointer)
+
+    if block_type not in VALID_BLOCK_TYPES:
+        raise BlockValidationError(f"unsupported type: {block_type}", f"{pointer}/type")
+
+    # Type-specific validation
+    if block_type == "rich_text":
+        if "elements" not in block:
+            raise BlockValidationError("missing required field: elements", pointer)
+        _validate_rich_text_elements(block["elements"], f"{pointer}/elements")
+
+    elif block_type == "section":
+        _validate_section_block(block, pointer)
+
+    elif block_type == "header":
+        _validate_header_block(block, pointer)
+
+    elif block_type == "image":
+        _validate_image_block(block, pointer)
+
+    elif block_type == "context":
+        _validate_context_block(block, pointer)
+
+    elif block_type == "actions":
+        _validate_actions_block(block, pointer)
+
+    elif block_type == "input":
+        _validate_input_block(block, pointer)
+
+    elif block_type == "table":
+        _validate_table_block(block, pointer)
+
+    elif block_type == "markdown":
+        _validate_markdown_block(block, pointer)
+
+    # divider, file, video don't require additional fields for basic validation
+
+
+def _validate_blocks(blocks: Any) -> list[dict[str, Any]] | None:
+    """
+    Validate blocks array and return validated blocks.
+    Raises SlackAPIError on validation failure.
+    Returns None if blocks is None/empty.
+    """
+    if blocks is None:
+        return None
+
+    # Check if blocks is a string (might be JSON-encoded)
+    if isinstance(blocks, str):
+        blocks_str = blocks.strip()
+        if not blocks_str or blocks_str in ("[]", "null"):
+            return None
+        try:
+            import json
+
+            blocks = json.loads(blocks_str)
+        except (json.JSONDecodeError, ValueError):
+            _slack_error("invalid_blocks_format")
+
+    # Must be a list
+    if not isinstance(blocks, list):
+        _slack_error("invalid_blocks_format")
+
+    # Empty list is treated as no blocks
+    if len(blocks) == 0:
+        return None
+
+    # Check max blocks limit
+    if len(blocks) > MAX_BLOCKS:
+        _slack_error(
+            "invalid_blocks",
+            extra={
+                "response_metadata": {
+                    "messages": [
+                        f"[ERROR] no more than {MAX_BLOCKS} items allowed [json-pointer:/blocks]"
+                    ]
+                }
+            },
+        )
+
+    # Validate each block
+    try:
+        for i, block in enumerate(blocks):
+            _validate_block(block, i)
+    except BlockValidationError as e:
+        _slack_error(
+            "invalid_blocks",
+            extra={
+                "response_metadata": {
+                    "messages": [f"[ERROR] {e.message} [json-pointer:{e.pointer}]"]
+                }
+            },
+        )
+
+    return blocks
+
+
 def _get_env_team_id(
     request: Request, *, channel_id: str | None, actor_user_id: str
 ) -> str:
@@ -393,7 +646,7 @@ async def chat_post_message(request: Request) -> JSONResponse:
     text = payload.get("text")
     thread_ts = payload.get("thread_ts")
     attachments = payload.get("attachments")
-    blocks = payload.get("blocks")
+    blocks_raw = payload.get("blocks")
     session = _session(request)
     user_id = _principal_user_id(request)
 
@@ -401,12 +654,11 @@ async def chat_post_message(request: Request) -> JSONResponse:
     if not channel:
         _slack_error("channel_not_found")
 
+    # Validate blocks (before checking content)
+    blocks = _validate_blocks(blocks_raw)
+
     # Validate text (required per documentation)
-    if (
-        not _has_content(text)
-        and not _has_content(attachments)
-        and not _has_content(blocks)
-    ):
+    if not _has_content(text) and not _has_content(attachments) and blocks is None:
         _slack_error("no_text")
 
     channel_id = _resolve_channel_id(channel)
@@ -441,7 +693,7 @@ async def chat_post_message(request: Request) -> JSONResponse:
     }
     if _has_content(attachments):
         message_obj["attachments"] = attachments
-    if _has_content(blocks):
+    if blocks is not None:
         message_obj["blocks"] = blocks
     if message.parent_id:
         message_obj["thread_ts"] = message.parent_id
@@ -462,16 +714,16 @@ async def chat_update(request: Request) -> JSONResponse:
     text = payload.get("text")
     channel = payload.get("channel")
     attachments = payload.get("attachments")
-    blocks = payload.get("blocks")
+    blocks_raw = payload.get("blocks")
 
     # Validate required parameters
     if not channel or not ts:
         _slack_error("invalid_form_data")
-    if (
-        not _has_content(text)
-        and not _has_content(attachments)
-        and not _has_content(blocks)
-    ):
+
+    # Validate blocks (before checking content)
+    blocks = _validate_blocks(blocks_raw)
+
+    if not _has_content(text) and not _has_content(attachments) and blocks is None:
         _slack_error("no_text")
 
     session = _session(request)
@@ -523,7 +775,7 @@ async def chat_update(request: Request) -> JSONResponse:
     message_payload = response["message"]
     if _has_content(attachments):
         message_payload["attachments"] = attachments
-    if _has_content(blocks):
+    if blocks is not None:
         message_payload["blocks"] = blocks
     if message.parent_id:
         message_payload["thread_ts"] = message.parent_id
