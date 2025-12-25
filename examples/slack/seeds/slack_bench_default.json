@@ -11,49 +11,90 @@
       "username": "agent1",
       "display_name": "Agent",
       "real_name": "AI Agent",
-      "email": "agent@example.com"
+      "email": "agent@gmail.com",
+      "is_bot": true,
+      "is_admin": false
     },
     {
       "user_id": "U02JOHNDOE1",
       "username": "johndoe",
       "display_name": "John",
       "real_name": "John Doe",
-      "email": "john@example.com"
+      "email": "john@gmail.com",
+      "is_bot": false,
+      "is_admin": false
     },
     {
       "user_id": "U02ARTEM23",
       "username": "artembogdanov",
       "display_name": "Artem",
       "real_name": "Artem Bogdanov",
-      "email": "artem@example.com"
+      "email": "artem@gmail.com",
+      "is_bot": false,
+      "is_admin": false
     },
     {
       "user_id": "U03ROBERT23",
       "username": "robertwalsh",
       "display_name": "Robert",
       "real_name": "Robert Walsh",
-      "email": "robert@example.com"
+      "email": "robert@gmail.com",
+      "is_bot": false,
+      "is_admin": true
     },
     {
       "user_id": "U04OMER23",
       "username": "Omer",
       "display_name": "Omer",
       "real_name": "Omer Narwhal",
-      "email": "omer@example.com"
+      "email": "omer@gmail.com",
+      "is_bot": false,
+      "is_admin": false
     },
     {
       "user_id": "U05MORGAN23",
       "username": "Morgan",
-      "display_name": "Morgan",
+      "display_name": "Morgan Stanley",
       "real_name": "Morgan Stanley",
-      "email": "morgan@example.com"
+      "email": "morgan@gmail.com",
+      "is_bot": false,
+      "is_admin": false
     },
     {
       "user_id": "U06HUBERT23",
       "username": "hubertmarek",
       "display_name": "Hubert",
       "real_name": "Hubert Marek",
-      "email": "hubert@example.com"
+      "email": "hubert@gmail.com",
+      "is_bot": false,
+      "is_admin": false
+    },
+    {
+      "user_id": "U07MORGANFREE",
+      "username": "mfreeman",
+      "display_name": "Morgan Freeman",
+      "real_name": "Morgan Freeman",
+      "email": "mfreeman@gmail.com",
+      "is_bot": false,
+      "is_admin": true
+    },
+    {
+      "user_id": "U08NICK23",
+      "username": "nickgrowth",
+      "display_name": "Nick",
+      "real_name": "Nick Fury",
+      "email": "nick@gmail.com",
+      "is_bot": false,
+      "is_admin": false
+    },
+    {
+      "user_id": "U09GABRIEL",
+      "username": "gabrielmkt",
+      "display_name": "Gabriel",
+      "real_name": "Gabriel Horn",
+      "email": "gabriel@gmail.com",
+      "is_bot": false,
+      "is_admin": false
     }
   ],
   "channels": [
@@ -96,6 +137,26 @@
       "is_gc": false,
       "topic_text": "Growth Team",
       "purpose_text": "This channel is for the Growth Team."
+    },
+    {
+      "channel_id": "C05ALPHA",
+      "channel_name": "project-alpha",
+      "team_id": "T01WORKSPACE",
+      "is_private": false,
+      "is_dm": false,
+      "is_gc": false,
+      "topic_text": "Alpha Project Discussions",
+      "purpose_text": "General discussion for Project Alpha."
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "channel_name": "project-alpha-dev",
+      "team_id": "T01WORKSPACE",
+      "is_private": false,
+      "is_dm": false,
+      "is_gc": false,
+      "topic_text": "Alpha Project Development",
+      "purpose_text": "Technical development for Project Alpha."
     }
   ],
   "user_teams": [
@@ -131,6 +192,21 @@
     },
     {
       "user_id": "U02ARTEM23",
+      "team_id": "T01WORKSPACE",
+      "role": "member"
+    },
+    {
+      "user_id": "U07MORGANFREE",
+      "team_id": "T01WORKSPACE",
+      "role": "admin"
+    },
+    {
+      "user_id": "U08NICK23",
+      "team_id": "T01WORKSPACE",
+      "role": "member"
+    },
+    {
+      "user_id": "U09GABRIEL",
       "team_id": "T01WORKSPACE",
       "role": "member"
     }
@@ -183,6 +259,22 @@
     {
       "channel_id": "C03IJKL9012",
       "user_id": "U06HUBERT23"
+    },
+    {
+      "channel_id": "C04MNOP3456",
+      "user_id": "U08NICK23"
+    },
+    {
+      "channel_id": "C04MNOP3456",
+      "user_id": "U09GABRIEL"
+    },
+    {
+      "channel_id": "C04MNOP3456",
+      "user_id": "U06HUBERT23"
+    },
+    {
+      "channel_id": "C04MNOP3456",
+      "user_id": "U01AGENBOT9"
     }
   ],
   "messages": [
@@ -252,6 +344,72 @@
       "channel_id": "C01ABCD1234",
       "user_id": "U03ROBERT23",
       "message_text": "Does anyone know when the MCP deployment will be done?"
+    },
+    {
+      "message_id": "1700210000.000001",
+      "channel_id": "C02EFGH5678",
+      "user_id": "U02ARTEM23",
+      "message_text": "Has anyone tried the new Gemini 3 Pro model yet? Seems really good for frontend."
+    },
+    {
+      "message_id": "1700210060.000002",
+      "channel_id": "C02EFGH5678",
+      "user_id": "U05MORGAN23",
+      "message_text": "I saw the announcement, we should share it with the UX team to play around with it."
+    },
+    {
+      "message_id": "1700210120.000003",
+      "channel_id": "C02EFGH5678",
+      "user_id": "U02JOHNDOE1",
+      "message_text": "I'm more interested in the Flash version for the customer support bot. Latency is our bottleneck and their last nano version was fire."
+    },
+    {
+      "message_id": "1700210180.000004",
+      "channel_id": "C02EFGH5678",
+      "user_id": "U04OMER23",
+      "message_text": "Is it out in preview? I want to test it against our current benchmarks."
+    },
+    {
+      "message_id": "1700210240.000005",
+      "channel_id": "C02EFGH5678",
+      "user_id": "U02ARTEM23",
+      "message_text": "Yeah, it's in the developer preview. I'll send the docs link later."
+    },
+    {
+      "message_id": "1700300000.000001",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U08NICK23",
+      "message_text": "I've pulled the results from last week's social experiments: Reddit +15% traffic, LN +5%, Twitter -2%, YT +8%."
+    },
+    {
+      "message_id": "1700300060.000002",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U09GABRIEL",
+      "message_text": "Reddit is killing it! What was the main driver there? The text posts or the link dumps?"
+    },
+    {
+      "message_id": "1700300120.000003",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U08NICK23",
+      "message_text": "It was actually the 'Day in the life' deep dive text post. People engaged with the story."
+    },
+    {
+      "message_id": "1700300180.000004",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U06HUBERT23",
+      "message_text": "FYI: If we decide to scale the Reddit strategy, Engineering can help automate some of the formatting or crossposting."
+    },
+    {
+      "message_id": "1700300240.000005",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U09GABRIEL",
+      "message_text": "That would be huge, Hubert. Let's double down on Reddit for the next sprint. Nick, can you draft a 'Behind the scenes' series?"
+    },
+    {
+      "message_id": "1700300300.000006",
+      "channel_id": "C04MNOP3456",
+      "user_id": "U08NICK23",
+      "message_text": "On it. I'll have the draft ready by EOD tomorrow."
     }
   ]
 }

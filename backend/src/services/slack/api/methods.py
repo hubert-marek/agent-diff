@@ -25,6 +25,7 @@ from src.services.slack.database.schema import (
     ChannelMember,
     Message,
     UserTeam,
+    UserTeamsRole,
 )
 from sqlalchemy.sql.elements import ColumnElement as SAColumnElement
 
@@ -576,9 +577,9 @@ def _validate_blocks(blocks: Any) -> list[dict[str, Any]] | None:
         blocks_str = blocks.strip()
         if not blocks_str or blocks_str in ("[]", "null"):
             return None
-        try:
-            import json
+        import json
 
+        try:
             blocks = json.loads(blocks_str)
         except (json.JSONDecodeError, ValueError):
             _slack_error("invalid_blocks_format")
@@ -650,9 +651,15 @@ async def chat_post_message(request: Request) -> JSONResponse:
     session = _session(request)
     user_id = _principal_user_id(request)
 
-    # Validate channel (required)
     if not channel:
-        _slack_error("channel_not_found")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: channel"]
+                }
+            },
+        )
 
     # Validate blocks (before checking content)
     blocks = _validate_blocks(blocks_raw)
@@ -821,9 +828,16 @@ async def conversations_create(request: Request) -> JSONResponse:
     name = payload.get("name")
     is_private = payload.get("is_private", False)
 
-    # Validate name
+    # Validate name (required)
     if not name:
-        _slack_error("invalid_name_required")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: name"]
+                }
+            },
+        )
     if len(name) > 80:
         _slack_error("invalid_name_maxlength")
     if not all(c.islower() or c.isdigit() or c in "-_" for c in name):
@@ -972,11 +986,28 @@ async def conversations_history(request: Request) -> JSONResponse:
     latest_param = params.get("latest")
     inclusive = params.get("inclusive", "false").lower() == "true"
 
+    # Validate channel (required)
     if not channel:
-        _slack_error("channel_not_found")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: channel"]
+                }
+            },
+        )
     channel = str(channel)
     session = _session(request)
-    channel_id = _resolve_channel_id(channel)
+
+    # Resolve and validate channel exists before checking membership
+    try:
+        channel_id = _resolve_channel_id(channel)
+    except (ValueError, AttributeError):
+        _slack_error("channel_not_found")
+
+    ch = session.get(Channel, channel_id)
+    if ch is None:
+        _slack_error("channel_not_found")
 
     # Membership check
     actor_id = _principal_user_id(request)
@@ -1515,9 +1546,16 @@ async def conversations_info(request: Request) -> JSONResponse:
     include_locale = params.get("include_locale", "false").lower() == "true"
     include_num_members = params.get("include_num_members", "false").lower() == "true"
 
-    # Validate required parameter
+    # Validate channel (required)
     if not channel:
-        _slack_error("channel_not_found")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: channel"]
+                }
+            },
+        )
 
     session = _session(request)
     actor_id = _principal_user_id(request)
@@ -1555,9 +1593,16 @@ async def conversations_archive(request: Request) -> JSONResponse:
     payload = await _get_params_async(request)
     channel = payload.get("channel")
 
-    # Validate required parameter
+    # Validate channel (required)
     if not channel:
-        _slack_error("channel_not_found")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: channel"]
+                }
+            },
+        )
 
     session = _session(request)
 
@@ -1589,9 +1634,16 @@ async def conversations_unarchive(request: Request) -> JSONResponse:
     payload = await _get_params_async(request)
     channel = payload.get("channel")
 
-    # Validate required parameter
+    # Validate channel (required)
     if not channel:
-        _slack_error("channel_not_found")
+        _slack_error(
+            "invalid_arguments",
+            extra={
+                "response_metadata": {
+                    "messages": ["[ERROR] missing required field: channel"]
+                }
+            },
+        )
 
     session = _session(request)
 
@@ -2056,6 +2108,9 @@ async def auth_test(request: Request) -> JSONResponse:
         "user_id": user.user_id,
     }
 
+    if user.is_bot:
+        response["bot_id"] = f"B{user.user_id[1:]}"  # Convert U... to B...
+
     return _json_response(response)
 
 
@@ -2071,7 +2126,9 @@ async def users_info(request: Request) -> JSONResponse:
 
     try:
         user_row = ops.get_user(session=session, user_id=user)
-        user_payload = _serialize_user(user_row)
+        # Get team_id from the target user's team membership
+        team_id = _get_env_team_id(request, channel_id=None, actor_user_id=user)
+        user_payload = _serialize_user(user_row, session=session, team_id=team_id)
         if include_locale:
             user_payload["locale"] = user_row.timezone or "en-US"
         return _json_response({"ok": True, "user": user_payload})
@@ -2118,7 +2175,7 @@ async def users_list(request: Request) -> JSONResponse:
 
     members = []
     for user_row in users:
-        serialized = _serialize_user(user_row)
+        serialized = _serialize_user(user_row, session=session, team_id=team_id)
         if include_locale:
             serialized["locale"] = user_row.timezone or "en-US"
         members.append(serialized)
@@ -2133,10 +2190,11 @@ async def users_list(request: Request) -> JSONResponse:
     )
 
 
-def _serialize_user(user) -> dict[str, Any]:
+def _serialize_user(user, session=None, team_id: str | None = None) -> dict[str, Any]:
     """Serialize user to match Slack API format.
 
     Returns user object with all fields that Slack API typically includes.
+    If session and team_id are provided, queries user_teams for admin/owner status.
     """
     user_id_str = _format_user_id(user.user_id)
     real_name = user.real_name or user.username
@@ -2148,9 +2206,21 @@ def _serialize_user(user) -> dict[str, Any]:
     avatar_hash = hashlib.md5(user.user_id.encode()).hexdigest()[:10]
     base_avatar_url = f"https://secure.gravatar.com/avatar/{avatar_hash}"
 
+    # Determine admin/owner status from user_teams role
+    is_admin = False
+    is_owner = False
+    if session is not None and team_id is not None:
+        user_team = session.get(UserTeam, (user.user_id, team_id))
+        if user_team and user_team.role:
+            is_owner = user_team.role == UserTeamsRole.owner
+            is_admin = user_team.role in (UserTeamsRole.admin, UserTeamsRole.owner)
+
+    # Get is_bot from user record
+    is_bot = user.is_bot if hasattr(user, "is_bot") and user.is_bot else False
+
     return {
         "id": user_id_str,
-        "team_id": "T01WORKSPACE",  # Default workspace team ID
+        "team_id": team_id or "T01WORKSPACE",
         "name": user.username,
         "deleted": not user.is_active if user.is_active is not None else False,
         "color": "9f69e7",  # Default purple color
@@ -2176,15 +2246,15 @@ def _serialize_user(user) -> dict[str, Any]:
             "image_72": f"{base_avatar_url}?s=72",
             "image_192": f"{base_avatar_url}?s=192",
             "image_512": f"{base_avatar_url}?s=512",
-            "team": "T01WORKSPACE",
+            "team": team_id or "T01WORKSPACE",
         },
-        "is_admin": False,
-        "is_owner": False,
-        "is_primary_owner": False,
+        "is_admin": is_admin,
+        "is_owner": is_owner,
+        "is_primary_owner": is_owner,  # Primary owner is the same as owner for our purposes
         "is_restricted": False,
         "is_ultra_restricted": False,
-        "is_bot": False,
-        "is_app_user": False,
+        "is_bot": is_bot,
+        "is_app_user": is_bot,  # Bots are app users
         "updated": int(user.created_at.timestamp()) if user.created_at else 0,
         "has_2fa": False,
     }
