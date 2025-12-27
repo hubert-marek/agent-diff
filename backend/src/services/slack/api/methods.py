@@ -149,8 +149,35 @@ def _slack_error(
     raise SlackAPIError(code, status_code, extra)
 
 
-def _resolve_channel_id(channel: str) -> str:
-    """Return channel ID as-is (already in string format)"""
+def _resolve_channel_id(channel: str, session=None) -> str:
+    """Resolve channel name or ID to channel ID.
+
+    Accepts:
+    - Channel ID (C..., D..., G...)
+    - Channel name with # prefix (#general)
+    - Channel name without prefix (general)
+    """
+    if not channel:
+        return channel
+
+    # Strip # prefix if present
+    name = channel.lstrip("#")
+
+    # If it looks like a channel ID, return as-is
+    if name.startswith(("C", "D", "G")) and len(name) > 5:
+        return name
+
+    # Try to look up by name if session provided
+    if session:
+        from sqlalchemy import select
+        from src.services.slack.database.schema import Channel
+
+        stmt = select(Channel).where(Channel.channel_name == name)
+        result = session.execute(stmt).scalar_one_or_none()
+        if result:
+            return result.channel_id
+
+    # Fall back to returning the input (will fail later with channel_not_found)
     return channel
 
 
@@ -668,7 +695,7 @@ async def chat_post_message(request: Request) -> JSONResponse:
     if not _has_content(text) and not _has_content(attachments) and blocks is None:
         _slack_error("no_text")
 
-    channel_id = _resolve_channel_id(channel)
+    channel_id = _resolve_channel_id(channel, session)
     ch = session.get(Channel, channel_id)
     if ch is None:
         _slack_error("channel_not_found")
@@ -738,7 +765,7 @@ async def chat_update(request: Request) -> JSONResponse:
 
     # Validate channel exists
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -802,7 +829,7 @@ async def chat_delete(request: Request) -> JSONResponse:
 
     # Validate channel exists
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1001,7 +1028,7 @@ async def conversations_history(request: Request) -> JSONResponse:
 
     # Resolve and validate channel exists before checking membership
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1123,7 +1150,7 @@ async def conversations_replies(request: Request) -> JSONResponse:
 
     session = _session(request)
     actor_id = _principal_user_id(request)
-    channel_id = _resolve_channel_id(channel)
+    channel_id = _resolve_channel_id(channel, session)
     ch = session.get(Channel, channel_id)
     if ch is None:
         _slack_error("channel_not_found")
@@ -1214,7 +1241,7 @@ async def conversations_join(request: Request) -> JSONResponse:
     if channel is None:
         _slack_error("channel_not_found")
     session = _session(request)
-    channel_id = _resolve_channel_id(channel)
+    channel_id = _resolve_channel_id(channel, session)
     actor = _principal_user_id(request)
     team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor)
     ch = session.get(Channel, channel_id)
@@ -1266,7 +1293,7 @@ async def conversations_invite(request: Request) -> JSONResponse:
         _slack_error("no_user")
 
     session = _session(request)
-    channel_id = _resolve_channel_id(channel)
+    channel_id = _resolve_channel_id(channel, session)
     actor_id = _principal_user_id(request)
     team_id = _get_env_team_id(request, channel_id=channel_id, actor_user_id=actor_id)
 
@@ -1366,7 +1393,7 @@ async def conversations_open(request: Request) -> JSONResponse:
     # If channel ID provided, return that conversation
     if channel:
         try:
-            channel_id = _resolve_channel_id(channel)
+            channel_id = _resolve_channel_id(channel, session)
         except (ValueError, AttributeError):
             _slack_error("channel_not_found")
 
@@ -1562,7 +1589,7 @@ async def conversations_info(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1608,7 +1635,7 @@ async def conversations_archive(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1649,7 +1676,7 @@ async def conversations_unarchive(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1688,7 +1715,7 @@ async def conversations_rename(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1743,7 +1770,7 @@ async def conversations_set_topic(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1783,7 +1810,7 @@ async def conversations_kick(request: Request) -> JSONResponse:
 
     # Validate channel exists
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1822,7 +1849,7 @@ async def conversations_leave(request: Request) -> JSONResponse:
 
     # Validate channel exists
     try:
-        ch_id = _resolve_channel_id(channel)
+        ch_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1865,7 +1892,7 @@ async def conversations_members(request: Request) -> JSONResponse:
         _slack_error("channel_not_found")
 
     session = _session(request)
-    channel_id = _resolve_channel_id(channel)
+    channel_id = _resolve_channel_id(channel, session)
     actor_id = _principal_user_id(request)
 
     # Validate channel exists
@@ -1928,7 +1955,7 @@ async def reactions_add(request: Request) -> JSONResponse:
 
     # Validate and resolve channel
     try:
-        ch_id = _resolve_channel_id(channel)
+        ch_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -1985,7 +2012,7 @@ async def reactions_remove(request: Request) -> JSONResponse:
     session = _session(request)
 
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 
@@ -2038,7 +2065,7 @@ async def reactions_get(request: Request) -> JSONResponse:
 
     # Validate channel exists
     try:
-        channel_id = _resolve_channel_id(channel)
+        channel_id = _resolve_channel_id(channel, session)
     except (ValueError, AttributeError):
         _slack_error("channel_not_found")
 

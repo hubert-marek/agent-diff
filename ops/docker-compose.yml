@@ -29,7 +29,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/diff_the_universe"
-      LOGICAL_REPLICATION_ENABLED: "true"
+      LOGICAL_REPLICATION_ENABLED: "false"
       ENVIRONMENT: "development"
       SEED: "${SEED:-true}"
     volumes:

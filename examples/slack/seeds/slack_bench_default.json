@@ -12,8 +12,7 @@
       "display_name": "Agent",
       "real_name": "AI Agent",
       "email": "agent@gmail.com",
-      "is_bot": true,
-      "is_admin": false
+      "is_bot": true
     },
     {
       "user_id": "U02JOHNDOE1",
@@ -21,8 +20,7 @@
       "display_name": "John",
       "real_name": "John Doe",
       "email": "john@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U02ARTEM23",
@@ -30,8 +28,7 @@
       "display_name": "Artem",
       "real_name": "Artem Bogdanov",
       "email": "artem@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U03ROBERT23",
@@ -39,8 +36,7 @@
       "display_name": "Robert",
       "real_name": "Robert Walsh",
       "email": "robert@gmail.com",
-      "is_bot": false,
-      "is_admin": true
+      "is_bot": false
     },
     {
       "user_id": "U04OMER23",
@@ -48,8 +44,7 @@
       "display_name": "Omer",
       "real_name": "Omer Narwhal",
       "email": "omer@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U05MORGAN23",
@@ -57,8 +52,7 @@
       "display_name": "Morgan Stanley",
       "real_name": "Morgan Stanley",
       "email": "morgan@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U06HUBERT23",
@@ -66,8 +60,7 @@
       "display_name": "Hubert",
       "real_name": "Hubert Marek",
       "email": "hubert@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U07MORGANFREE",
@@ -75,8 +68,7 @@
       "display_name": "Morgan Freeman",
       "real_name": "Morgan Freeman",
       "email": "mfreeman@gmail.com",
-      "is_bot": false,
-      "is_admin": true
+      "is_bot": false
     },
     {
       "user_id": "U08NICK23",
@@ -84,8 +76,7 @@
       "display_name": "Nick",
       "real_name": "Nick Fury",
       "email": "nick@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     },
     {
       "user_id": "U09GABRIEL",
@@ -93,8 +84,7 @@
       "display_name": "Gabriel",
       "real_name": "Gabriel Horn",
       "email": "gabriel@gmail.com",
-      "is_bot": false,
-      "is_admin": false
+      "is_bot": false
     }
   ],
   "channels": [

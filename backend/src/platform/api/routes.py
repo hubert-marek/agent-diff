@@ -566,13 +566,13 @@ async def start_run(request: Request) -> JSONResponse:
         getattr(request.app.state, "replication_enabled", False)
         and getattr(request.app.state, "replication_service", None)
     )
+
+    # Use snapshots when replication is disabled
+    core_eval: CoreEvaluationEngine = request.app.state.coreEvaluationEngine
     before_result = None
     if not replication_enabled:
-        logger.error(
-            "Snapshot pipeline temporarily disabled but logical replication is not active."
-        )
-        return bad_request(
-            "Logical replication must be enabled while snapshots are disabled."
+        before_result = core_eval.take_before(
+            schema=rte.schema, environment_id=str(rte.id)
         )
 
     run = TestRun(
