@@ -122,7 +122,7 @@
     {
       "id": "test_5",
       "name": "Add user to channel",
-      "prompt": "Add Morgan to the 'random' channel",
+      "prompt": "Add Morgan Stanley to the 'random' channel",
       "type": "actionEval",
       "seed_template": "slack_bench_default",
       "impersonate_user_id": "U01AGENBOT9",
@@ -145,7 +145,7 @@
     {
       "id": "test_6",
       "name": "Create a new channel and add user to it ",
-      "prompt": "Create a new channel called 'rl-project' and add Morgan to it",
+      "prompt": "Create a new channel called 'rl-project' and add Morgan Stanley to it",
       "type": "actionEval",
       "seed_template": "slack_bench_default",
       "impersonate_user_id": "U01AGENBOT9",
@@ -166,6 +166,52 @@
           "where": {
             "user_id": {
               "eq": "U05MORGAN23"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_6a",
+      "name": "Remove user from channel",
+      "prompt": "Remove John from the #random channel",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "removed",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "user_id": {
+              "eq": "U02JOHNDOE1"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_6b",
+      "name": "Archive a channel",
+      "prompt": "Archive the #growth channel",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "updated",
+          "entity": "channels",
+          "where": {
+            "channel_id": {
+              "eq": "C04MNOP3456"
+            },
+            "is_archived": {
+              "eq": true
             }
           },
           "expected_count": 1
@@ -415,8 +461,8 @@
     },
     {
       "id": "test_16",
-      "name": "Forward message to another channel",
-      "prompt": "Copy the question from #random and also post it to #general",
+      "name": "Forward messages to another channel",
+      "prompt": "Copy the two questions from #random and post them both to #general",
       "type": "actionEval",
       "seed_template": "slack_bench_default",
       "impersonate_user_id": "U01AGENBOT9",
@@ -429,7 +475,20 @@
               "eq": "C01ABCD1234"
             },
             "message_text": {
-              "contains": "Anyone up for lunch?"
+              "contains": "lunch"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "contains": "Gemini"
             }
           },
           "expected_count": 1
@@ -813,6 +872,522 @@
               }
             }
           }
+        }
+      ]
+    },
+    {
+      "id": "test_21",
+      "name": "Rich Text: Basic Formatting (Bold/Italic)",
+      "prompt": "Send a message to #general saying 'Attention' in bold and 'check logs' in italics. Use Slack Block Kit rich_text blocks with style attributes (bold:true, italic:true).",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "rich_text_section"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "\"bold\":true"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "\"italic\":true"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_22",
+      "name": "Rich Text: Bulleted List",
+      "prompt": "Send a bulleted list to #random with three items: 'Bagels', 'Coffee', and 'Donuts'. Use Slack Block Kit rich_text blocks with rich_text_list (style:bullet).",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "blocks": {
+              "contains": "rich_text_list"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "blocks": {
+              "contains": "\"style\":\"bullet\""
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_23",
+      "name": "Rich Text: Code Block and Numbered List",
+      "prompt": "Do two things using Slack Block Kit: 1) Send a code snippet to #engineering containing `{\"status\": 200}` using rich_text_preformatted element, and 2) Send a numbered list to #general with items 'Phase 1' and 'Phase 2' using rich_text_list with style:ordered.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "blocks": {
+              "contains": "rich_text_preformatted"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "rich_text_list"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_24",
+      "name": "Rich Text: Block Quote",
+      "prompt": "Quote the text 'To be or not to be' in the #random channel. Use Slack Block Kit rich_text blocks with rich_text_quote element.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "blocks": {
+              "contains": "rich_text_quote"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_26",
+      "name": "Table Block Generation",
+      "prompt": "Send a table to #growth with headers 'Metric' and 'Value', and one row of data: 'DAU', '1500'. Use Slack Block Kit with a table block type.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C04MNOP3456"
+            },
+            "blocks": {
+              "contains": "\"type\":\"table\""
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C04MNOP3456"
+            },
+            "blocks": {
+              "contains": "DAU"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_27",
+      "name": "Markdown Block (Direct)",
+      "prompt": "Send a markdown formatted message to #engineering with a header 'Daily Report' and a bold item '**All Systems Go**'. Use Slack Block Kit with a markdown block type.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "blocks": {
+              "contains": "\"type\":\"markdown\""
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_28",
+      "name": "Rich Text: User Mention",
+      "prompt": "Mention @Artem in #general using Slack Block Kit rich_text blocks with a user element type containing Artem's user ID.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "\"type\":\"user\""
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "blocks": {
+              "contains": "U02ARTEM23"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_29",
+      "name": "Chained Reasoning: Search and DM",
+      "prompt": "Find the user who complained about 'captcha' in #general and send them a DM saying 'I am looking into this.'",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "channels",
+          "where": {
+            "is_dm": {
+              "eq": true
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "looking into this"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U06HUBERT23"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_30",
+      "name": "Set Operations: Group Invite based on Topic",
+      "prompt": "Create a new channel called 'auth-force' and invite everyone who has posted about 'login' or 'password' in #engineering.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "channels",
+          "where": {
+            "channel_name": {
+              "contains": "auth-force"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "in": [
+                "U01AGENBOT9",
+                "U02JOHNDOE1",
+                "U03ROBERT23",
+                "U05MORGAN23",
+                "U02ARTEM23",
+                "U06HUBERT23"
+              ]
+            }
+          },
+          "expected_count": 6
+        }
+      ]
+    },
+    {
+      "id": "test_32",
+      "name": "Constraint Verification (Negative Test)",
+      "prompt": "Try to invite the user 'ElonMusk' to #general. If you can't find him, inform me (Hubert).",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            }
+          },
+          "expected_count": 0
+        },
+        {
+          "diff_type": "added",
+          "entity": "channels",
+          "where": {
+            "is_dm": {
+              "eq": true
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "find"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U06HUBERT23"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_33",
+      "name": "Information Synthesis",
+      "prompt": "Who are the admins of the 'Test Workspace'? Reply with their names in #random.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "message_text": {
+              "contains": "Robert"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "message_text": {
+              "contains": "Morgan"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_34",
+      "name": "Ambiguity Resolution (Contextual User)",
+      "prompt": "Invite the Morgan who is NOT an admin to #random.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U05MORGAN23"
+            },
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_35",
+      "name": "Ambiguity Resolution (Contextual Channel)",
+      "prompt": "Post 'Status update: Alpha is on track' to the alpha dev channel.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "message_text": {
+              "contains": "Status update"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_36",
+      "name": "Cross-channel Summarization",
+      "prompt": "Summarize the discussion about 'Gemini' in #random and post the summary to #engineering.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_text": {
+              "contains": "frontend"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_text": {
+              "contains": "Flash"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_37",
+      "name": "Conditional Logic",
+      "prompt": "Check the discussion in #growth. If the team decided to double down on Reddit, react with :rocket: to the message proposing it.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_default",
+      "impersonate_user_id": "U01AGENBOT9",
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "message_reactions",
+          "where": {
+            "message_id": {
+              "eq": "1700300240.000005"
+            },
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "reaction_type": {
+              "eq": "rocket"
+            }
+          },
+          "expected_count": 1
         }
       ]
     }

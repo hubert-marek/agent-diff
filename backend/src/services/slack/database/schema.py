@@ -48,6 +48,9 @@ class User(Base):
     is_active: Mapped[bool | None] = mapped_column(
         Boolean, default=True, server_default="true"
     )
+    is_bot: Mapped[bool | None] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
 
     messages: Mapped[list["Message"]] = relationship(
         back_populates="user", cascade="all,delete-orphan"
