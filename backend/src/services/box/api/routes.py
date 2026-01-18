@@ -572,7 +572,11 @@ async def create_folder(request: Request) -> Response:
             user_id=user_id,
         )
 
-        folder_data = new_folder.to_dict(include_items=True)
+        folder_with_items = ops.get_folder_by_id(
+            session, new_folder.id, load_children=True, load_files=True
+        )
+        assert folder_with_items is not None
+        folder_data = folder_with_items.to_dict(include_items=True)
         filtered_data = _filter_fields(folder_data, fields)
 
         return _json_response(filtered_data, status_code=status.HTTP_201_CREATED)

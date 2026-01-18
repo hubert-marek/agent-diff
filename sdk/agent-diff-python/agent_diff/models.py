@@ -118,7 +118,7 @@ class InitEnvRequestBody(BaseModel):
     testId: Optional[UUID] = None
     # Preferred selectors
     templateId: Optional[UUID] = None
-    templateService: Optional[Literal["slack", "linear"]] = None
+    templateService: Optional[Literal["slack", "linear", "box"]] = None
     templateName: Optional[str] = None
     # Legacy fallback
     templateSchema: Optional[str] = None
@@ -193,7 +193,7 @@ class DeleteEnvResponse(BaseModel):
 
 class CreateTemplateFromEnvRequest(BaseModel):
     environmentId: str
-    service: Literal["slack", "linear"]
+    service: Literal["slack", "linear", "box"]
     name: str
     description: Optional[str] = None
     visibility: Literal["public", "private"] = "private"
@@ -203,4 +203,4 @@ class CreateTemplateFromEnvRequest(BaseModel):
 class CreateTemplateFromEnvResponse(BaseModel):
     templateId: str
     templateName: str  # Name of the environment template in the database
-    service: Literal["slack", "linear"]
+    service: Literal["slack", "linear", "box"]

@@ -1,6 +1,6 @@
 import json
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Configuration - resolve paths relative to script
@@ -8,6 +8,9 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 REPO_ROOT = SCRIPT_DIR.parent.parent  # examples/box -> examples -> repo root
 SOURCE_DIR = REPO_ROOT / "examples/box/seeds/filesystem"
 OUTPUT_FILE = REPO_ROOT / "examples/box/seeds/box_default.json"
+
+# Single UTC base timestamp for deterministic generation
+BASE_TIME = datetime(2026, 1, 9, 0, 0, 0, tzinfo=timezone.utc)
 
 # Fixed IDs for test reliability (Box uses 10-12 digit numeric strings)
 ADMIN_ID = "27512847635"
@@ -75,8 +78,8 @@ def scan_directory(path: Path, parent_id="0"):
         if item.name.startswith("."):
             continue
 
-        item_id = generate_id("item", str(item.relative_to(SOURCE_DIR)))
-        created_at = (datetime.now() - timedelta(days=10)).isoformat()
+        item_id = generate_id("item", item.relative_to(SOURCE_DIR).as_posix())
+        created_at = (BASE_TIME - timedelta(days=10)).isoformat()
 
         if item.is_dir():
             folder = {
@@ -247,8 +250,8 @@ def main():
                 "description": "Hub for research project files",
                 "created_by_id": ADMIN_ID,
                 "updated_by_id": ADMIN_ID,
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
+                "created_at": BASE_TIME.isoformat(),
+                "updated_at": BASE_TIME.isoformat(),
                 "is_ai_enabled": True,
                 "can_non_owners_invite": True,
                 "can_shared_link_be_created": True,
