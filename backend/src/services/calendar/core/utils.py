@@ -7,9 +7,9 @@ import secrets
 import string
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar, cast
 from dateutil import parser as date_parser
-from dateutil.rrule import rrulestr
+from dateutil.rrule import rrule, rrulestr
 
 
 # ============================================================================
@@ -66,17 +66,30 @@ def generate_ical_uid(event_id: str, calendar_id: str) -> str:
     return f"{event_id}@{domain}"
 
 
-def generate_acl_rule_id(scope_type: str, scope_value: Optional[str] = None) -> str:
+def generate_acl_rule_id(
+    scope_type: str,
+    scope_value: Optional[str] = None,
+    calendar_id: Optional[str] = None,
+) -> str:
     """
-    Generate an ACL rule ID.
+    Generate an ACL rule ID unique per calendar.
 
     Format:
-    - "default" for scope_type="default"
-    - "{scope_type}:{scope_value}" otherwise
+    - "{calendar_id}:default" for scope_type="default" (if calendar_id provided)
+    - "{calendar_id}:{scope_type}:{scope_value}" otherwise (if calendar_id provided)
+    - Legacy format without calendar_id for backward compatibility
+    
+    Including calendar_id ensures ACL rule IDs are unique across different calendars.
     """
-    if scope_type == "default":
-        return "default"
-    return f"{scope_type}:{scope_value}"
+    if calendar_id:
+        if scope_type == "default":
+            return f"{calendar_id}:default"
+        return f"{calendar_id}:{scope_type}:{scope_value}"
+    else:
+        # Legacy format (backward compatibility)
+        if scope_type == "default":
+            return "default"
+        return f"{scope_type}:{scope_value}"
 
 
 def generate_channel_id() -> str:
@@ -223,7 +236,7 @@ class PageToken:
         """Encode pagination state into a page token."""
         import json
 
-        data = {"o": offset}
+        data: dict[str, Any] = {"o": offset}
         if extra:
             data["e"] = extra
         json_str = json.dumps(data, separators=(",", ":"))
@@ -389,10 +402,11 @@ def expand_recurrence(
 
     for rule_str in recurrence:
         if rule_str.startswith("RRULE:"):
-            rule = rrulestr(rule_str[6:], dtstart=start)
+            # rrulestr returns rrule when parsing a single RRULE string
+            rule = cast(rrule, rrulestr(rule_str[6:], dtstart=start))
             rset.rrule(rule)
         elif rule_str.startswith("EXRULE:"):
-            rule = rrulestr(rule_str[7:], dtstart=start)
+            rule = cast(rrule, rrulestr(rule_str[7:], dtstart=start))
             rset.exrule(rule)
         elif rule_str.startswith("RDATE"):
             # Parse RDATE and add each date to the ruleset

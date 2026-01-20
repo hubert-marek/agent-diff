@@ -8,8 +8,11 @@ Uses Starlette for HTTP handling with SQLAlchemy for database operations.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Callable, Awaitable, Optional
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -216,6 +219,67 @@ def get_if_none_match(request: Request) -> Optional[str]:
     return request.headers.get("If-None-Match")
 
 
+class InvalidParameterError(Exception):
+    """Raised when a query parameter has an invalid value."""
+    def __init__(self, param_name: str, message: str):
+        self.param_name = param_name
+        self.message = message
+        super().__init__(message)
+
+
+def parse_int_param(params: dict[str, str], name: str, default: int, max_value: Optional[int] = None) -> int:
+    """
+    Parse an integer query parameter with validation.
+    
+    Args:
+        params: Query parameters dict
+        name: Parameter name (e.g., "maxResults")
+        default: Default value if parameter not provided
+        max_value: Maximum allowed value (clamps result)
+    
+    Returns:
+        Parsed integer value
+        
+    Raises:
+        InvalidParameterError: If value is not a valid integer
+    """
+    raw_value = params.get(name)
+    if raw_value is None:
+        value = default
+    else:
+        try:
+            value = int(raw_value)
+        except (ValueError, TypeError):
+            raise InvalidParameterError(name, f"{name} must be a valid integer")
+    
+    if max_value is not None:
+        value = min(value, max_value)
+    return value
+
+
+def parse_optional_int_param(params: dict[str, str], name: str) -> Optional[int]:
+    """
+    Parse an optional integer query parameter with validation.
+    
+    Args:
+        params: Query parameters dict
+        name: Parameter name (e.g., "maxAttendees")
+    
+    Returns:
+        Parsed integer value or None if not provided
+        
+    Raises:
+        InvalidParameterError: If value is provided but not a valid integer
+    """
+    raw_value = params.get(name)
+    if raw_value is None:
+        return None
+    try:
+        return int(raw_value)
+    except (ValueError, TypeError):
+        raise InvalidParameterError(name, f"{name} must be a valid integer")
+
+
 # ============================================================================
 # ERROR HANDLING WRAPPER
 # ============================================================================
@@ -282,8 +346,27 @@ def api_handler(
                 },
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
+        except InvalidParameterError as e:
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 400,
+                        "message": f"Invalid value for {e.param_name} parameter",
+                        "errors": [
+                            {
+                                "domain": "global",
+                                "reason": "invalidParameter",
+                                "message": e.message,
+                            }
+                        ],
+                    }
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
-            # Log the exception in production
+            # Log full exception server-side for debugging
+            logger.exception("Unhandled exception in calendar API: %s", e)
+            # Return sanitized error to client (don't leak internal details)
             return JSONResponse(
                 {
                     "error": {
@@ -293,7 +376,7 @@ def api_handler(
                             {
                                 "domain": "global",
                                 "reason": "internalError",
-                                "message": str(e),
+                                "message": "Internal server error",
                             }
                         ],
                     }
@@ -554,7 +637,7 @@ async def calendars_delete(request: Request) -> JSONResponse:
         raise ForbiddenError("You do not have permission to delete this calendar")
     
     # Delete calendar
-    delete_calendar(session, calendar_id)
+    delete_calendar(session, calendar_id, user_id)
     
     # Return empty response (204 No Content style, but Google returns 200 with empty)
     return JSONResponse(
@@ -624,8 +707,8 @@ async def calendar_list_list(request: Request) -> JSONResponse:
     user_id = get_user_id(request)
     params = get_query_params(request)
     
-    # Parse query parameters
-    max_results = min(int(params.get("maxResults", "100")), 250)
+    # Parse query parameters with validation
+    max_results = parse_int_param(params, "maxResults", default=100, max_value=250)
     min_access_role = params.get("minAccessRole")
     page_token = params.get("pageToken")
     show_deleted = params.get("showDeleted", "").lower() == "true"
@@ -1006,8 +1089,8 @@ async def events_list(request: Request) -> JSONResponse:
     if calendar is None:
         raise CalendarNotFoundError(calendar_id)
     
-    # Parse query parameters
-    max_results = min(int(params.get("maxResults", "250")), 2500)
+    # Parse query parameters with validation
+    max_results = parse_int_param(params, "maxResults", default=250, max_value=2500)
     page_token = params.get("pageToken")
     time_min = params.get("timeMin")
     time_max = params.get("timeMax")
@@ -1018,7 +1101,7 @@ async def events_list(request: Request) -> JSONResponse:
     sync_token = params.get("syncToken")
     updated_min = params.get("updatedMin")
     ical_uid = params.get("iCalUID")
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Get calendar list entry for access role and default reminders
     calendar_entry = get_calendar_list_entry(session, user_id, calendar_id)
@@ -1106,7 +1189,7 @@ async def events_get(request: Request) -> JSONResponse:
         )
     
     # Parse optional parameters
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     time_zone = params.get("timeZone")
     user_email = get_user_email(request)
     
@@ -1195,7 +1278,7 @@ async def events_insert(request: Request) -> JSONResponse:
     )
     
     # Parse optional response parameters
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Serialize and return
     response_data = serialize_event(
@@ -1288,7 +1371,7 @@ async def events_update(request: Request) -> JSONResponse:
     )
     
     # Parse optional response parameters
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Serialize and return
     response_data = serialize_event(
@@ -1384,7 +1467,7 @@ async def events_patch(request: Request) -> JSONResponse:
     )
     
     # Parse optional response parameters
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Serialize and return
     response_data = serialize_event(
@@ -1501,7 +1584,7 @@ async def events_import(request: Request) -> JSONResponse:
     )
     
     # Parse optional response parameters
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Serialize and return
     response_data = serialize_event(
@@ -1669,13 +1752,13 @@ async def events_instances(request: Request) -> JSONResponse:
     if event is None:
         raise EventNotFoundError(event_id)
     
-    # Parse query parameters
-    max_results = min(int(params.get("maxResults", "250")), 2500)
+    # Parse query parameters with validation
+    max_results = parse_int_param(params, "maxResults", default=250, max_value=2500)
     page_token = params.get("pageToken")
     time_min = params.get("timeMin")
     time_max = params.get("timeMax")
     time_zone = params.get("timeZone")
-    max_attendees = int(params.get("maxAttendees")) if params.get("maxAttendees") else None
+    max_attendees = parse_optional_int_param(params, "maxAttendees")
     
     # Get calendar list entry for access role
     calendar_entry = get_calendar_list_entry(session, user_id, calendar_id)
@@ -1818,8 +1901,8 @@ async def acl_list(request: Request) -> JSONResponse:
     if calendar is None:
         raise CalendarNotFoundError(calendar_id)
     
-    # Parse query parameters
-    max_results = min(int(params.get("maxResults", "100")), 250)
+    # Parse query parameters with validation
+    max_results = parse_int_param(params, "maxResults", default=100, max_value=250)
     page_token = params.get("pageToken")
     show_deleted = params.get("showDeleted", "").lower() == "true"
     sync_token = params.get("syncToken")
@@ -2328,8 +2411,8 @@ async def settings_list(request: Request) -> JSONResponse:
     user_id = get_user_id(request)
     params = get_query_params(request)
     
-    # Parse query parameters
-    max_results = min(int(params.get("maxResults", "100")), 250)
+    # Parse query parameters with validation
+    max_results = parse_int_param(params, "maxResults", default=100, max_value=250)
     page_token = params.get("pageToken")
     sync_token = params.get("syncToken")
     

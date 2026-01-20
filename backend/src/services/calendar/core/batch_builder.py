@@ -98,7 +98,12 @@ def format_inner_response(part: BatchResponsePart) -> bytes:
     
     # Per RFC 7230: MUST NOT send Content-Length for 204 or 304
     body_length = len(part.body)
-    if part.status_code not in (204, 304):
+    if part.status_code in (204, 304):
+        # Remove any existing Content-Length header for 204/304 responses
+        keys_to_remove = [k for k in response_headers if k.lower() == "content-length"]
+        for k in keys_to_remove:
+            del response_headers[k]
+    else:
         response_headers["Content-Length"] = str(body_length)
     
     # Add headers

@@ -2,8 +2,11 @@
 # Converts ORM models to JSON responses matching Google's API format
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from enum import Enum
+from zoneinfo import ZoneInfo
+
+
 
 from ..database.schema import (
     Calendar,
@@ -34,6 +37,59 @@ def _format_datetime(dt: Optional[datetime]) -> Optional[str]:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.isoformat()
+
+
+def _convert_time_object(
+    time_obj: dict[str, Any],
+    target_tz: Optional[str],
+) -> dict[str, Any]:
+    """
+    Convert a start/end time object to a different timezone.
+    
+    Args:
+        time_obj: Dict with 'dateTime' and optional 'timeZone', or 'date' for all-day
+        target_tz: Target timezone name (e.g., 'America/New_York')
+    
+    Returns:
+        Updated time object with dateTime converted to target timezone
+    """
+    if target_tz is None or "date" in time_obj:
+        # No conversion for all-day events or if no target timezone
+        return time_obj
+    
+    if "dateTime" not in time_obj:
+        return time_obj
+    
+    try:
+        target_zone = ZoneInfo(target_tz)
+    except (KeyError, ValueError):
+        # Invalid timezone - return original
+        return time_obj
+    
+    # Parse the dateTime string
+    dt_str = time_obj["dateTime"]
+    try:
+        # Try parsing with timezone info
+        if "Z" in dt_str:
+            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        else:
+            dt = datetime.fromisoformat(dt_str)
+        
+        # Ensure timezone-aware
+        if dt.tzinfo is None:
+            # If no timezone, assume UTC
+            dt = dt.replace(tzinfo=timezone.utc)
+        
+        # Convert to target timezone
+        dt_converted = dt.astimezone(target_zone)
+        
+        return {
+            "dateTime": dt_converted.isoformat(),
+            "timeZone": target_tz,
+        }
+    except (ValueError, TypeError):
+        # Failed to parse - return original
+        return time_obj
 
 
 def _enum_value(val: Any) -> Any:
@@ -327,9 +383,9 @@ def serialize_event(
     if organizer:
         result["organizer"] = organizer
     
-    # Start/End times
-    result["start"] = event.start
-    result["end"] = event.end
+    # Start/End times - convert to requested timezone if specified
+    result["start"] = _convert_time_object(event.start, time_zone)
+    result["end"] = _convert_time_object(event.end, time_zone)
     
     if event.end_time_unspecified:
         result["endTimeUnspecified"] = True
@@ -340,7 +396,7 @@ def serialize_event(
     if event.recurring_event_id:
         result["recurringEventId"] = event.recurring_event_id
     if event.original_start_time:
-        result["originalStartTime"] = event.original_start_time
+        result["originalStartTime"] = _convert_time_object(event.original_start_time, time_zone)
     
     # Visibility and transparency
     if event.transparency and _enum_value(event.transparency) != "opaque":
@@ -503,12 +559,16 @@ def serialize_events_list(
     
     # Updated timestamp (latest event update) - always include
     if events:
-        latest_update = max(e.updated_at for e in events if e.updated_at)
-        if latest_update:
+        # Safely collect non-None timestamps to avoid ValueError from max()
+        timestamps = [e.updated_at for e in events if e.updated_at]
+        if timestamps:
+            latest_update = max(timestamps)
             result["updated"] = _format_datetime(latest_update)
+        else:
+            # Events exist but none have updated_at - use current time
+            result["updated"] = _format_datetime(datetime.now(timezone.utc))
     else:
         # For empty lists, use current time (Google always includes this)
-        from datetime import datetime, timezone
         result["updated"] = _format_datetime(datetime.now(timezone.utc))
     
     if next_page_token:
@@ -644,9 +704,12 @@ def serialize_acl_list(
 # ============================================================================
 
 
-def serialize_setting(setting: Setting) -> dict[str, Any]:
+def serialize_setting(setting: Union[Setting, Any]) -> dict[str, Any]:
     """
     Serialize a Setting to Google Calendar API format.
+    
+    Accepts any object with etag, setting_id, and value attributes
+    (including Setting ORM model and VirtualSetting for defaults).
     
     Response format:
     {

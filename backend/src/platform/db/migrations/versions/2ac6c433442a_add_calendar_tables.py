@@ -201,7 +201,7 @@ def upgrade() -> None:
     sa.Column('optional', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('response_status', sa.Enum('needsAction', 'declined', 'tentative', 'accepted', name='attendee_response_enum', schema='public'), nullable=False),
     sa.Column('comment', sa.Text(), nullable=True),
-    sa.Column('additional_guests', sa.Integer(), nullable=False),
+    sa.Column('additional_guests', sa.Integer(), nullable=False, server_default='0'),
     sa.Column('profile_id', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['event_id'], ['calendar_events.id'], ),
     sa.PrimaryKeyConstraint('id'),

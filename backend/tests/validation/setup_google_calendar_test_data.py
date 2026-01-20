@@ -9,8 +9,10 @@ import sys
 import requests
 import json
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 GOOGLE_CALENDAR_BASE_URL = "https://www.googleapis.com/calendar/v3"
+REQUEST_TIMEOUT = 30  # Timeout in seconds for HTTP requests
 
 
 class GoogleCalendarSetup:
@@ -31,6 +33,7 @@ class GoogleCalendarSetup:
             headers=self.headers,
             json=body,
             params=params,
+            timeout=REQUEST_TIMEOUT,
         )
         try:
             data = resp.json() if resp.text else {}
@@ -67,10 +70,12 @@ class GoogleCalendarSetup:
         print("📅 Creating test events to match seed data...")
         
         # Use dates relative to today for testing
-        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow = today + timedelta(days=1)
-        day_after = today + timedelta(days=2)
-        next_week = today + timedelta(days=7)
+        # Create NY-localized datetimes for events that specify America/New_York timezone
+        ny_tz = ZoneInfo("America/New_York")
+        today_ny = datetime.now(ny_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_ny = today_ny + timedelta(days=1)
+        day_after_ny = today_ny + timedelta(days=2)
+        next_week_ny = today_ny + timedelta(days=7)
 
         events_to_create = [
             # Event 1: Team Standup - Daily recurring event (like seed event_001)
@@ -79,11 +84,11 @@ class GoogleCalendarSetup:
                 "description": "Daily standup meeting",
                 "location": "Conference Room A",
                 "start": {
-                    "dateTime": (tomorrow.replace(hour=9, minute=0)).isoformat(),
+                    "dateTime": tomorrow_ny.replace(hour=9, minute=0).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "end": {
-                    "dateTime": (tomorrow.replace(hour=9, minute=30)).isoformat(),
+                    "dateTime": tomorrow_ny.replace(hour=9, minute=30).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "recurrence": ["RRULE:FREQ=DAILY;COUNT=10;BYDAY=MO,TU,WE,TH,FR"],
@@ -100,11 +105,11 @@ class GoogleCalendarSetup:
                 "description": "Quarterly project review with stakeholders",
                 "location": "Main Conference Room",
                 "start": {
-                    "dateTime": (day_after.replace(hour=14, minute=0)).isoformat(),
+                    "dateTime": day_after_ny.replace(hour=14, minute=0).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "end": {
-                    "dateTime": (day_after.replace(hour=16, minute=0)).isoformat(),
+                    "dateTime": day_after_ny.replace(hour=16, minute=0).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "attendees": [
@@ -126,11 +131,11 @@ class GoogleCalendarSetup:
                 "description": "Monthly all-hands company meeting",
                 "location": "Auditorium",
                 "start": {
-                    "dateTime": (next_week.replace(hour=10, minute=0)).isoformat(),
+                    "dateTime": next_week_ny.replace(hour=10, minute=0).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "end": {
-                    "dateTime": (next_week.replace(hour=11, minute=0)).isoformat(),
+                    "dateTime": next_week_ny.replace(hour=11, minute=0).isoformat(),
                     "timeZone": "America/New_York",
                 },
                 "recurrence": ["RRULE:FREQ=MONTHLY;COUNT=3;BYDAY=4FR"],

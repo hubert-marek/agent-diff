@@ -756,8 +756,22 @@ def list_events(
             )
         )
 
+    # Handle single_events: when true, expand recurring events into instances
+    # instead of returning master events
+    recurring_masters = []
     if single_events:
-        # Exclude master recurring events (only show instances)
+        # First, get recurring masters that match filters (we'll expand them separately)
+        recurring_query = select(Event).where(
+            and_(
+                Event.calendar_id == calendar.id,
+                Event.recurrence != None,  # noqa: E711
+            )
+        )
+        if not show_deleted:
+            recurring_query = recurring_query.where(Event.status != EventStatus.cancelled)
+        recurring_masters = list(session.execute(recurring_query).scalars().all())
+        
+        # Exclude recurring masters from main query (we'll merge expanded instances)
         query = query.where(Event.recurrence == None)  # noqa: E711
 
     # Apply ordering
@@ -768,19 +782,130 @@ def list_events(
     else:
         query = query.order_by(Event.start_datetime.asc(), Event.id.asc())
 
-    # Apply pagination
-    offset = 0
-    if page_token:
-        offset, _ = PageToken.decode(page_token)
-    query = query.offset(offset).limit(max_results + 1)
+    # For single_events with recurring masters, we need different pagination handling
+    if single_events and recurring_masters:
+        from ..core.utils import expand_recurrence, format_rfc3339, parse_rfc3339
+        from datetime import timedelta
+        
+        # Get all non-recurring events first (no pagination yet)
+        all_events = list(session.execute(query).scalars().all())
+        
+        # Determine time bounds for expansion
+        now = datetime.now(timezone.utc)
+        min_dt = parse_rfc3339(time_min) if time_min else now - timedelta(days=30)
+        max_dt = parse_rfc3339(time_max) if time_max else now + timedelta(days=365)
+        
+        # Ensure timezone-aware
+        if min_dt.tzinfo is None:
+            min_dt = min_dt.replace(tzinfo=timezone.utc)
+        if max_dt.tzinfo is None:
+            max_dt = max_dt.replace(tzinfo=timezone.utc)
+        
+        # Expand each recurring master into instances
+        for master in recurring_masters:
+            if not master.start_datetime or not master.recurrence:
+                continue
+            
+            start_dt = master.start_datetime
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            
+            # Calculate duration
+            duration = timedelta(hours=1)
+            if master.end_datetime and master.start_datetime:
+                duration = master.end_datetime - master.start_datetime
+            
+            try:
+                instance_dates = expand_recurrence(
+                    recurrence=master.recurrence,
+                    start=start_dt,
+                    time_min=min_dt,
+                    time_max=max_dt,
+                    max_instances=max_results,
+                )
+            except Exception:
+                # Skip if recurrence expansion fails
+                continue
+            
+            # Create instance objects
+            for inst_start in instance_dates:
+                inst_end = inst_start + duration
+                instance = Event(
+                    id=f"{master.id}_{inst_start.strftime('%Y%m%dT%H%M%SZ')}",
+                    calendar_id=master.calendar_id,
+                    ical_uid=master.ical_uid,
+                    summary=master.summary,
+                    description=master.description,
+                    location=master.location,
+                    color_id=master.color_id,
+                    status=master.status,
+                    visibility=master.visibility,
+                    transparency=master.transparency,
+                    creator_email=master.creator_email,
+                    creator_display_name=master.creator_display_name,
+                    creator_profile_id=master.creator_profile_id,
+                    creator_self=master.creator_self,
+                    organizer_email=master.organizer_email,
+                    organizer_display_name=master.organizer_display_name,
+                    organizer_profile_id=master.organizer_profile_id,
+                    organizer_self=master.organizer_self,
+                    start={"dateTime": format_rfc3339(inst_start), "timeZone": master.start.get("timeZone", "UTC")},
+                    end={"dateTime": format_rfc3339(inst_end), "timeZone": master.end.get("timeZone", "UTC")},
+                    start_datetime=inst_start,
+                    end_datetime=inst_end,
+                    recurring_event_id=master.id,
+                    original_start_time={"dateTime": format_rfc3339(inst_start), "timeZone": master.start.get("timeZone", "UTC")},
+                    sequence=master.sequence,
+                    etag=generate_etag(f"{master.id}:{inst_start.isoformat()}"),
+                    html_link=master.html_link,
+                    guests_can_modify=master.guests_can_modify,
+                    guests_can_invite_others=master.guests_can_invite_others,
+                    guests_can_see_other_guests=master.guests_can_see_other_guests,
+                    anyone_can_add_self=master.anyone_can_add_self,
+                    private_copy=master.private_copy,
+                    locked=master.locked,
+                    reminders=master.reminders,
+                    event_type=master.event_type,
+                    created_at=master.created_at,
+                    updated_at=master.updated_at,
+                )
+                all_events.append(instance)
+        
+        # Sort combined results
+        if order_by == "startTime":
+            all_events.sort(key=lambda e: (e.start_datetime or datetime.min.replace(tzinfo=timezone.utc), e.id))
+        elif order_by == "updated":
+            all_events.sort(key=lambda e: (e.updated_at or datetime.min.replace(tzinfo=timezone.utc), e.id), reverse=True)
+        else:
+            all_events.sort(key=lambda e: (e.start_datetime or datetime.min.replace(tzinfo=timezone.utc), e.id))
+        
+        # Apply pagination to combined results
+        offset = 0
+        if page_token:
+            offset, _ = PageToken.decode(page_token)
+        
+        paginated_events = all_events[offset:offset + max_results + 1]
+        
+        next_page_token = None
+        if len(paginated_events) > max_results:
+            paginated_events = paginated_events[:max_results]
+            next_page_token = PageToken.encode(offset + max_results)
+        
+        events = paginated_events
+    else:
+        # Standard pagination for non-single_events queries
+        offset = 0
+        if page_token:
+            offset, _ = PageToken.decode(page_token)
+        query = query.offset(offset).limit(max_results + 1)
 
-    events = list(session.execute(query).scalars().all())
+        events = list(session.execute(query).scalars().all())
 
-    # Check if there are more results
-    next_page_token = None
-    if len(events) > max_results:
-        events = events[:max_results]
-        next_page_token = PageToken.encode(offset + max_results)
+        # Check if there are more results
+        next_page_token = None
+        if len(events) > max_results:
+            events = events[:max_results]
+            next_page_token = PageToken.encode(offset + max_results)
 
     # Generate sync token
     next_sync_token = None
@@ -1152,11 +1277,12 @@ def create_acl_rule(
     calendar = get_calendar(session, calendar_id, user_id)
     _check_calendar_access(session, calendar.id, user_id, AccessRole.owner)
 
-    rule_id = generate_acl_rule_id(scope_type, scope_value)
+    # Include calendar_id in rule_id to ensure uniqueness per calendar
+    rule_id = generate_acl_rule_id(scope_type, scope_value, calendar_id=calendar.id)
 
     # Check if rule already exists
     existing = session.get(AclRule, rule_id)
-    if existing and existing.calendar_id == calendar.id:
+    if existing:
         raise DuplicateError(f"ACL rule already exists: {rule_id}")
 
     rule = AclRule(

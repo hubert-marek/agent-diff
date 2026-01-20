@@ -2,7 +2,7 @@
   "calendar_users": [
     {
       "id": "user_01",
-      "email": "zhuravelartem42@gmail.com",
+      "email": "test.user@example.com",
       "display_name": "Test User",
       "created_at": "2025-01-01T00:00:00",
       "updated_at": "2025-01-01T00:00:00"
@@ -24,8 +24,8 @@
   ],
   "calendars": [
     {
-      "id": "zhuravelartem42@gmail.com",
-      "summary": "zhuravelartem42@gmail.com",
+      "id": "test.user@example.com",
+      "summary": "test.user@example.com",
       "description": "Primary calendar for Alice",
       "owner_id": "user_01",
       "time_zone": "America/New_York",
@@ -68,7 +68,7 @@
     {
       "id": "cle_alice_primary",
       "user_id": "user_01",
-      "calendar_id": "zhuravelartem42@gmail.com",
+      "calendar_id": "test.user@example.com",
       "access_role": "owner",
       "primary": true,
       "selected": true,
@@ -137,7 +137,7 @@
   "calendar_events": [
     {
       "id": "event_001",
-      "calendar_id": "zhuravelartem42@gmail.com",
+      "calendar_id": "test.user@example.com",
       "ical_uid": "event_001@example.com",
       "summary": "Team Standup",
       "description": "Daily standup meeting",
@@ -149,8 +149,8 @@
       "start": {"dateTime": "2025-01-20T09:00:00-05:00", "timeZone": "America/New_York"},
       "end": {"dateTime": "2025-01-20T09:30:00-05:00", "timeZone": "America/New_York"},
       "recurrence": ["RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR"],
-      "creator_email": "zhuravelartem42@gmail.com",
-      "organizer_email": "zhuravelartem42@gmail.com",
+      "creator_email": "test.user@example.com",
+      "organizer_email": "test.user@example.com",
       "guests_can_modify": false,
       "guests_can_invite_others": true,
       "guests_can_see_other_guests": true,
@@ -166,7 +166,7 @@
     },
     {
       "id": "event_002",
-      "calendar_id": "zhuravelartem42@gmail.com",
+      "calendar_id": "test.user@example.com",
       "ical_uid": "event_002@example.com",
       "summary": "Project Review",
       "description": "Quarterly project review with stakeholders",
@@ -177,8 +177,8 @@
       "transparency": "opaque",
       "start": {"dateTime": "2025-01-22T14:00:00-05:00", "timeZone": "America/New_York"},
       "end": {"dateTime": "2025-01-22T16:00:00-05:00", "timeZone": "America/New_York"},
-      "creator_email": "zhuravelartem42@gmail.com",
-      "organizer_email": "zhuravelartem42@gmail.com",
+      "creator_email": "test.user@example.com",
+      "organizer_email": "test.user@example.com",
       "guests_can_modify": false,
       "guests_can_invite_others": true,
       "guests_can_see_other_guests": true,
@@ -234,8 +234,8 @@
       "start": {"dateTime": "2025-01-25T10:00:00-05:00", "timeZone": "America/New_York"},
       "end": {"dateTime": "2025-01-25T11:00:00-05:00", "timeZone": "America/New_York"},
       "recurrence": ["RRULE:FREQ=MONTHLY;BYDAY=4FR"],
-      "creator_email": "zhuravelartem42@gmail.com",
-      "organizer_email": "zhuravelartem42@gmail.com",
+      "creator_email": "test.user@example.com",
+      "organizer_email": "test.user@example.com",
       "guests_can_modify": false,
       "guests_can_invite_others": false,
       "guests_can_see_other_guests": true,
@@ -254,12 +254,13 @@
     {
       "id": 1,
       "event_id": "event_002",
-      "email": "zhuravelartem42@gmail.com",
+      "email": "test.user@example.com",
       "display_name": "Test User",
       "response_status": "accepted",
       "organizer": true,
       "self": false,
-      "optional": false
+      "optional": false,
+      "additional_guests": 0
     },
     {
       "id": 2,
@@ -269,7 +270,8 @@
       "response_status": "accepted",
       "organizer": false,
       "self": false,
-      "optional": false
+      "optional": false,
+      "additional_guests": 0
     },
     {
       "id": 3,
@@ -279,17 +281,19 @@
       "response_status": "tentative",
       "organizer": false,
       "self": false,
-      "optional": true
+      "optional": true,
+      "additional_guests": 0
     },
     {
       "id": 4,
       "event_id": "event_004",
-      "email": "zhuravelartem42@gmail.com",
+      "email": "test.user@example.com",
       "display_name": "Test User",
       "response_status": "accepted",
       "organizer": true,
       "self": false,
-      "optional": false
+      "optional": false,
+      "additional_guests": 0
     },
     {
       "id": 5,
@@ -299,7 +303,8 @@
       "response_status": "needsAction",
       "organizer": false,
       "self": false,
-      "optional": false
+      "optional": false,
+      "additional_guests": 0
     },
     {
       "id": 6,
@@ -309,16 +314,17 @@
       "response_status": "needsAction",
       "organizer": false,
       "self": false,
-      "optional": false
+      "optional": false,
+      "additional_guests": 0
     }
   ],
   "calendar_acl_rules": [
     {
-      "id": "user:zhuravelartem42@gmail.com",
-      "calendar_id": "zhuravelartem42@gmail.com",
+      "id": "user:test.user@example.com",
+      "calendar_id": "test.user@example.com",
       "role": "owner",
       "scope_type": "user",
-      "scope_value": "zhuravelartem42@gmail.com",
+      "scope_value": "test.user@example.com",
       "etag": "\"etag_acl_alice_owner\"",
       "created_at": "2025-01-01T00:00:00",
       "updated_at": "2025-01-01T00:00:00"
@@ -348,7 +354,7 @@
       "calendar_id": "team_meetings@example.com",
       "role": "owner",
       "scope_type": "user",
-      "scope_value": "zhuravelartem42@gmail.com",
+      "scope_value": "test.user@example.com",
       "etag": "\"etag_acl_team_alice\"",
       "created_at": "2025-01-01T00:00:00",
       "updated_at": "2025-01-01T00:00:00"

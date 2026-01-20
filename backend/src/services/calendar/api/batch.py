@@ -9,9 +9,12 @@ https://developers.google.com/workspace/calendar/api/guides/batch
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any, Callable, Optional, Awaitable
 from urllib.parse import urlencode
+
+logger = logging.getLogger(__name__)
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -410,9 +413,9 @@ async def _execute_batch_part(
             # Route the request
             response = await route_inner_request(inner_request, path_params, handler)
         
-        # Extract response body
+        # Extract response body (ensure bytes, not memoryview)
         if hasattr(response, "body"):
-            response_body = response.body
+            response_body = bytes(response.body)
         else:
             response_body = b""
         
@@ -430,15 +433,19 @@ async def _execute_batch_part(
         )
     
     except Exception as e:
+        # Log exception server-side for debugging
+        logger.exception("Error processing batch part %s: %s", part.content_id, e)
+        
         # Handle errors for individual parts - don't fail entire batch
+        # Return sanitized error message to clients (don't leak internal details)
         error_body = json.dumps({
             "error": {
                 "code": 500,
-                "message": str(e),
+                "message": "Internal server error",
                 "errors": [{
                     "domain": "calendar",
                     "reason": "internalError",
-                    "message": str(e)
+                    "message": "Internal server error"
                 }]
             }
         }).encode("utf-8")

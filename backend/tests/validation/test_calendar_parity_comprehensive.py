@@ -15,6 +15,10 @@ from datetime import datetime, timedelta, timezone
 
 GOOGLE_CALENDAR_BASE_URL = "https://www.googleapis.com/calendar/v3"
 REPLICA_PLATFORM_URL = "http://localhost:8000/api/platform"
+REQUEST_TIMEOUT = 30  # Timeout in seconds for HTTP requests
+
+# Test user email - use environment variable or safe default (no real PII)
+TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "test-user@example.com")
 
 
 class ComprehensiveCalendarParityTester:
@@ -91,8 +95,9 @@ class ComprehensiveCalendarParityTester:
             json={
                 "templateService": "calendar",
                 "templateName": "calendar_default",
-                "impersonateEmail": "zhuravelartem42@gmail.com",
+                "impersonateEmail": TEST_USER_EMAIL,
             },
+            timeout=REQUEST_TIMEOUT,
         )
         if resp.status_code != 201:
             raise Exception(f"Failed to create replica environment: {resp.text}")
@@ -121,6 +126,7 @@ class ComprehensiveCalendarParityTester:
             headers=req_headers,
             json=body,
             params=params,
+            timeout=REQUEST_TIMEOUT,
         )
         try:
             data = resp.json() if resp.text else {}
@@ -149,6 +155,7 @@ class ComprehensiveCalendarParityTester:
             headers=req_headers,
             json=body,
             params=params,
+            timeout=REQUEST_TIMEOUT,
         )
         try:
             data = resp.json() if resp.text else {}
@@ -1505,6 +1512,7 @@ GET /calendar/v3/users/me/settings/timezone HTTP/1.1
             "https://www.googleapis.com/batch/calendar/v3",
             headers=google_batch_headers,
             data=batch_body,
+            timeout=REQUEST_TIMEOUT,
         )
         replica_resp = requests.post(
             f"{self.replica_url}/batch/calendar/v3",
@@ -1512,6 +1520,7 @@ GET /calendar/v3/users/me/settings/timezone HTTP/1.1
                 "Content-Type": "multipart/mixed; boundary=batch_parity_test",
             },
             data=batch_body,
+            timeout=REQUEST_TIMEOUT,
         )
 
         print(f"  Batch GET requests...", end=" ")
@@ -1549,6 +1558,7 @@ GET /calendar/v3/calendars/nonexistent-calendar-12345 HTTP/1.1
             "https://www.googleapis.com/batch/calendar/v3",
             headers=google_batch_headers,
             data=batch_body_mixed,
+            timeout=REQUEST_TIMEOUT,
         )
         replica_resp = requests.post(
             f"{self.replica_url}/batch/calendar/v3",
@@ -1556,6 +1566,7 @@ GET /calendar/v3/calendars/nonexistent-calendar-12345 HTTP/1.1
                 "Content-Type": "multipart/mixed; boundary=batch_parity_test",
             },
             data=batch_body_mixed,
+            timeout=REQUEST_TIMEOUT,
         )
 
         print(f"  Batch with 404 error...", end=" ")
