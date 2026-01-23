@@ -209,6 +209,134 @@ def scan_directory(path: Path, parent_id="0"):
                     }
                 )
 
+            # History readings - add obsolete tasks for DELETE /tasks/{id} testing
+            if "dirty war" in item.name.lower() and "(1)" in item.name:
+                # Obsolete task on duplicate file - should be deleted
+                task_id = generate_id("task", item_id + "_obsolete")
+                items["tasks"].append(
+                    {
+                        "id": task_id,
+                        "type": "task",
+                        "item_id": item_id,
+                        "item_type": "file",
+                        "message": "[OBSOLETE] Review class notes - duplicate file",
+                        "created_by_id": USER_2_ID,
+                        "created_at": created_at,
+                        "is_completed": False,
+                        "action": "review",
+                        "completion_rule": "any_assignee",
+                    }
+                )
+
+            if "backup" in item.name.lower() or "copy" in item.name.lower():
+                # Task on backup file - should be deleted when backup removed
+                task_id = generate_id("task", item_id + "_backup_task")
+                items["tasks"].append(
+                    {
+                        "id": task_id,
+                        "type": "task",
+                        "item_id": item_id,
+                        "item_type": "file",
+                        "message": "[OUTDATED] Compare with original version",
+                        "created_by_id": USER_1_ID,
+                        "created_at": created_at,
+                        "is_completed": False,
+                        "action": "review",
+                        "completion_rule": "any_assignee",
+                    }
+                )
+
+            # Synth restoration files - add comments and tasks for benchmark testing
+            if "capacitor" in item.name.lower() and "log" in item.name.lower():
+                # Add existing comment that needs updating
+                comment_id = generate_id("comment", item_id + "_cap")
+                items["comments"].append(
+                    {
+                        "id": comment_id,
+                        "type": "comment",
+                        "item_id": item_id,
+                        "file_id": item_id,
+                        "item_type": "file",
+                        "message": "C31 verified - within spec",
+                        "created_by_id": USER_1_ID,
+                        "created_at": created_at,
+                        "modified_at": created_at,
+                        "is_reply_comment": False,
+                    }
+                )
+                file_obj["comment_count"] += 1
+
+            if "filter" in item.name.lower() and "calibration" in item.name.lower():
+                # Add task that needs completing
+                task_id = generate_id("task", item_id + "_filter")
+                items["tasks"].append(
+                    {
+                        "id": task_id,
+                        "type": "task",
+                        "item_id": item_id,
+                        "item_type": "file",
+                        "message": "Complete resonance calibration sign-off",
+                        "created_by_id": ADMIN_ID,
+                        "created_at": created_at,
+                        "is_completed": False,
+                        "action": "review",
+                        "completion_rule": "any_assignee",
+                    }
+                )
+                # Add second task for updating
+                task_id2 = generate_id("task", item_id + "_filter2")
+                items["tasks"].append(
+                    {
+                        "id": task_id2,
+                        "type": "task",
+                        "item_id": item_id,
+                        "item_type": "file",
+                        "message": "Verify cutoff tracking across octaves",
+                        "created_by_id": USER_1_ID,
+                        "created_at": created_at,
+                        "is_completed": False,
+                        "action": "review",
+                        "completion_rule": "any_assignee",
+                    }
+                )
+
+            # Rare book conservation files - comments for benchmark
+            if "condition_report" in item.name.lower():
+                # Add comment that can be updated
+                comment_id = generate_id("comment", item_id + "_cond")
+                items["comments"].append(
+                    {
+                        "id": comment_id,
+                        "type": "comment",
+                        "item_id": item_id,
+                        "file_id": item_id,
+                        "item_type": "file",
+                        "message": "Budget review pending - awaiting Q3/Q4 data",
+                        "created_by_id": USER_1_ID,
+                        "created_at": created_at,
+                        "modified_at": created_at,
+                        "is_reply_comment": False,
+                    }
+                )
+                file_obj["comment_count"] += 1
+                # Add outdated comment to be deleted
+                comment_id2 = generate_id("comment", item_id + "_outdated")
+                items["comments"].append(
+                    {
+                        "id": comment_id2,
+                        "type": "comment",
+                        "item_id": item_id,
+                        "file_id": item_id,
+                        "item_type": "file",
+                        "message": "[OUTDATED] Previous assessment showed 5 priority items - this was incorrect",
+                        "created_by_id": USER_2_ID,
+                        "created_at": created_at,
+                        "modified_at": created_at,
+                        "is_reply_comment": False,
+                    }
+                )
+                file_obj["comment_count"] += 1
+
     return items
 
 
@@ -257,7 +385,37 @@ def main():
                 "can_shared_link_be_created": True,
                 "is_collaboration_restricted_to_enterprise": False,
                 "view_count": 0,
-            }
+            },
+            {
+                "id": "888888",
+                "type": "hubs",
+                "title": "Chado Seasonal Materials",
+                "description": "Tea ceremony documents organized by season",
+                "created_by_id": ADMIN_ID,
+                "updated_by_id": ADMIN_ID,
+                "created_at": BASE_TIME.isoformat(),
+                "updated_at": BASE_TIME.isoformat(),
+                "is_ai_enabled": True,
+                "can_non_owners_invite": True,
+                "can_shared_link_be_created": True,
+                "is_collaboration_restricted_to_enterprise": False,
+                "view_count": 0,
+            },
+            {
+                "id": "777777",
+                "type": "hubs",
+                "title": "Conservation Lab Archive",
+                "description": "Rare book conservation documentation - Last audit: Q2 2025",
+                "created_by_id": ADMIN_ID,
+                "updated_by_id": ADMIN_ID,
+                "created_at": BASE_TIME.isoformat(),
+                "updated_at": BASE_TIME.isoformat(),
+                "is_ai_enabled": True,
+                "can_non_owners_invite": True,
+                "can_shared_link_be_created": True,
+                "is_collaboration_restricted_to_enterprise": False,
+                "view_count": 0,
+            },
         ],
         "box_hub_items": [],
     }

@@ -91,7 +91,7 @@
         {
             "id": "level4_csv_rename_folder_from_cpi",
             "name": "Level 4: Rename Folder from CSV (CPI)",
-            "prompt": "In the investments area, locate the folder that contains macroeconomic CSV datasets (it includes a huge CPI/price indexes CSV and a transport registrations CSV). Find the CPI/price indexes CSV for December 2025, download/read it, and extract the first data row values for Series_reference and Series_title_1. Rename the macro-data folder to `macro_<Series_reference>` + `_` + `<Series_title_1>`, but replace '.' with '_' in the Series_reference. Then add a comment on that folder: `series=<Series_reference>; title=<Series_title_1>`.",
+            "prompt": "In the investments area, locate the folder that contains macroeconomic CSV datasets. Find the CPI/price indexes CSV for December 2025, download/read it, and extract the first data row values for Series_reference and Series_title_1. Rename the macro-data folder to `macro_<Series_reference>` + `_` + `<Series_title_1>`, but replace '.' with '_' in the Series_reference. Then add a comment on that folder: `series=<Series_reference>; title=<Series_title_1>`.",
             "type": "compositeEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -193,7 +193,7 @@
         {
             "id": "level1_get_file_info",
             "name": "Level 1: Get File Info",
-            "prompt": "Get information about the file 'goog-10-q-q2-2025.pdf' (ID 2748861636). Add a comment to it saying 'Size checked'.",
+            "prompt": "Get information about the file 'goog-10-q-q2-2025.pdf'. Add a comment to it saying 'Size checked'.",
             "type": "actionEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -216,7 +216,7 @@
         {
             "id": "level1_create_folder",
             "name": "Level 1: Create Folder",
-            "prompt": "Create a new folder named 'Analysis_2026' inside the 'investments' folder (ID 5610825569).",
+            "prompt": "Create a new folder named 'Analysis_2026' inside the 'investments' folder.",
             "type": "actionEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -239,7 +239,7 @@
         {
             "id": "level1_rename_folder",
             "name": "Level 1: Rename Folder",
-            "prompt": "Rename the 'macroeconomics' folder (ID 1973339758) to 'Global Economics'.",
+            "prompt": "Rename the 'macroeconomics' folder to 'Global Economics'.",
             "type": "actionEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -265,7 +265,7 @@
         {
             "id": "level1_move_file",
             "name": "Level 1: Move File",
-            "prompt": "Move the file 'transport-april-2025-csv.csv' (ID 1421498350) into the 'investments' folder (ID 5610825569).",
+            "prompt": "Move the file 'transport-april-2025-csv.csv' into the 'investments' folder.",
             "type": "actionEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -291,7 +291,7 @@
         {
             "id": "level1_add_comment",
             "name": "Level 1: Add Comment",
-            "prompt": "Add a comment 'Needs review' to the folder 'investments' (ID 5610825569).",
+            "prompt": "Add a comment 'Needs review' to the Google earnings report PDF in the investments folder.",
             "type": "actionEval",
             "seed_template": "box_default",
             "impersonate_user_id": "27512847635",
@@ -304,7 +304,7 @@
                             "contains": "Needs review"
                         },
                         "item_id": {
-                            "eq": "5610825569"
+                            "eq": "2748861636"
                         }
                     },
                     "expected_count": 1
@@ -1368,6 +1368,915 @@
                         },
                         "message": {
                             "contains": "Que se vayan todos"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level1_list_hubs",
+            "name": "Level 1: List Hubs",
+            "prompt": "List all accessible hubs and create a folder named 'Hubs_Found_<count>' in the root, where <count> is the number of hubs found.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "contains": "Hubs_Found_"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level1_get_hub_details",
+            "name": "Level 1: Get Hub Details",
+            "prompt": "Get details of the 'Research Project Hub' and add a comment to the Google 10-Q PDF mentioning the hub's description.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_comments",
+                    "where": {
+                        "item_id": {
+                            "eq": "2748861636"
+                        },
+                        "message": {
+                            "contains": "research project"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level1_update_hub",
+            "name": "Level 1: Update Hub",
+            "prompt": "Update the 'Research Project Hub' title to 'Investment Research Hub'.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_hubs",
+                    "where": {
+                        "id": {
+                            "eq": "999999"
+                        }
+                    },
+                    "expected_changes": {
+                        "title": {
+                            "to": {
+                                "eq": "Investment Research Hub"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_hub_add_files",
+            "name": "Level 2: Add Files to Hub",
+            "prompt": "Find the FOMC minutes PDFs in the macroeconomics folder and add all of them to the 'Research Project Hub'.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_hub_items",
+                    "where": {
+                        "hub_id": {
+                            "eq": "999999"
+                        },
+                        "item_type": {
+                            "eq": "file"
+                        }
+                    },
+                    "expected_count": {
+                        "min": 4
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_hub_add_folder",
+            "name": "Level 2: Add Folder to Hub",
+            "prompt": "Add the 'agent-diff-research' folder to the Research Project Hub.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_hub_items",
+                    "where": {
+                        "hub_id": {
+                            "eq": "999999"
+                        },
+                        "item_id": {
+                            "eq": "1173971943"
+                        },
+                        "item_type": {
+                            "eq": "folder"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_hub_organize_research",
+            "name": "Level 3: Organize Research Hub",
+            "prompt": "Create a new hub called 'Model Evaluations'. Find all the JSON files in the agent-diff-research folder that contain model evaluation results and add them to this new hub.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_hubs",
+                    "where": {
+                        "title": {
+                            "contains": "Model Evaluations"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "added",
+                    "entity": "box_hub_items",
+                    "where": {
+                        "item_type": {
+                            "eq": "file"
+                        }
+                    },
+                    "expected_count": {
+                        "min": 8
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level3_hub_curate_fomc",
+            "name": "Level 3: Curate FOMC Hub",
+            "prompt": "Search for all FOMC minutes PDFs in the investments area. Create a hub called 'Fed Minutes Archive' and add all the FOMC documents to it.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_hubs",
+                    "where": {
+                        "title": {
+                            "contains": "Fed Minutes"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "added",
+                    "entity": "box_hub_items",
+                    "where": {
+                        "item_name": {
+                            "contains": "fomc"
+                        }
+                    },
+                    "expected_count": {
+                        "min": 4
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level4_hub_summary",
+            "name": "Level 4: Hub Summary Report",
+            "prompt": "Get the items in the 'Research Project Hub'. Read one of the PDF files in the hub. Create a new text file called 'hub_summary.txt' in the root folder containing a brief description of what the hub contains and the file you read.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "hub_summary.txt"
+                        },
+                        "parent_id": {
+                            "eq": "0"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level1_list_file_comments",
+            "name": "Level 1: List File Comments",
+            "prompt": "List all comments on the Google 10-Q PDF in investments. Create a folder named 'File_Has_<count>_Comments' where <count> is the number of comments found.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "contains": "Comments"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level1_list_file_tasks",
+            "name": "Level 1: List File Tasks",
+            "prompt": "List all tasks on the Google 10-Q PDF. Create a text file 'task_status.txt' in the root containing the count and any task messages.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "task_status.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level2_find_commented_file",
+            "name": "Level 2: Find Commented File",
+            "prompt": "In the investments folder, find a file that has comments on it. Rename that file to include '_has_comments' before the extension.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "contains": "_has_comments"
+                        }
+                    },
+                    "expected_changes": {
+                        "name": {
+                            "to": {
+                                "contains": "_has_comments"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_find_file_with_tasks",
+            "name": "Level 2: Find File With Tasks",
+            "prompt": "Find any file in investments/macroeconomics that has tasks assigned to it. Add a comment to that file saying 'Has open tasks'.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_comments",
+                    "where": {
+                        "message": {
+                            "contains": "open tasks"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_aggregate_task_status",
+            "name": "Level 3: Aggregate Task Status",
+            "prompt": "Go through all files in investments and its subfolders. Count how many files have tasks and how many tasks are completed vs incomplete. Create a file 'task_report.txt' with this summary.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "task_report.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_find_overdue_tasks",
+            "name": "Level 3: Find Overdue Tasks",
+            "prompt": "Find files in the investments folder that have tasks with due dates in the past (before today). Rename each such file to add '_OVERDUE' before the extension.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "contains": "_OVERDUE"
+                        }
+                    },
+                    "expected_changes": {
+                        "name": {
+                            "to": {
+                                "contains": "_OVERDUE"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level1_add_file_description",
+            "name": "Level 1: Add File Description",
+            "prompt": "Add a description 'Q2 2025 quarterly earnings report for Alphabet Inc.' to the Google 10-Q PDF in the investments folder.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "id": {
+                            "eq": "2748861636"
+                        }
+                    },
+                    "expected_changes": {
+                        "description": {
+                            "to": {
+                                "contains": "Alphabet"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level1_add_folder_tags",
+            "name": "Level 1: Add Folder Tags",
+            "prompt": "Add the tags 'finance', 'investments', and 'quarterly' to the investments folder.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_folders",
+                    "where": {
+                        "id": {
+                            "eq": "5610825569"
+                        }
+                    },
+                    "expected_changes": {
+                        "tags": {
+                            "contains": "finance"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level1_create_shared_link",
+            "name": "Level 1: Create Shared Link",
+            "prompt": "Create a shared link for the transport CSV file in the macroeconomics folder.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "id": {
+                            "eq": "1421498350"
+                        }
+                    },
+                    "expected_changes": {
+                        "shared_link": {
+                            "from": {
+                                "exists": false
+                            },
+                            "to": {
+                                "exists": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_tag_all_pdfs",
+            "name": "Level 2: Tag All PDFs",
+            "prompt": "Find all PDF files in the investments folder and its subfolders. Add the tag 'pdf-document' to each of them.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "extension": {
+                            "eq": "pdf"
+                        },
+                        "tags": {
+                            "contains": "pdf-document"
+                        }
+                    },
+                    "expected_changes": {
+                        "tags": {
+                            "to": {
+                                "contains": "pdf-document"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_description_from_name",
+            "name": "Level 2: Description From Name",
+            "prompt": "For all FOMC minutes PDFs in macroeconomics, set their description to include the date from their filename (e.g., 'FOMC minutes from January 2025').",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "contains": "fomc"
+                        }
+                    },
+                    "expected_changes": {
+                        "description": {
+                            "to": {
+                                "contains": "FOMC"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level3_unlock_and_update",
+            "name": "Level 3: Unlock and Update",
+            "prompt": "Find any locked file in the history area. Unlock it and update its description to 'Unlocked and reviewed on <today>'. If no file is locked, lock one first, then unlock it.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "description": {
+                            "contains": "Unlocked"
+                        }
+                    },
+                    "expected_changes": {
+                        "description": {
+                            "to": {
+                                "contains": "Unlocked"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level2_count_model_files",
+            "name": "Level 2: Count Model Files",
+            "prompt": "Count the number of JSON files in the agent-diff-research folder. Add a comment to the folder 'Contains <count> model evaluation files'.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_comments",
+                    "where": {
+                        "message": {
+                            "contains": "model evaluation"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_identify_best_model",
+            "name": "Level 3: Identify Best Model",
+            "prompt": "Read the model evaluation JSON files in agent-diff-research. Find which model has the highest pass rate (most 'passed': true entries). Create a file 'best_model.txt' with the model name.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "best_model.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_find_fastest_model",
+            "name": "Level 3: Find Fastest Model",
+            "prompt": "Read the model evaluation JSONs in agent-diff-research. Find which model has the lowest average 'time' across all tests. Create 'fastest_model.txt' with the name and average time.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "fastest_model.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_compare_claude_gpt",
+            "name": "Level 4: Compare Claude vs GPT",
+            "prompt": "Read all the model evaluation JSONs. Compare pass rates between Claude models and GPT models. Create 'claude_vs_gpt.txt' summarizing which family performs better overall and by how much.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "claude_vs_gpt.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_find_common_failures",
+            "name": "Level 4: Find Common Failures",
+            "prompt": "Analyze all model evaluation JSONs in agent-diff-research. Find prompts that failed (passed=false) in at least 3 different model files. Create 'hard_prompts.txt' listing these prompts.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "hard_prompts.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_extract_cost_analysis",
+            "name": "Level 4: Extract Cost Analysis",
+            "prompt": "Read the model evaluation JSONs. Extract total token costs from the trace data. Create 'cost_ranking.txt' ranking models from cheapest to most expensive per test.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "cost_ranking.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_model_leaderboard",
+            "name": "Level 4: Model Leaderboard",
+            "prompt": "Read all model evaluation JSONs. Calculate pass rate, average time, and identify the model name from the filename. Create 'leaderboard.txt' with a ranked table: Model | Pass Rate | Avg Time.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "leaderboard.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_failure_patterns",
+            "name": "Level 4: Failure Patterns",
+            "prompt": "Analyze the model evaluation JSONs. For failed tests, look at the prompt patterns. Create 'failure_analysis.txt' categorizing failures (e.g., 'search issues', 'create issues', 'multi-step issues').",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "failure_analysis.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level2_upload_new_version",
+            "name": "Level 2: Upload New Version",
+            "prompt": "Download the '2001 crisis notes.txt' file, append the line 'UPDATED: Version 2' to its content, and upload it as a new version of the same file.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "id": {
+                            "eq": "5696874158"
+                        }
+                    },
+                    "expected_changes": {
+                        "version_number": {
+                            "to": {
+                                "not_eq": "1"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level3_version_from_content",
+            "name": "Level 3: Version From Content",
+            "prompt": "Read the 'interviewing tips FINAL.txt' file. Add a header line '=== TIPS FOR ORAL HISTORY INTERVIEWS ===' at the top and upload as a new version.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "id": {
+                            "eq": "1364279594"
+                        }
+                    },
+                    "expected_changes": {
+                        "version_number": {
+                            "to": {
+                                "not_eq": "1"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level4_merge_duplicates",
+            "name": "Level 4: Merge Duplicates",
+            "prompt": "In readings/digital humanities, find the markdown files about 'big data and history'. Read both, merge their unique content into one, upload as a new version of the main file, and trash the 'copy' version.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "contains": "big data critiques - copy"
+                        }
+                    },
+                    "expected_changes": {
+                        "item_status": {
+                            "to": {
+                                "eq": "trashed"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level3_consolidate_pdfs",
+            "name": "Level 3: Consolidate PDFs",
+            "prompt": "Find all PDF files across the entire filesystem. Create a folder named 'All_PDFs' in the root and move all PDFs into it.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "All_PDFs"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "extension": {
+                            "eq": "pdf"
+                        }
+                    },
+                    "expected_changes": {
+                        "parent_id": {
+                            "to": {
+                                "not_eq": "0"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level3_organize_by_extension",
+            "name": "Level 3: Organize By Extension",
+            "prompt": "In the history/readings folder, create subfolders 'PDFs', 'Word_Docs', and 'Markdown' if they don't exist. Move files into the appropriate folder based on their extension (.pdf, .docx, .md).",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "PDFs"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "Word_Docs"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "Markdown"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level3_cross_folder_dedup",
+            "name": "Level 3: Cross-Folder Dedup",
+            "prompt": "In the readings folder under history, search for files with similar names across different subfolders (e.g., same base name in different topic folders). If you find duplicates by name, keep the one in the most appropriate topic folder and trash the others.",
+            "type": "actionEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "changed",
+                    "entity": "box_files",
+                    "where": {
+                        "item_status": {
+                            "eq": "trashed"
+                        }
+                    },
+                    "expected_changes": {
+                        "item_status": {
+                            "to": {
+                                "eq": "trashed"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "level4_census_topic_summary",
+            "name": "Level 4: Census Topic Summary",
+            "prompt": "Navigate to the 2018 census totals folder in macroeconomics. Read the filenames of all CSVs to identify the topics covered. Create 'census_topics_index.txt' listing each topic with its filename.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "census_topics_index.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_fomc_timeline",
+            "name": "Level 4: FOMC Timeline",
+            "prompt": "Find all FOMC minutes PDFs. Extract the dates from their filenames (format: fomcminutesYYYYMMDD). Create 'fomc_timeline.txt' listing dates in chronological order with the filename.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_files",
+                    "where": {
+                        "name": {
+                            "eq": "fomc_timeline.txt"
+                        }
+                    },
+                    "expected_count": 1
+                }
+            ]
+        },
+        {
+            "id": "level4_organize_by_content",
+            "name": "Level 4: Organize By Content",
+            "prompt": "Read the text and markdown files in the Buenos Aires folder. Based on their content, create folders 'Economic_Crisis' and 'Political_History'. Move files about the 2001 crisis or economic topics to Economic_Crisis, and files about the Dirty War or political transitions to Political_History.",
+            "type": "compositeEval",
+            "seed_template": "box_default",
+            "impersonate_user_id": "27512847635",
+            "assertions": [
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "Economic_Crisis"
+                        }
+                    },
+                    "expected_count": 1
+                },
+                {
+                    "diff_type": "added",
+                    "entity": "box_folders",
+                    "where": {
+                        "name": {
+                            "eq": "Political_History"
                         }
                     },
                     "expected_count": 1

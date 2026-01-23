@@ -29,6 +29,7 @@ ID_LENGTHS = {
     "task": 11,
     "hub": 12,  # Assumed same as folder
     "task_assignment": 11,
+    "collection": 6,  # e.g., "926489"
 }
 
 
@@ -53,6 +54,7 @@ def generate_box_id(
         "task",
         "hub",
         "task_assignment",
+        "collection",
     ] = "file",
 ) -> str:
     """Generate a Box-style numeric string ID for a given resource type."""
@@ -93,6 +95,11 @@ def generate_task_id() -> str:
 def generate_hub_id() -> str:
     """Generate a hub ID (12 digits)."""
     return _generate_numeric_id(ID_LENGTHS["hub"])
+
+
+def generate_collection_id() -> str:
+    """Generate a collection ID (6 digits)."""
+    return _generate_numeric_id(ID_LENGTHS["collection"])
 
 
 def generate_task_assignment_id() -> str:

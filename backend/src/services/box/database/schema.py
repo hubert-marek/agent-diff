@@ -33,6 +33,40 @@ def _empty_user_mini() -> dict:
 
 
 # =============================================================================
+# COLLECTION MODEL
+# =============================================================================
+
+
+class Collection(Base):
+    """
+    Box Collection model.
+
+    ID format: 6-digit numeric string (e.g., "926489")
+    Currently only the 'favorites' collection is supported by Box.
+    Based on Box SDK Collection schema.
+    """
+
+    __tablename__ = "box_collections"
+
+    # Primary fields
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    type: Mapped[str] = mapped_column(String(20), default="collection")
+
+    # Collection info
+    name: Mapped[str] = mapped_column(String(50))  # "Favorites"
+    collection_type: Mapped[str] = mapped_column(String(50))  # "favorites"
+
+    def to_dict(self) -> dict:
+        """Return collection representation matching SDK Collection schema."""
+        return {
+            "id": self.id,
+            "type": self.type,
+            "name": self.name,
+            "collection_type": self.collection_type,
+        }
+
+
+# =============================================================================
 # USER MODEL
 # =============================================================================
 
@@ -241,6 +275,10 @@ class Folder(Base):
     # Tags (stored as JSONB array)
     tags: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
 
+    # Collections (stored as JSONB array of collection IDs)
+    # Used for favorites - array of {"id": collection_id} or just collection_id strings
+    collections: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+
     # Shared link (SDK: FolderSharedLinkField)
     # Stored as JSONB with fields: url, effective_access, effective_permission, is_password_enabled,
     # download_count, preview_count, download_url, vanity_url, vanity_name, access, unshared_at, permissions
@@ -399,6 +437,7 @@ class Folder(Base):
             "size": self.size,
             "item_status": self.item_status,
             "tags": self.tags or [],
+            "collections": self._get_collections_dict(),
             "shared_link": self.shared_link,
             "folder_upload_email": self.folder_upload_email,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -480,6 +519,31 @@ class Folder(Base):
             "entries": entries,
         }
 
+    def _get_collections_dict(self) -> list:
+        """Build the collections array for this folder.
+
+        Returns list of collection objects matching SDK Collection schema.
+        Each collection has: id, type, name, collection_type.
+        """
+        if not self.collections:
+            return []
+        # Convert collection IDs to full collection objects
+        # The favorites collection has a well-known structure
+        result = []
+        for coll_id in self.collections:
+            # Handle both string IDs and dict format
+            if isinstance(coll_id, dict):
+                coll_id = coll_id.get("id", coll_id)
+            result.append(
+                {
+                    "id": str(coll_id),
+                    "type": "collection",
+                    "name": "Favorites",
+                    "collection_type": "favorites",
+                }
+            )
+        return result
+
 
 # =============================================================================
 # FILE MODEL
@@ -549,6 +613,10 @@ class File(Base):
 
     # Tags (stored as JSONB array)
     tags: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+
+    # Collections (stored as JSONB array of collection IDs)
+    # Used for favorites - array of {"id": collection_id} or just collection_id strings
+    collections: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
 
     # Shared link (SDK: FileSharedLinkField)
     # Stored as JSONB with fields: url, effective_access, effective_permission, is_password_enabled,
@@ -730,6 +798,7 @@ class File(Base):
             "extension": self.extension or self._get_extension(),
             "lock": self.lock,
             "tags": self.tags or [],
+            "collections": self._get_collections_dict(),
             "shared_link": self.shared_link,
             "file_version": self._get_file_version_dict(),
             # FileFull additional fields
@@ -795,6 +864,31 @@ class File(Base):
             "total_count": len(entries),
             "entries": entries,
         }
+
+    def _get_collections_dict(self) -> list:
+        """Build the collections array for this file.
+
+        Returns list of collection objects matching SDK Collection schema.
+        Each collection has: id, type, name, collection_type.
+        """
+        if not self.collections:
+            return []
+        # Convert collection IDs to full collection objects
+        # The favorites collection has a well-known structure
+        result = []
+        for coll_id in self.collections:
+            # Handle both string IDs and dict format
+            if isinstance(coll_id, dict):
+                coll_id = coll_id.get("id", coll_id)
+            result.append(
+                {
+                    "id": str(coll_id),
+                    "type": "collection",
+                    "name": "Favorites",
+                    "collection_type": "favorites",
+                }
+            )
+        return result
 
 
 class FileVersion(Base):

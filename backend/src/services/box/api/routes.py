@@ -317,6 +317,7 @@ async def update_file_by_id(request: Request) -> Response:
         shared_link (optional): Shared link settings
         lock (optional): Lock settings
         tags (optional): Array of tags
+        collections (optional): Array of collections to add file to (use [] to remove from all)
 
     Returns:
         FileFull object (updated)
@@ -373,6 +374,7 @@ async def update_file_by_id(request: Request) -> Response:
         shared_link = body.get("shared_link")
         lock = body.get("lock")
         tags = body.get("tags")
+        collections = body.get("collections")
 
         # Perform update
         updated_file = ops.update_file(
@@ -388,10 +390,73 @@ async def update_file_by_id(request: Request) -> Response:
             if_match=if_match,
         )
 
+        # Handle collections update separately if provided
+        if "collections" in body:
+            updated_file = ops.update_file_collections(
+                session, file_id, collections, user_id
+        )
+
         file_data = updated_file.to_dict()
         filtered_data = _filter_fields(file_data, fields)
 
         return _json_response(filtered_data)
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
+async def delete_file_by_id(request: Request) -> Response:
+    """
+    DELETE /2.0/files/{file_id}
+
+    Deletes a file, either permanently or by moving it to the trash.
+    The enterprise settings determine whether the item will be permanently
+    deleted from Box or moved to the trash.
+
+    SDK Reference: FilesManager.delete_file_by_id()
+
+    Path Parameters:
+        file_id (required): The unique identifier of the file
+
+    Headers:
+        If-Match (optional): ETag value for precondition check
+
+    Returns:
+        204 No Content on success
+
+    Errors:
+        404 Not Found - if file doesn't exist
+        412 Precondition Failed - if ETag doesn't match
+
+    Real API Behavior (verified):
+        - Returns 204 No Content on successful delete
+        - File is moved to trash (item_status = "trashed")
+        - 404: Error JSON for invalid file
+        - 412: Error JSON if If-Match ETag doesn't match
+    """
+    try:
+        session = _session(request)
+        file_id = request.path_params["file_id"]
+
+        # Get If-Match header for precondition check
+        if_match = request.headers.get("if-match")
+
+        # If-Match precondition check
+        if if_match:
+            file = ops.get_file_by_id(session, file_id)
+            if file and file.etag != if_match:
+                _box_error(
+                    BoxErrorCode.PRECONDITION_FAILED,
+                    "The resource has been modified. Please retrieve the item again and retry.",
+                )
+
+        # Delete (trash) the file
+        ops.delete_file(session, file_id)
+
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT,
+            headers={"BOX-REQUEST-ID": generate_request_id()},
+        )
 
     except BoxAPIError as e:
         return _error_response(e)
@@ -664,6 +729,7 @@ async def update_folder_by_id(request: Request) -> Response:
         description (optional): New description
         parent (optional): {"id": new_parent_id} to move folder
         tags (optional): Array of tags
+        collections (optional): Array of collections to add folder to (use [] to remove from all)
         shared_link (optional): Shared link settings
 
     Query Parameters:
@@ -703,6 +769,8 @@ async def update_folder_by_id(request: Request) -> Response:
         parent = body.get("parent")
         parent_id = parent.get("id") if parent else None
         tags = body.get("tags")
+        collections = body.get("collections")
+        shared_link = body.get("shared_link")
 
         updated_folder = ops.update_folder(
             session,
@@ -712,6 +780,8 @@ async def update_folder_by_id(request: Request) -> Response:
             description=description,
             parent_id=parent_id,
             tags=tags,
+            collections=collections,
+            shared_link=shared_link,
         )
 
         # Re-fetch with children and files for item_collection
@@ -724,6 +794,69 @@ async def update_folder_by_id(request: Request) -> Response:
         filtered_data = _filter_fields(folder_data, fields)
 
         return _json_response(filtered_data)
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
+async def delete_folder_by_id(request: Request) -> Response:
+    """
+    DELETE /2.0/folders/{folder_id}
+
+    Deletes a folder, either permanently or by moving it to the trash.
+
+    SDK Reference: FoldersManager.delete_folder_by_id()
+
+    Path Parameters:
+        folder_id (required): The unique identifier of the folder
+
+    Query Parameters:
+        recursive (optional): If true, delete non-empty folder recursively
+
+    Headers:
+        If-Match (optional): ETag value for precondition check
+
+    Returns:
+        204 No Content on success
+
+    Errors:
+        400 Bad Request - if trying to delete root folder
+        404 Not Found - if folder doesn't exist
+        412 Precondition Failed - if ETag doesn't match
+
+    Real API Behavior (verified):
+        - Returns 204 No Content on successful delete
+        - Folder is moved to trash (item_status = "trashed")
+        - Root folder (ID "0") cannot be deleted
+        - 404: Error JSON for invalid folder
+        - 412: Error JSON if If-Match ETag doesn't match
+    """
+    try:
+        session = _session(request)
+        folder_id = request.path_params["folder_id"]
+
+        # Get If-Match header for precondition check
+        if_match = request.headers.get("if-match")
+        # Note: recursive query param is accepted but our replica always
+        # performs logical delete (trash), not physical deletion
+        # recursive = request.query_params.get("recursive", "false").lower() == "true"
+
+        # If-Match precondition check
+        if if_match:
+            folder = ops.get_folder_by_id(session, folder_id)
+            if folder and folder.etag != if_match:
+                _box_error(
+                    BoxErrorCode.PRECONDITION_FAILED,
+                    "The resource has been modified. Please retrieve the item again and retry.",
+                )
+
+        # Delete (trash) the folder
+        ops.delete_folder(session, folder_id)
+
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT,
+            headers={"BOX-REQUEST-ID": generate_request_id()},
+        )
 
     except BoxAPIError as e:
         return _error_response(e)
@@ -991,6 +1124,99 @@ async def upload_file(request: Request) -> Response:
         )
 
         file_data = new_file.to_dict()
+        filtered_data = _filter_fields(file_data, fields)
+
+        # Return in Box's Files format: {"total_count": 1, "entries": [...]}
+        response_data = {
+            "total_count": 1,
+            "entries": [filtered_data],
+        }
+
+        return _json_response(response_data, status_code=status.HTTP_201_CREATED)
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
+async def upload_file_version(request: Request) -> Response:
+    """
+    POST /2.0/files/{file_id}/content
+
+    Uploads a new version of an existing file.
+
+    SDK Reference: UploadsManager.upload_file_version()
+
+    Path Parameters:
+        file_id (required): The unique identifier of the file to update
+
+    Body (multipart form-data):
+        attributes (JSON, optional): {"name": "new_filename"} to rename
+        file: Binary file content
+
+    Headers:
+        If-Match (optional): Conditional update - fails with 412 if etag doesn't match
+
+    Returns:
+        Files object: {"total_count": 1, "entries": [FileFull]}
+
+    Errors:
+        404 Not Found - file doesn't exist
+        412 Precondition Failed - If-Match doesn't match current etag
+    """
+    try:
+        session = _session(request)
+        user_id = _principal_user_id(request)
+        file_id = request.path_params["file_id"]
+        fields = _parse_fields(request)
+
+        # Get If-Match header for conditional update
+        if_match = request.headers.get("if-match")
+
+        # Parse multipart form data
+        form = await request.form()
+
+        # Get optional attributes JSON
+        attributes_raw = form.get("attributes")
+        name = None
+        if attributes_raw:
+            import json
+
+            try:
+                attributes = json.loads(str(attributes_raw))
+                name = attributes.get("name")
+            except json.JSONDecodeError:
+                _box_error(
+                    BoxErrorCode.BAD_REQUEST, "Invalid JSON in 'attributes' field"
+                )
+
+        # Get file content
+        file_field = form.get("file")
+        if not file_field:
+            _box_error(BoxErrorCode.BAD_REQUEST, "Missing 'file' field")
+
+        # Read file content
+        from starlette.datastructures import UploadFile
+
+        if not isinstance(file_field, UploadFile):
+            _box_error(
+                BoxErrorCode.BAD_REQUEST, "Invalid 'file' field - expected file upload"
+            )
+
+        content = await file_field.read()
+        content_type = file_field.content_type or "application/octet-stream"
+
+        # Upload new version
+        updated_file = ops.upload_file_version(
+            session,
+            file_id,
+            content=content,
+            user_id=user_id,
+            content_type=content_type,
+            name=name,
+            if_match=if_match,
+        )
+
+        file_data = updated_file.to_dict()
         filtered_data = _filter_fields(file_data, fields)
 
         # Return in Box's Files format: {"total_count": 1, "entries": [...]}
@@ -1636,6 +1862,121 @@ async def manage_hub_items(request: Request) -> Response:
         return _error_response(e)
 
 
+# =============================================================================
+# COLLECTION ROUTES
+# =============================================================================
+
+
+async def list_collections(request: Request) -> Response:
+    """
+    GET /2.0/collections
+
+    Retrieves all collections for the current user.
+
+    SDK Reference: CollectionsManager.get_collections()
+
+    Currently only the `favorites` collection is supported.
+
+    Query Parameters:
+        fields (optional): Comma-separated list of fields
+        offset (optional): Pagination offset
+        limit (optional): Maximum items per page
+
+    Returns:
+        Collections: {total_count, entries, offset, limit}
+    """
+    try:
+        session = _session(request)
+        fields = _parse_fields(request)
+        offset = int(request.query_params.get("offset", 0))
+        limit = int(request.query_params.get("limit", 100))
+
+        result = ops.list_collections(session, offset=offset, limit=limit)
+
+        # Apply field filtering if requested
+        if fields:
+            result["entries"] = [_filter_fields(e, fields) for e in result["entries"]]
+
+        return _json_response(result)
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
+async def get_collection_by_id(request: Request) -> Response:
+    """
+    GET /2.0/collections/{collection_id}
+
+    Retrieves a collection by its ID.
+
+    SDK Reference: CollectionsManager.get_collection_by_id()
+
+    Path Parameters:
+        collection_id (required): The collection ID
+
+    Returns:
+        Collection: {id, type, name, collection_type}
+
+    Errors:
+        404 Not Found - if collection doesn't exist
+    """
+    try:
+        session = _session(request)
+        collection_id = request.path_params["collection_id"]
+
+        collection = ops.get_collection_by_id(session, collection_id)
+        if not collection:
+            _box_error(BoxErrorCode.NOT_FOUND, "Not Found")
+
+        return _json_response(collection.to_dict())
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
+async def get_collection_items(request: Request) -> Response:
+    """
+    GET /2.0/collections/{collection_id}/items
+
+    Retrieves files and folders in a collection.
+
+    SDK Reference: CollectionsManager.get_collection_items()
+
+    Path Parameters:
+        collection_id (required): The collection ID
+
+    Query Parameters:
+        fields (optional): Comma-separated list of fields
+        offset (optional): Pagination offset
+        limit (optional): Maximum items per page
+
+    Returns:
+        ItemsOffsetPaginated: {total_count, entries, offset, limit}
+
+    Errors:
+        404 Not Found - if collection doesn't exist
+    """
+    try:
+        session = _session(request)
+        collection_id = request.path_params["collection_id"]
+        fields = _parse_fields(request)
+        offset = int(request.query_params.get("offset", 0))
+        limit = int(request.query_params.get("limit", 100))
+
+        result = ops.get_collection_items(
+            session, collection_id, offset=offset, limit=limit
+        )
+
+        # Apply field filtering if requested
+        if fields:
+            result["entries"] = [_filter_fields(e, fields) for e in result["entries"]]
+
+        return _json_response(result)
+
+    except BoxAPIError as e:
+        return _error_response(e)
+
+
 # Route Definitions
 
 
@@ -1650,14 +1991,19 @@ routes = [
     Route("/folders", create_folder, methods=["POST"]),
     Route("/folders/{folder_id}", get_folder_by_id, methods=["GET"]),
     Route("/folders/{folder_id}", update_folder_by_id, methods=["PUT"]),
+    Route("/folders/{folder_id}", delete_folder_by_id, methods=["DELETE"]),
     Route("/folders/{folder_id}/items", list_folder_items, methods=["GET"]),
     # Files
     Route("/files/content", upload_file, methods=["POST"]),  # Upload new file
     Route("/files/{file_id}", get_file_by_id, methods=["GET"]),
     Route("/files/{file_id}", update_file_by_id, methods=["PUT"]),
+    Route("/files/{file_id}", delete_file_by_id, methods=["DELETE"]),
     Route(
         "/files/{file_id}/content", download_file, methods=["GET"]
     ),  # Returns 302 redirect
+    Route(
+        "/files/{file_id}/content", upload_file_version, methods=["POST"]
+    ),  # Upload new version
     Route(
         "/files/{file_id}/download", download_file_direct, methods=["GET"]
     ),  # Actual binary content
@@ -1676,4 +2022,8 @@ routes = [
         "/hub_items", get_hub_items, methods=["GET"]
     ),  # Note: /hub_items not /hubs/{id}/items
     Route("/hubs/{hub_id}/manage_items", manage_hub_items, methods=["POST"]),
+    # Collections
+    Route("/collections", list_collections, methods=["GET"]),
+    Route("/collections/{collection_id}", get_collection_by_id, methods=["GET"]),
+    Route("/collections/{collection_id}/items", get_collection_items, methods=["GET"]),
 ]

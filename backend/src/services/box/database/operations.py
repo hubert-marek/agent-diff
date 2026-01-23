@@ -4,6 +4,7 @@ Box Database Operations - CRUD operations for all Box entities.
 
 import hashlib
 import re
+import uuid
 from datetime import datetime
 from typing import Optional, Literal, cast
 
@@ -20,6 +21,7 @@ from .schema import (
     Task,
     Hub,
     HubItem,
+    Collection,
 )
 from ..utils.ids import (
     generate_user_id,
@@ -29,6 +31,7 @@ from ..utils.ids import (
     generate_comment_id,
     generate_task_id,
     generate_hub_id,
+    generate_collection_id,
     generate_etag,
     generate_sequence_id,
     ROOT_FOLDER_ID,
@@ -336,6 +339,8 @@ def update_folder(
     description: Optional[str] = None,
     parent_id: Optional[str] = None,
     tags: Optional[list] = None,
+    collections: Optional[list] = None,
+    shared_link: Optional[dict] | _Unset = UNSET,
 ) -> Folder:
     """Update a folder's properties."""
     folder = get_folder_by_id(session, folder_id)
@@ -417,6 +422,50 @@ def update_folder(
         folder.parent_id = parent_id
     if tags is not None:
         folder.tags = tags
+
+    # Handle collections (stored as JSONB array of collection IDs/objects)
+    if collections is not None:
+        # Extract collection IDs from the provided list
+        collection_ids = []
+        for coll in collections:
+            if isinstance(coll, dict):
+                coll_id = coll.get("id")
+                if coll_id:
+                    collection_ids.append(coll_id)
+            elif isinstance(coll, str):
+                collection_ids.append(coll)
+        folder.collections = collection_ids
+
+    if shared_link is not UNSET:
+        sl = cast(Optional[dict], shared_link)
+        if sl is not None:
+            # Generate dummy URL if not present
+            if "url" not in sl:
+                unique_token = str(uuid.uuid4()).replace("-", "")[:32]
+                sl["url"] = f"https://app.box.com/s/{unique_token}"
+                sl["download_url"] = None
+                sl["vanity_url"] = None
+
+            # Set default permissions if missing
+            if "permissions" not in sl:
+                sl["permissions"] = {
+                    "can_download": True,
+                    "can_preview": True,
+                    "can_edit": False,
+                }
+
+            # Set default access if missing
+            if "access" not in sl:
+                sl["access"] = "open"
+
+            # Set calculated fields
+            sl["effective_access"] = sl["access"]
+            sl["effective_permission"] = "can_download"
+            sl.setdefault("is_password_enabled", False)
+            sl.setdefault("download_count", 0)
+            sl.setdefault("preview_count", 0)
+
+        folder.shared_link = sl
 
     folder.modified_by_id = user_id
     folder.modified_at = datetime.utcnow()
@@ -810,9 +859,39 @@ def update_file(
     if tags is not None:
         file.tags = tags
     if shared_link is not UNSET:
-        file.shared_link = cast(
-            Optional[dict], shared_link
-        )  # Can be None to remove shared link
+        sl = cast(Optional[dict], shared_link)
+        if sl is not None:
+            # Generate dummy URL if not present (simulate real API behavior)
+            if "url" not in sl:
+                unique_token = str(uuid.uuid4()).replace("-", "")[:32]
+                sl["url"] = f"https://app.box.com/s/{unique_token}"
+                # Add file extension to download URL if present
+                ext = f".{file.extension}" if file.extension else ""
+                sl["download_url"] = (
+                    f"https://app.box.com/shared/static/{unique_token}{ext}"
+                )
+                sl["vanity_url"] = None
+
+            # Set default permissions if missing
+            if "permissions" not in sl:
+                sl["permissions"] = {
+                    "can_download": True,
+                    "can_preview": True,
+                    "can_edit": False,
+                }
+
+            # Set default access if missing
+            if "access" not in sl:
+                sl["access"] = "open"
+
+            # Set calculated fields
+            sl["effective_access"] = sl["access"]
+            sl["effective_permission"] = "can_download"
+            sl.setdefault("is_password_enabled", False)
+            sl.setdefault("download_count", 0)
+            sl.setdefault("preview_count", 0)
+
+        file.shared_link = sl  # Can be None to remove shared link
     if lock is not UNSET:
         file.lock = cast(Optional[dict], lock)  # Can be None to unlock
 
@@ -1591,3 +1670,239 @@ def search_folders_by_name(
         offset=offset,
         limit=limit,
     )
+
+
+# =============================================================================
+# COLLECTION OPERATIONS
+# =============================================================================
+
+
+def get_or_create_favorites_collection(session: Session) -> Collection:
+    """
+    Get or create the favorites collection.
+
+    Box only supports one collection type: favorites.
+    Each user/environment has one favorites collection that is auto-created.
+    """
+    # Try to find existing favorites collection
+    collection = session.execute(
+        select(Collection).where(Collection.collection_type == "favorites")
+    ).scalar_one_or_none()
+
+    if collection:
+        return collection
+
+    # Create favorites collection
+    collection = Collection(
+        id=generate_collection_id(),
+        type="collection",
+        name="Favorites",
+        collection_type="favorites",
+    )
+    session.add(collection)
+    session.flush()
+    return collection
+
+
+def get_collection_by_id(session: Session, collection_id: str) -> Optional[Collection]:
+    """Get a collection by ID."""
+    return session.execute(
+        select(Collection).where(Collection.id == collection_id)
+    ).scalar_one_or_none()
+
+
+def list_collections(
+    session: Session,
+    *,
+    offset: int = 0,
+    limit: int = 100,
+) -> dict:
+    """
+    List all collections.
+
+    Currently only the 'favorites' collection is supported.
+    """
+    # Ensure favorites collection exists
+    favorites = get_or_create_favorites_collection(session)
+
+    collections = [favorites]
+    total_count = len(collections)
+    paginated = collections[offset : offset + limit]
+
+    return {
+        "total_count": total_count,
+        "entries": [c.to_dict() for c in paginated],
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+def get_collection_items(
+    session: Session,
+    collection_id: str,
+    *,
+    offset: int = 0,
+    limit: int = 100,
+) -> dict:
+    """
+    Get items in a collection.
+
+    Returns files and folders that have this collection ID in their collections array.
+    """
+    collection = get_collection_by_id(session, collection_id)
+    if not collection:
+        raise not_found_error("collection", collection_id)
+
+    entries = []
+
+    # Find folders in this collection
+    folders = (
+        session.execute(
+            select(Folder)
+            .options(
+                joinedload(Folder.parent),
+                joinedload(Folder.created_by),
+                joinedload(Folder.modified_by),
+                joinedload(Folder.owned_by),
+            )
+            .where(
+                and_(
+                    Folder.item_status == BoxItemStatus.ACTIVE.value,
+                    Folder.collections.contains([collection_id]),
+                )
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    entries.extend([f.to_mini_dict() for f in folders])
+
+    # Find files in this collection
+    files = (
+        session.execute(
+            select(File)
+            .options(
+                joinedload(File.parent),
+                joinedload(File.created_by),
+                joinedload(File.modified_by),
+                joinedload(File.owned_by),
+            )
+            .where(
+                and_(
+                    File.item_status == BoxItemStatus.ACTIVE.value,
+                    File.collections.contains([collection_id]),
+                )
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    entries.extend([f.to_mini_dict() for f in files])
+
+    total_count = len(entries)
+    paginated = entries[offset : offset + limit]
+
+    return {
+        "total_count": total_count,
+        "entries": paginated,
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+def update_folder_collections(
+    session: Session,
+    folder_id: str,
+    collections: Optional[list],
+    user_id: str,
+) -> Folder:
+    """
+    Update a folder's collections.
+
+    Args:
+        session: Database session
+        folder_id: ID of folder to update
+        collections: List of collection IDs or collection objects, or None/[] to remove all
+        user_id: ID of user making the change
+
+    Returns:
+        Updated folder
+    """
+    folder = get_folder_by_id(session, folder_id)
+    if not folder:
+        raise not_found_error("folder", folder_id)
+
+    # Normalize collections to list of IDs
+    if collections is None:
+        folder.collections = []
+    else:
+        normalized = []
+        for coll in collections:
+            if isinstance(coll, dict):
+                coll_id = coll.get("id")
+            else:
+                coll_id = coll
+            if coll_id:
+                # Verify collection exists
+                if not get_collection_by_id(session, coll_id):
+                    raise not_found_error("collection", coll_id)
+                normalized.append(coll_id)
+        folder.collections = normalized
+
+    folder.modified_by_id = user_id
+    folder.modified_at = datetime.utcnow()
+    folder.etag = generate_etag()
+    folder.sequence_id = str(int(folder.sequence_id or "0") + 1)
+    session.flush()
+
+    return folder
+
+
+def update_file_collections(
+    session: Session,
+    file_id: str,
+    collections: Optional[list],
+    user_id: str,
+) -> File:
+    """
+    Update a file's collections.
+
+    Args:
+        session: Database session
+        file_id: ID of file to update
+        collections: List of collection IDs or collection objects, or None/[] to remove all
+        user_id: ID of user making the change
+
+    Returns:
+        Updated file
+    """
+    file = get_file_by_id(session, file_id)
+    if not file:
+        raise not_found_error("file", file_id)
+
+    # Normalize collections to list of IDs
+    if collections is None:
+        file.collections = []
+    else:
+        normalized = []
+        for coll in collections:
+            if isinstance(coll, dict):
+                coll_id = coll.get("id")
+            else:
+                coll_id = coll
+            if coll_id:
+                # Verify collection exists
+                if not get_collection_by_id(session, coll_id):
+                    raise not_found_error("collection", coll_id)
+                normalized.append(coll_id)
+        file.collections = normalized
+
+    file.modified_by_id = user_id
+    file.modified_at = datetime.utcnow()
+    file.etag = generate_etag()
+    file.sequence_id = str(int(file.sequence_id or "0") + 1)
+    session.flush()
+
+    return file

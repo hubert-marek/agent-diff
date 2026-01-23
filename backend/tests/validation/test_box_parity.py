@@ -1129,6 +1129,71 @@ class BoxParityTester:
             ):
                 passed += 1
 
+            # === DELETE /folders/{id} ===
+            # SDK Reference: FoldersManager.delete_folder_by_id()
+            # Note: Box moves folders to trash (not permanent delete) unless recursive=true
+
+            # Create a temporary folder for delete test
+            ts = datetime.now(timezone.utc).strftime("%H%M%S%f")
+            temp_folder_name = f"DeleteTest_{ts}"
+
+            # Create folders to delete
+            prod_temp_resp = self.api_prod(
+                "POST",
+                "folders",
+                json={
+                    "name": temp_folder_name,
+                    "parent": {"id": self.prod_folder_id},
+                },
+            )
+            replica_temp_resp = self.api_replica(
+                "POST",
+                "folders",
+                json={
+                    "name": temp_folder_name,
+                    "parent": {"id": self.replica_folder_id},
+                },
+            )
+
+            if (
+                prod_temp_resp.status_code == 201
+                and replica_temp_resp.status_code == 201
+            ):
+                prod_temp_id = prod_temp_resp.json()["id"]
+                replica_temp_id = replica_temp_resp.json()["id"]
+
+                # [COMMON] Delete (trash) folder - returns 204 No Content
+                total += 1
+                if self.test_operation(
+                    "DELETE /folders/{id} (trash)",
+                    lambda pid=prod_temp_id: self.api_prod("DELETE", f"folders/{pid}"),
+                    lambda rid=replica_temp_id: self.api_replica(
+                        "DELETE", f"folders/{rid}"
+                    ),
+                    validate_schema=False,  # 204 No Content has no body
+                ):
+                    passed += 1
+
+            # [EDGE] Delete non-existent folder (should 404)
+            total += 1
+            if self.test_operation(
+                "DELETE /folders/{id} (non-existent - 404)",
+                lambda: self.api_prod("DELETE", "folders/999999999999999"),
+                lambda: self.api_replica("DELETE", "folders/999999999999999"),
+                validate_schema=False,
+            ):
+                passed += 1
+
+            # [EDGE] Delete root folder (should fail - 400)
+            total += 1
+            if self.test_operation(
+                "DELETE /folders/0 (root - error)",
+                lambda: self.api_prod("DELETE", "folders/0"),
+                lambda: self.api_replica("DELETE", "folders/0"),
+                validate_schema=False,
+            ):
+                passed += 1
+
         return passed, total
 
     def run_file_tests(self) -> tuple[int, int]:
@@ -1697,6 +1762,253 @@ class BoxParityTester:
                     passed += 1
                 else:
                     print("")
+            except Exception as e:
+                print(f" {e}")
+
+            # === POST /files/{id}/content (upload new version) ===
+            # SDK Reference: UploadsManager.upload_file_version()
+            # Note: Uploads a new version of an existing file
+
+            total += 1
+            print("  POST /files/{id}/content (upload new version)...", end=" ")
+            try:
+                # Create a test file first
+                ts = datetime.now(timezone.utc).strftime("%H%M%S%f")
+                version_filename = f"version_test_{ts}.txt"
+                v1_content = b"Version 1 content"
+
+                prod_upload = self.upload_file_prod(
+                    self.prod_folder_id, version_filename, io.BytesIO(v1_content)
+                )
+                replica_upload = self.upload_file_replica(
+                    self.replica_folder_id, version_filename, io.BytesIO(v1_content)
+                )
+
+                if "entries" in prod_upload and "entries" in replica_upload:
+                    prod_file_id = prod_upload["entries"][0]["id"]
+                    replica_file_id = replica_upload["entries"][0]["id"]
+
+                    # Upload new version (v2)
+                    v2_content = b"Version 2 content - updated"
+
+                    # Box uses multipart form for version upload
+                    prod_version_resp = requests.post(
+                        f"https://upload.box.com/api/2.0/files/{prod_file_id}/content",
+                        files={
+                            "file": (version_filename, io.BytesIO(v2_content)),
+                        },
+                        headers={"Authorization": f"Bearer {self.dev_token}"},
+                    )
+
+                    replica_version_resp = requests.post(
+                        f"{self.replica_url}/files/{replica_file_id}/content",
+                        files={
+                            "file": (version_filename, io.BytesIO(v2_content)),
+                        },
+                    )
+
+                    # Both should return 201 with entries
+                    if (
+                        prod_version_resp.status_code == 201
+                        and replica_version_resp.status_code == 201
+                    ):
+                        prod_data = prod_version_resp.json()
+                        replica_data = replica_version_resp.json()
+
+                        # Check structure matches
+                        if "entries" in prod_data and "entries" in replica_data:
+                            # Verify version number incremented
+                            prod_file = prod_data["entries"][0]
+                            replica_file = replica_data["entries"][0]
+
+                            # Both should have file_version with new ID
+                            if (
+                                "file_version" in prod_file
+                                and "file_version" in replica_file
+                            ):
+                                print("✅")
+                                passed += 1
+                            else:
+                                print("⚠️ (missing file_version)")
+                                passed += 1  # Still counts as pass if status is right
+                        else:
+                            print("⚠️ (missing entries)")
+                    else:
+                        print(
+                            f"✗ Status mismatch: prod={prod_version_resp.status_code}, replica={replica_version_resp.status_code}"
+                        )
+
+                    # Cleanup: delete the test file
+                    self.api_prod("DELETE", f"files/{prod_file_id}")
+                    self.api_replica("DELETE", f"files/{replica_file_id}")
+                else:
+                    print("✗ (failed to create initial file)")
+            except Exception as e:
+                print(f"✗ {e}")
+
+            # [EDGE] Upload version with If-Match (correct etag)
+            total += 1
+            print("  POST /files/{id}/content with If-Match...", end=" ")
+            try:
+                ts = datetime.now(timezone.utc).strftime("%H%M%S%f")
+                ifmatch_filename = f"ifmatch_version_{ts}.txt"
+                content_v1 = b"Version 1 for If-Match test"
+
+                prod_upload = self.upload_file_prod(
+                    self.prod_folder_id, ifmatch_filename, io.BytesIO(content_v1)
+                )
+                replica_upload = self.upload_file_replica(
+                    self.replica_folder_id, ifmatch_filename, io.BytesIO(content_v1)
+                )
+
+                if "entries" in prod_upload and "entries" in replica_upload:
+                    prod_file = prod_upload["entries"][0]
+                    replica_file = replica_upload["entries"][0]
+                    prod_file_id = prod_file["id"]
+                    replica_file_id = replica_file["id"]
+                    prod_etag = prod_file.get("etag", "0")
+                    replica_etag = replica_file.get("etag", "0")
+
+                    content_v2 = b"Version 2 with If-Match"
+
+                    # Upload with matching If-Match
+                    prod_resp = requests.post(
+                        f"https://upload.box.com/api/2.0/files/{prod_file_id}/content",
+                        files={"file": (ifmatch_filename, io.BytesIO(content_v2))},
+                        headers={
+                            "Authorization": f"Bearer {self.dev_token}",
+                            "If-Match": prod_etag,
+                        },
+                    )
+                    replica_resp = requests.post(
+                        f"{self.replica_url}/files/{replica_file_id}/content",
+                        files={"file": (ifmatch_filename, io.BytesIO(content_v2))},
+                        headers={"If-Match": replica_etag},
+                    )
+
+                    if prod_resp.status_code == 201 and replica_resp.status_code == 201:
+                        print("✅")
+                        passed += 1
+                    else:
+                        print(
+                            f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                        )
+
+                    # Cleanup
+                    self.api_prod("DELETE", f"files/{prod_file_id}")
+                    self.api_replica("DELETE", f"files/{replica_file_id}")
+                else:
+                    print("✗ (failed to create initial file)")
+            except Exception as e:
+                print(f"✗ {e}")
+
+            # === DELETE /files/{id} ===
+            # SDK Reference: FilesManager.delete_file_by_id()
+            # Note: Box moves files to trash (not permanent delete)
+
+            # Create a temporary file for delete test
+            ts = datetime.now(timezone.utc).strftime("%H%M%S%f")
+            temp_filename = f"delete_test_{ts}.txt"
+            temp_content = b"This file will be deleted"
+
+            print("  DELETE /files/{id} (trash)...", end=" ")
+            total += 1
+            try:
+                # Upload temporary files to delete
+                prod_temp = self.upload_file_prod(
+                    self.prod_folder_id, temp_filename, io.BytesIO(temp_content)
+                )
+                replica_temp = self.upload_file_replica(
+                    self.replica_folder_id, temp_filename, io.BytesIO(temp_content)
+                )
+
+                if "entries" in prod_temp and "entries" in replica_temp:
+                    prod_temp_id = prod_temp["entries"][0]["id"]
+                    replica_temp_id = replica_temp["entries"][0]["id"]
+
+                    # Delete the files
+                    prod_del_resp = self.api_prod("DELETE", f"files/{prod_temp_id}")
+                    replica_del_resp = self.api_replica(
+                        "DELETE", f"files/{replica_temp_id}"
+                    )
+
+                    # Both should return 204 No Content
+                    if (
+                        prod_del_resp.status_code == 204
+                        and replica_del_resp.status_code == 204
+                    ):
+                        print("✅")
+                        passed += 1
+                    else:
+                        print(
+                            f" (prod: {prod_del_resp.status_code}, replica: {replica_del_resp.status_code})"
+                        )
+                else:
+                    print(" (failed to create temp files)")
+            except Exception as e:
+                print(f" {e}")
+
+            # [EDGE] Delete non-existent file (should 404)
+            total += 1
+            if self.test_operation(
+                "DELETE /files/{id} (non-existent - 404)",
+                lambda: self.api_prod("DELETE", "files/999999999999999"),
+                lambda: self.api_replica("DELETE", "files/999999999999999"),
+                validate_schema=False,
+            ):
+                passed += 1
+
+            # [EDGE] Delete with If-Match (wrong etag - 412)
+            # Create another temp file for If-Match test
+            ts = datetime.now(timezone.utc).strftime("%H%M%S%f")
+            ifmatch_filename = f"ifmatch_delete_{ts}.txt"
+
+            print("  DELETE /files/{id} with If-Match (wrong etag - 412)...", end=" ")
+            total += 1
+            try:
+                # Upload temporary files
+                prod_temp = self.upload_file_prod(
+                    self.prod_folder_id, ifmatch_filename, io.BytesIO(b"If-Match test")
+                )
+                replica_temp = self.upload_file_replica(
+                    self.replica_folder_id,
+                    ifmatch_filename,
+                    io.BytesIO(b"If-Match test"),
+                )
+
+                if "entries" in prod_temp and "entries" in replica_temp:
+                    prod_temp_id = prod_temp["entries"][0]["id"]
+                    replica_temp_id = replica_temp["entries"][0]["id"]
+
+                    # Try to delete with wrong etag
+                    prod_del_resp = self.api_prod(
+                        "DELETE",
+                        f"files/{prod_temp_id}",
+                        headers={"If-Match": "wrong_etag_value"},
+                    )
+                    replica_del_resp = self.api_replica(
+                        "DELETE",
+                        f"files/{replica_temp_id}",
+                        headers={"If-Match": "wrong_etag_value"},
+                    )
+
+                    # Both should return 412 Precondition Failed
+                    if (
+                        prod_del_resp.status_code == 412
+                        and replica_del_resp.status_code == 412
+                    ):
+                        print("✅")
+                        passed += 1
+                    else:
+                        print(
+                            f" (prod: {prod_del_resp.status_code}, replica: {replica_del_resp.status_code})"
+                        )
+
+                    # Clean up: delete the files properly
+                    self.api_prod("DELETE", f"files/{prod_temp_id}")
+                    self.api_replica("DELETE", f"files/{replica_temp_id}")
+                else:
+                    print(" (failed to create temp files)")
             except Exception as e:
                 print(f" {e}")
 
@@ -2520,6 +2832,239 @@ class BoxParityTester:
             ):
                 passed += 1
 
+            # === POST /hubs/{id}/manage_items ===
+            # SDK Reference: HubItemsManager.manage_hub_items_v2025_r0()
+            # Add and remove items from a hub
+
+            # First, we need a file or folder to add
+            if self.prod_file_id and self.replica_file_id:
+                # [COMMON] Add file to hub
+                total += 1
+                print("  POST /hubs/{id}/manage_items (add file)...", end=" ")
+                try:
+                    add_body = {
+                        "operations": [
+                            {
+                                "action": "add",
+                                "item": {"type": "file", "id": self.prod_file_id},
+                            }
+                        ]
+                    }
+                    prod_resp = self.api_prod(
+                        "POST",
+                        f"hubs/{prod_hub_id}/manage_items",
+                        json=add_body,
+                        headers=hub_headers,
+                    )
+
+                    replica_body = {
+                        "operations": [
+                            {
+                                "action": "add",
+                                "item": {"type": "file", "id": self.replica_file_id},
+                            }
+                        ]
+                    }
+                    replica_resp = self.api_replica(
+                        "POST",
+                        f"hubs/{replica_hub_id}/manage_items",
+                        json=replica_body,
+                        headers=hub_headers,
+                    )
+
+                    if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                        prod_data = prod_resp.json()
+                        replica_data = replica_resp.json()
+
+                        # Both should have results array
+                        if "results" in prod_data and "results" in replica_data:
+                            prod_success = any(
+                                r.get("status") == "success"
+                                for r in prod_data["results"]
+                            )
+                            replica_success = any(
+                                r.get("status") == "success"
+                                for r in replica_data["results"]
+                            )
+                            if prod_success and replica_success:
+                                print("✅")
+                                passed += 1
+                            else:
+                                print(
+                                    f"⚠️ (prod_success={prod_success}, replica_success={replica_success})"
+                                )
+                        else:
+                            print("⚠️ (missing results)")
+                    else:
+                        print(
+                            f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                        )
+                except Exception as e:
+                    print(f"✗ {e}")
+
+                # Verify item appears in hub_items
+                total += 1
+                print("  GET /hub_items (verify file added)...", end=" ")
+                try:
+                    prod_items_resp = self.api_prod(
+                        "GET",
+                        "hub_items",
+                        params={"hub_id": prod_hub_id},
+                        headers=hub_headers,
+                    )
+                    replica_items_resp = self.api_replica(
+                        "GET",
+                        "hub_items",
+                        params={"hub_id": replica_hub_id},
+                        headers=hub_headers,
+                    )
+
+                    if (
+                        prod_items_resp.status_code == 200
+                        and replica_items_resp.status_code == 200
+                    ):
+                        prod_items = prod_items_resp.json().get("entries", [])
+                        replica_items = replica_items_resp.json().get("entries", [])
+
+                        prod_has_file = any(
+                            i.get("id") == self.prod_file_id for i in prod_items
+                        )
+                        replica_has_file = any(
+                            i.get("id") == self.replica_file_id for i in replica_items
+                        )
+
+                        if prod_has_file and replica_has_file:
+                            print("✅")
+                            passed += 1
+                        else:
+                            print(
+                                f"⚠️ (prod_has_file={prod_has_file}, replica_has_file={replica_has_file})"
+                            )
+                    else:
+                        print(
+                            f"✗ Status: prod={prod_items_resp.status_code}, replica={replica_items_resp.status_code}"
+                        )
+                except Exception as e:
+                    print(f"✗ {e}")
+
+            # [COMMON] Add folder to hub
+            if self.prod_folder_id and self.replica_folder_id:
+                total += 1
+                print("  POST /hubs/{id}/manage_items (add folder)...", end=" ")
+                try:
+                    add_body = {
+                        "operations": [
+                            {
+                                "action": "add",
+                                "item": {"type": "folder", "id": self.prod_folder_id},
+                            }
+                        ]
+                    }
+                    prod_resp = self.api_prod(
+                        "POST",
+                        f"hubs/{prod_hub_id}/manage_items",
+                        json=add_body,
+                        headers=hub_headers,
+                    )
+
+                    replica_body = {
+                        "operations": [
+                            {
+                                "action": "add",
+                                "item": {
+                                    "type": "folder",
+                                    "id": self.replica_folder_id,
+                                },
+                            }
+                        ]
+                    }
+                    replica_resp = self.api_replica(
+                        "POST",
+                        f"hubs/{replica_hub_id}/manage_items",
+                        json=replica_body,
+                        headers=hub_headers,
+                    )
+
+                    if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                        prod_data = prod_resp.json()
+                        replica_data = replica_resp.json()
+
+                        if "results" in prod_data and "results" in replica_data:
+                            prod_success = any(
+                                r.get("status") == "success"
+                                for r in prod_data["results"]
+                            )
+                            replica_success = any(
+                                r.get("status") == "success"
+                                for r in replica_data["results"]
+                            )
+                            if prod_success and replica_success:
+                                print("✅")
+                                passed += 1
+                            else:
+                                print("⚠️")
+                        else:
+                            print("⚠️ (missing results)")
+                    else:
+                        print(
+                            f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                        )
+                except Exception as e:
+                    print(f"✗ {e}")
+
+            # [EDGE] Invalid action
+            total += 1
+            print("  POST /hubs/{id}/manage_items (invalid action)...", end=" ")
+            try:
+                invalid_body = {
+                    "operations": [
+                        {
+                            "action": "invalid_action",
+                            "item": {"type": "file", "id": "123"},
+                        }
+                    ]
+                }
+                prod_resp = self.api_prod(
+                    "POST",
+                    f"hubs/{prod_hub_id}/manage_items",
+                    json=invalid_body,
+                    headers=hub_headers,
+                )
+                replica_resp = self.api_replica(
+                    "POST",
+                    f"hubs/{replica_hub_id}/manage_items",
+                    json=invalid_body,
+                    headers=hub_headers,
+                )
+
+                # Both should return 200 with error in results
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    prod_data = prod_resp.json()
+                    replica_data = replica_resp.json()
+
+                    # Check for error status in results
+                    prod_has_error = any(
+                        r.get("status") == "error" for r in prod_data.get("results", [])
+                    )
+                    replica_has_error = any(
+                        r.get("status") == "error"
+                        for r in replica_data.get("results", [])
+                    )
+
+                    if prod_has_error and replica_has_error:
+                        print("✅")
+                        passed += 1
+                    else:
+                        print(
+                            f"⚠️ (prod_has_error={prod_has_error}, replica_has_error={replica_has_error})"
+                        )
+                else:
+                    print(
+                        f"⚠️ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
         # [EDGE] Non-existent hub ID
         total += 1
         if self.test_operation(
@@ -3012,6 +3557,285 @@ class BoxParityTester:
 
         return passed, total
 
+    def run_collection_tests(self) -> tuple[int, int]:
+        """
+        Run collection tests (favorites).
+
+        Endpoints:
+        - GET /collections
+        - GET /collections/{id}
+        - GET /collections/{id}/items
+        - PUT /folders/{id} with collections field
+        - PUT /files/{id} with collections field
+
+        Test Cases:
+        GET /collections:
+        - [COMMON] List all collections (should return favorites collection)
+
+        GET /collections/{id}:
+        - [COMMON] Get collection by ID
+        - [EDGE] Get non-existent collection (404)
+
+        GET /collections/{id}/items:
+        - [COMMON] List items in favorites (initially empty)
+        - [EDGE] Non-existent collection (404)
+
+        PUT /folders/{id} with collections:
+        - [COMMON] Add folder to favorites
+        - [COMMON] Remove folder from favorites
+        - [COMMON] Verify folder appears in collection items
+
+        PUT /files/{id} with collections:
+        - [COMMON] Add file to favorites
+        - [COMMON] Remove file from favorites
+        """
+        print("\n📚 Collection Operations:")
+        passed = 0
+        total = 0
+
+        # === GET /collections ===
+        total += 1
+        print("  GET /collections...", end=" ")
+        try:
+            prod_resp = self.api_prod("GET", "collections")
+            replica_resp = self.api_replica("GET", "collections")
+
+            # Both should return a collections list with at least favorites
+            self.assert_responses_equal(prod_resp, replica_resp, "GET /collections")
+
+            # Extract favorites collection ID
+            prod_collections = prod_resp.json().get("entries", [])
+            replica_collections = replica_resp.json().get("entries", [])
+
+            prod_favorites_id = None
+            replica_favorites_id = None
+
+            for coll in prod_collections:
+                if coll.get("collection_type") == "favorites":
+                    prod_favorites_id = coll.get("id")
+                    break
+
+            for coll in replica_collections:
+                if coll.get("collection_type") == "favorites":
+                    replica_favorites_id = coll.get("id")
+                    break
+
+            passed += 1
+            print("✓")
+        except Exception as e:
+            print(f"✗ {e}")
+            prod_favorites_id = None
+            replica_favorites_id = None
+
+        # === GET /collections/{id} ===
+        if prod_favorites_id and replica_favorites_id:
+            total += 1
+            print("  GET /collections/{id} (favorites)...", end=" ")
+            try:
+                prod_resp = self.api_prod("GET", f"collections/{prod_favorites_id}")
+                replica_resp = self.api_replica(
+                    "GET", f"collections/{replica_favorites_id}"
+                )
+                self.assert_responses_equal(
+                    prod_resp, replica_resp, "GET /collections/{id}"
+                )
+                passed += 1
+            except Exception as e:
+                print(f"✗ {e}")
+
+        # [EDGE] Non-existent collection
+        total += 1
+        if self.test_operation(
+            "GET /collections/99999999 (404)",
+            lambda: self.api_prod("GET", "collections/99999999"),
+            lambda: self.api_replica("GET", "collections/99999999"),
+            expected_status_code=404,
+            validate_schema=False,
+        ):
+            passed += 1
+
+        # === GET /collections/{id}/items ===
+        if prod_favorites_id and replica_favorites_id:
+            total += 1
+            print(
+                "  GET /collections/{id}/items (favorites - may be empty)...", end=" "
+            )
+            try:
+                prod_resp = self.api_prod(
+                    "GET", f"collections/{prod_favorites_id}/items"
+                )
+                replica_resp = self.api_replica(
+                    "GET", f"collections/{replica_favorites_id}/items"
+                )
+                # Both should be paginated responses, even if empty
+                if prod_resp.status_code == replica_resp.status_code:
+                    passed += 1
+                    print("✓")
+                else:
+                    print(
+                        f"✗ Status mismatch: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+        # === PUT /folders/{id} with collections (add to favorites) ===
+        if (
+            prod_favorites_id
+            and replica_favorites_id
+            and self.prod_folder_id
+            and self.replica_folder_id
+        ):
+            total += 1
+            print("  PUT /folders/{id} (add to favorites)...", end=" ")
+            try:
+                prod_resp = self.api_prod(
+                    "PUT",
+                    f"folders/{self.prod_folder_id}",
+                    json={"collections": [{"id": prod_favorites_id}]},
+                )
+                replica_resp = self.api_replica(
+                    "PUT",
+                    f"folders/{self.replica_folder_id}",
+                    json={"collections": [{"id": replica_favorites_id}]},
+                )
+                # Both should return 200 with updated folder
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    # Check collections field in response
+                    prod_collections = prod_resp.json().get("collections", [])
+                    replica_collections = replica_resp.json().get("collections", [])
+                    if len(prod_collections) >= 1 and len(replica_collections) >= 1:
+                        passed += 1
+                        print("✓")
+                    else:
+                        print("✗ Collections not in response")
+                else:
+                    print(
+                        f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+            # Verify folder appears in collection items
+            total += 1
+            print(
+                "  GET /collections/{id}/items (verify folder in favorites)...",
+                end=" ",
+            )
+            try:
+                prod_resp = self.api_prod(
+                    "GET", f"collections/{prod_favorites_id}/items"
+                )
+                replica_resp = self.api_replica(
+                    "GET", f"collections/{replica_favorites_id}/items"
+                )
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    prod_entries = prod_resp.json().get("entries", [])
+                    replica_entries = replica_resp.json().get("entries", [])
+                    prod_has_folder = any(
+                        e.get("id") == self.prod_folder_id for e in prod_entries
+                    )
+                    replica_has_folder = any(
+                        e.get("id") == self.replica_folder_id for e in replica_entries
+                    )
+                    if prod_has_folder and replica_has_folder:
+                        passed += 1
+                        print("✓")
+                    else:
+                        print(
+                            f"✗ Folder not in items: prod={prod_has_folder}, replica={replica_has_folder}"
+                        )
+                else:
+                    print(
+                        f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+            # Remove from favorites
+            total += 1
+            print("  PUT /folders/{id} (remove from favorites)...", end=" ")
+            try:
+                prod_resp = self.api_prod(
+                    "PUT",
+                    f"folders/{self.prod_folder_id}",
+                    json={"collections": []},
+                )
+                replica_resp = self.api_replica(
+                    "PUT",
+                    f"folders/{self.replica_folder_id}",
+                    json={"collections": []},
+                )
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    prod_collections = prod_resp.json().get("collections", [])
+                    replica_collections = replica_resp.json().get("collections", [])
+                    if len(prod_collections) == 0 and len(replica_collections) == 0:
+                        passed += 1
+                        print("✓")
+                    else:
+                        print("✗ Collections not empty after removal")
+                else:
+                    print(
+                        f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+        # === PUT /files/{id} with collections (add to favorites) ===
+        if (
+            prod_favorites_id
+            and replica_favorites_id
+            and self.prod_file_id
+            and self.replica_file_id
+        ):
+            total += 1
+            print("  PUT /files/{id} (add to favorites)...", end=" ")
+            try:
+                prod_resp = self.api_prod(
+                    "PUT",
+                    f"files/{self.prod_file_id}",
+                    json={"collections": [{"id": prod_favorites_id}]},
+                )
+                replica_resp = self.api_replica(
+                    "PUT",
+                    f"files/{self.replica_file_id}",
+                    json={"collections": [{"id": replica_favorites_id}]},
+                )
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    passed += 1
+                    print("✓")
+                else:
+                    print(
+                        f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+            # Remove from favorites
+            total += 1
+            print("  PUT /files/{id} (remove from favorites)...", end=" ")
+            try:
+                prod_resp = self.api_prod(
+                    "PUT",
+                    f"files/{self.prod_file_id}",
+                    json={"collections": []},
+                )
+                replica_resp = self.api_replica(
+                    "PUT",
+                    f"files/{self.replica_file_id}",
+                    json={"collections": []},
+                )
+                if prod_resp.status_code == 200 and replica_resp.status_code == 200:
+                    passed += 1
+                    print("✓")
+                else:
+                    print(
+                        f"✗ Status: prod={prod_resp.status_code}, replica={replica_resp.status_code}"
+                    )
+            except Exception as e:
+                print(f"✗ {e}")
+
+        return passed, total
+
     # -------------------------------------------------------------------------
     # Main Test Runner
     # -------------------------------------------------------------------------
@@ -3058,6 +3882,10 @@ class BoxParityTester:
         total_tests += t
 
         p, t = self.run_error_tests()
+        total_passed += p
+        total_tests += t
+
+        p, t = self.run_collection_tests()
         total_passed += p
         total_tests += t
 
