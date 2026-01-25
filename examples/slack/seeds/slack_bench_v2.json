@@ -92,7 +92,8 @@
       "display_name": "Priya",
       "real_name": "Priya Sharma",
       "email": "priya@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Asia/Kolkata"
     },
     {
       "user_id": "U_LUKAS",
@@ -100,7 +101,8 @@
       "display_name": "\u0141ukasz",
       "real_name": "\u0141ukasz Kowalski",
       "email": "lukas@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Europe/Warsaw"
     },
     {
       "user_id": "U_SOPHIE",
@@ -108,7 +110,8 @@
       "display_name": "Sophie",
       "real_name": "Sophie Dubois",
       "email": "sophie@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Europe/Paris"
     },
     {
       "user_id": "U_OLENA",
@@ -116,7 +119,8 @@
       "display_name": "Olena",
       "real_name": "Olena Petrenko",
       "email": "olena@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Europe/Kiev"
     },
     {
       "user_id": "U_MATEO",
@@ -124,7 +128,8 @@
       "display_name": "Mateo",
       "real_name": "Mateo Rivera",
       "email": "mateo@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "America/Los_Angeles"
     },
     {
       "user_id": "U_KENJI",
@@ -132,7 +137,8 @@
       "display_name": "\u4f50\u85e4\u5065\u4e8c",
       "real_name": "\u4f50\u85e4\u5065\u4e8c (Kenji Sato)",
       "email": "kenji@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Asia/Tokyo"
     },
     {
       "user_id": "U_ROBERT",
@@ -140,7 +146,8 @@
       "display_name": "Robert",
       "real_name": "Robert Chen",
       "email": "robert@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "America/New_York"
     },
     {
       "user_id": "U_AISHA",
@@ -148,7 +155,8 @@
       "display_name": "Aisha",
       "real_name": "Aisha Okonkwo",
       "email": "aisha@neuroflow.ai",
-      "is_bot": false
+      "is_bot": false,
+      "timezone": "Africa/Lagos"
     }
   ],
   "channels": [
@@ -251,6 +259,25 @@
       "is_gc": false,
       "topic_text": "React, TypeScript, UI/UX, design system",
       "purpose_text": "Channel for frontend discussions."
+    },
+    {
+      "channel_id": "D01AGENTSOPHIE",
+      "channel_name": "dm-agent-sophie",
+      "team_id": "T01WORKSPACE",
+      "is_private": true,
+      "is_dm": true,
+      "is_gc": false
+    },
+    {
+      "channel_id": "C_OLD_PROJECT",
+      "channel_name": "old-project-q3",
+      "team_id": "T01WORKSPACE",
+      "is_private": false,
+      "is_dm": false,
+      "is_gc": false,
+      "is_archived": true,
+      "topic_text": "Q3 2025 Project - ARCHIVED",
+      "purpose_text": "Old Q3 project channel, no longer active."
     }
   ],
   "user_teams": [
@@ -415,6 +442,30 @@
       "user_id": "U01AGENBOT9"
     },
     {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_PRIYA"
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_LUKAS"
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_MATEO"
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_KENJI"
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_ROBERT"
+    },
+    {
+      "channel_id": "C06ALPHADEV",
+      "user_id": "U_AISHA"
+    },
+    {
       "channel_id": "C05ALPHA",
       "user_id": "U01AGENBOT9"
     },
@@ -427,10 +478,6 @@
       "user_id": "U01AGENBOT9"
     },
     {
-      "channel_id": "C_GROWTH",
-      "user_id": "U01AGENBOT9"
-    },
-    {
       "channel_id": "C_FRONTEND",
       "user_id": "U01AGENBOT9"
     },
@@ -561,6 +608,14 @@
     {
       "channel_id": "C_FRONTEND",
       "user_id": "U_AISHA"
+    },
+    {
+      "channel_id": "D01AGENTSOPHIE",
+      "user_id": "U01AGENBOT9"
+    },
+    {
+      "channel_id": "D01AGENTSOPHIE",
+      "user_id": "U_SOPHIE"
     }
   ],
   "messages": [
@@ -569,6 +624,18 @@
       "channel_id": "C01ABCD1234",
       "user_id": "U01AGENBOT9",
       "message_text": "Hey team, we just shipped the new feature!"
+    },
+    {
+      "message_id": "1699564900.000124",
+      "channel_id": "C01ABCD1234",
+      "user_id": "U01AGENBOT9",
+      "message_text": "Cricket World Cup watch party is scheduled for 3pm PST - mark your calendars!"
+    },
+    {
+      "message_id": "1699564950.000125",
+      "channel_id": "C01ABCD1234",
+      "user_id": "U01AGENBOT9",
+      "message_text": "We're booking the downtown venue for the watch party event"
     },
     {
       "message_id": "1699572000.000789",
@@ -1368,6 +1435,38 @@
       "message_text": "Just got the logs pulled\u2014context windows, retrieval scores, the whole thing. Sophie, I'm gonna dump these in a shared doc so you can eyeball them before we sync. My initial read: the model *did* have the correct info in the retrieved context (docs ranked 2-4), but it weighted the weaker doc at position 1 way too heavily and just... ran with it. Classic garbage-in-garbage-out, which is actually good news\u2014means the reranker should genuinely help here.\n\nOn blast radius: ran a quick test with a confidence gate at 0.85 and it caught the failure case without blocking any of the legitimate support queries in our sample. We're talking <2% filtered queries, which feels safe. Let me do a bigger sample run overnight and we'll have real numbers by tomorrow \ud83d\udd0d",
       "type": "message",
       "ts": "1706078297.000000"
+    },
+    {
+      "message_id": "1706100000.000001",
+      "channel_id": "D01AGENTSOPHIE",
+      "user_id": "U_SOPHIE",
+      "message_text": "Hey! Quick update on circuit-tracer: the PyTorch rewrite is going well. I've finished the multi-GPU sharding logic and the layer-by-layer streaming is working properly now. Targeting Wednesday next week for the PR - Olena already reviewed the CUDA kernels and they're good to go. The 70B model should load without OOM issues once this lands.",
+      "type": "message",
+      "ts": "1706100000.000001"
+    },
+    {
+      "message_id": "1706110000.000100",
+      "channel_id": "C03IJKL9012",
+      "user_id": "U_LUKAS",
+      "message_text": "The circuit-tracer library is hitting OOM errors when loading large models layer-by-layer. Current implementation doesn't distribute tensors across GPUs properly - we're basically loading the whole thing into VRAM before sharding. Need to rewrite this in PyTorch from scratch with proper streaming.",
+      "type": "message",
+      "ts": "1706110000.000100"
+    },
+    {
+      "message_id": "1706110000.000200",
+      "channel_id": "C03IJKL9012",
+      "user_id": "U_ROBERT",
+      "parent_id": "1706110000.000100",
+      "message_text": "When will the PyTorch rewrite be ready? We need multi-GPU support for the 70B model interpretability work - currently blocked on this.",
+      "type": "message",
+      "ts": "1706110000.000200"
+    }
+  ],
+  "message_reactions": [
+    {
+      "message_id": "1706110000.000100",
+      "user_id": "U01AGENBOT9",
+      "reaction_type": "eyes"
     }
   ]
 }

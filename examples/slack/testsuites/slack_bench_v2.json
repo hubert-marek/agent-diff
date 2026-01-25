@@ -17,6 +17,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -40,6 +47,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -73,6 +88,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -106,6 +129,12 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 1,
+        "tools_required": [
+          "conversations.create"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -126,6 +155,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "conversations.invite"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -149,6 +186,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.create",
+          "conversations.invite"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -179,6 +224,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "conversations.kick"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "removed",
@@ -202,6 +255,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "conversations.archive"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "changed",
@@ -226,6 +286,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -252,6 +320,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -273,11 +349,21 @@
     },
     {
       "id": "test_11",
-      "name": "Add emoji reaction",
-      "prompt": "React with :thumbsup: to the question about lunch in #random",
+      "name": "Add emoji reactions",
+      "prompt": "In #random, react with :thumbsup: to all messages that are questions about lunch, and react with :thumbsdown: to the message about piza combo",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 5,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "reactions.add",
+          "reactions.add",
+          "reactions.add"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -286,11 +372,34 @@
             "message_id": {
               "eq": "1699572000.000789"
             },
-            "user_id": {
-              "eq": "U01AGENBOT9"
+            "reaction_type": {
+              "eq": "thumbsup"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "message_reactions",
+          "where": {
+            "message_id": {
+              "eq": "1706052665.000000"
             },
             "reaction_type": {
               "eq": "thumbsup"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "message_reactions",
+          "where": {
+            "message_id": {
+              "eq": "1706051755.000000"
+            },
+            "reaction_type": {
+              "eq": "thumbsdown"
             }
           },
           "expected_count": 1
@@ -304,6 +413,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "reactions.add"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -330,6 +447,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "conversations.setTopic"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "changed",
@@ -356,6 +480,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "search.messages",
+          "chat.update"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "changed",
@@ -385,6 +516,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -408,6 +547,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -444,6 +591,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "chat.delete"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "removed",
@@ -462,11 +617,22 @@
     },
     {
       "id": "test_18",
-      "name": "Forward messages to another channel",
-      "prompt": "Copy the two questions from #random and post them both to #general",
+      "name": "Forward questions to another channel",
+      "prompt": "Find all questions in #random and post each one to #general as separate messages.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 6,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "chat.postMessage",
+          "chat.postMessage",
+          "chat.postMessage",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -476,7 +642,7 @@
               "eq": "C01ABCD1234"
             },
             "message_text": {
-              "contains": "lunch"
+              "contains": "Gemini"
             }
           },
           "expected_count": 1
@@ -489,7 +655,33 @@
               "eq": "C01ABCD1234"
             },
             "message_text": {
-              "contains": "Gemini"
+              "contains": "preview"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "contains": "garlic knots"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "contains": "shared lunch"
             }
           },
           "expected_count": 1
@@ -503,6 +695,15 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 4,
+        "tools_required": [
+          "search.messages",
+          "users.list",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -616,6 +817,15 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 4,
+        "tools_required": [
+          "search.messages",
+          "users.list",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -724,6 +934,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "search.messages",
+          "conversations.history",
+          "chat.update"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "changed",
@@ -796,7 +1014,7 @@
           "expected_changes": {
             "message_text": {
               "to": {
-                "contains": "login endpoint"
+                "contains": "ogin endpoint"
               }
             }
           }
@@ -848,6 +1066,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.history",
+          "conversations.replies",
+          "chat.update"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "changed",
@@ -883,6 +1109,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -932,6 +1165,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -968,6 +1208,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1004,6 +1252,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1027,6 +1282,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1063,6 +1325,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1086,6 +1355,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1122,6 +1399,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "search.messages",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1165,6 +1450,15 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 4,
+        "tools_required": [
+          "search.messages",
+          "search.messages",
+          "conversations.create",
+          "conversations.invite"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1202,6 +1496,15 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 4,
+        "tools_required": [
+          "users.list",
+          "users.list",
+          "conversations.open",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1231,7 +1534,7 @@
               "eq": "U01AGENBOT9"
             },
             "message_text": {
-              "contains": "find"
+              "regex": "find|found|unable|couldn't|could not|not exist"
             }
           },
           "expected_count": 1
@@ -1255,6 +1558,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1291,6 +1602,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "users.list",
+          "conversations.list",
+          "conversations.invite"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1314,6 +1633,13 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 2,
+        "tools_required": [
+          "conversations.list",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1337,6 +1663,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "chat.postMessage"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1373,6 +1707,14 @@
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 3,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "reactions.add"
+        ]
+      },
       "assertions": [
         {
           "diff_type": "added",
@@ -1400,27 +1742,18 @@
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 9,
-        "sampled_endpoints": [
+        "min_tool_calls": 9,
+        "tools_required": [
+          "conversations.list",
+          "conversations.setTopic",
+          "chat.postMessage",
+          "users.info",
+          "users.info",
           "conversations.history",
           "reactions.add",
-          "chat.postMessage",
-          "conversations.members",
-          "conversations.setTopic",
           "chat.delete",
-          "users.info",
-          "conversations.list"
-        ],
-        "nationalities": [
-          "Ukrainian",
-          "Indian",
-          "Mexican-American",
-          "Japanese",
-          "Polish",
-          "Chinese-American"
-        ],
-        "topic": "Open Source Hackathon Coordination",
-        "min_tool_calls": 8
+          "conversations.members"
+        ]
       },
       "_step_sequence": [
         {
@@ -1475,7 +1808,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1483,34 +1816,27 @@
     {
       "id": "test_39",
       "name": "Diwali x Thanksgiving Potluck",
-      "prompt": "Hey, I need some help organizing our Diwali x Thanksgiving potluck celebration! We're doing a combined Indian and American traditions thing and I want to make sure we coordinate this properly across the team.\n\nFirst, can you check what channels we have that might be relevant for this event and see what's been discussed recently in #core-infra? I want to make sure I'm not stepping on any ongoing conversations. Also, I need to know who's on our team so I can figure out who to involve based on their backgrounds and expertise.\n\nOnce you've got that context, please update the topics for #core-infra, #project-alpha, and #growth to reflect that we're planning this potluck celebration. Then post an announcement in #project-alpha about the event.\n\nI also need you to check who's currently in #growth to make sure the right people are included, and open a direct message with Kenji Sato since I need to coordinate with him separately about timing given APAC schedules.\n\nOh, and there's an old message I posted earlier about the event that has wrong details - can you update it with the correct information? There's also an outdated announcement from last week that's no longer relevant, so please delete that. Finally, just react to Priya's message about bringing samosas to show I've seen it!",
+      "prompt": "I need some help organizing our Diwali x Thanksgiving potluck celebration! We're doing a combined Indian and American traditions thing and I want to make sure we coordinate this properly across the team.\n\nFirst, can you check what channels we have that might be relevant for this event and see what's been discussed recently in #core-infra? I want to make sure I'm not stepping on any ongoing conversations. Also, I need to know who's on our team so I can figure out who to involve based on their backgrounds and expertise.\n\nOnce you've got that context, please update the topics for #core-infra, #project-alpha, and #growth to reflect that we're planning this potluck celebration. Then post an announcement in #project-alpha about the event.\n\nI also need you to check who's currently in #growth to make sure the right people are included, and open a direct message with Kenji Sato since I need to coordinate with him separately about timing given APAC schedules.\n\nOh, and there's an old message I posted earlier about the event that has wrong details - can you update it with the correct information? There's also an outdated announcement from last week that's no longer relevant, so please delete that. Finally, just react to Priya's message about bringing samosas to show I've seen it!",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 13,
-        "sampled_endpoints": [
-          "reactions.add",
+        "min_tool_calls": 13,
+        "tools_required": [
+          "conversations.list",
           "conversations.history",
+          "users.list",
+          "conversations.setTopic",
+          "conversations.setTopic",
+          "conversations.setTopic",
           "chat.postMessage",
           "conversations.members",
           "conversations.open",
-          "conversations.setTopic",
+          "chat.update",
           "chat.delete",
-          "conversations.list",
-          "users.list",
-          "chat.update"
-        ],
-        "nationalities": [
-          "Russian",
-          "French",
-          "Chinese-American",
-          "Indian",
-          "Mexican-American",
-          "Japanese"
-        ],
-        "topic": "Diwali x Thanksgiving Potluck",
-        "min_tool_calls": 10
+          "reactions.add",
+          "chat.postMessage"
+        ]
       },
       "_step_sequence": [
         {
@@ -1589,7 +1915,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -1597,7 +1923,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1605,25 +1931,21 @@
     {
       "id": "test_40",
       "name": "Lunar New Year Product Launch",
-      "prompt": "Hey, I need some help getting our Lunar New Year product launch coordination sorted out. We're targeting APAC markets and I want to make sure we're being culturally sensitive with our timing and messaging.\n\nFirst, can you help me figure out who on our team has the right expertise for this? I need to reach out directly to our frontend person about some UI elements that need to be adapted, and also connect with our engineering lead separately about the technical rollout schedule.\n\nAlso, I noticed the #project-alpha-dev channel might have some people who aren't really needed for this particular launch, and I want to keep discussions focused. Can you check who's currently in that channel? We may need to streamline the membership a bit - I think there are a couple of folks who were added for previous projects but don't need to be looped in on the APAC launch details.",
+      "prompt": "I need some help getting our Lunar New Year product launch coordination sorted out. We're targeting APAC markets and I want to make sure we're being culturally sensitive with our timing and messaging.\n\nFirst, can you help me figure out who on our team has the right expertise for this? I need to reach out directly to our frontend person about some UI elements that need to be adapted, and also connect with our engineering lead separately about the technical rollout schedule.\n\nAlso, I noticed the #project-alpha-dev channel might have some people who aren't really needed for this particular launch, and I want to keep discussions focused. Can you check who's currently in that channel? We may need to streamline the membership a bit - I think there are a couple of folks who were added for previous projects but don't need to be looped in on the APAC launch details.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 7,
-        "sampled_endpoints": [
+        "min_tool_calls": 7,
+        "tools_required": [
+          "users.list",
           "conversations.open",
-          "conversations.kick",
+          "conversations.open",
           "conversations.members",
+          "conversations.kick",
+          "conversations.kick",
           "users.list"
-        ],
-        "nationalities": [
-          "Polish",
-          "Nigerian",
-          "Japanese"
-        ],
-        "topic": "Lunar New Year Product Launch",
-        "min_tool_calls": 4
+        ]
       },
       "_step_sequence": [
         {
@@ -1672,7 +1994,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1680,35 +2002,27 @@
     {
       "id": "test_41",
       "name": "Music Festival Tech Stack",
-      "prompt": "Hey, I need some help cleaning up our Afrobeats festival streaming project workspace. We've had some organizational issues lately. First, can you find out who's currently hanging out in #random and also get me a list of everyone on the team? I need to verify Robert Chen's role since he's supposed to be leading the engineering side of things.\n\nI also need you to dig through our CDN-related conversations - we had some important discussions about our content delivery setup that I need to reference. Check what's been happening recently in #project-alpha too.\n\nOnce you've got the lay of the land, please remove Artem Bogdanov from #project-alpha-dev and also kick Hubert Marek from #core-infra - they've moved to different workstreams. Post an update to #core-infra about our streaming infrastructure progress, and update the topic there to reflect our virtual festival focus.\n\nThere's also an outdated message I posted earlier that needs deleting, and I need to correct some information in a previous update I sent. Can you help me sort all this out?",
+      "prompt": "I need some help cleaning up our Afrobeats festival streaming project workspace. We've had some organizational issues lately. First, can you find out who's currently hanging out in #random and also get me a list of everyone on the team? I need to verify Robert Chen's role since he's supposed to be leading the engineering side of things.\n\nI also need you to dig through our CDN-related conversations - we had some important discussions about our content delivery setup that I need to reference. Check what's been happening recently in #project-alpha too.\n\nOnce you've got the lay of the land, please remove Artem Bogdanov from #project-alpha-dev and also kick Hubert Marek from #core-infra - they've moved to different workstreams. Post an update to #core-infra about our streaming infrastructure progress, and update the topic there to reflect our virtual festival focus.\n\nThere's also an outdated message I posted earlier that needs deleting, and I need to correct some information in a previous update I sent. Can you help me sort all this out?",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 13,
-        "sampled_endpoints": [
-          "conversations.history",
-          "chat.postMessage",
+        "min_tool_calls": 13,
+        "tools_required": [
           "conversations.members",
-          "chat.update",
-          "chat.delete",
-          "conversations.setTopic",
-          "search.messages",
+          "users.list",
           "users.info",
-          "conversations.kick",
+          "search.messages",
+          "search.messages",
+          "conversations.history",
           "conversations.list",
-          "users.list"
-        ],
-        "nationalities": [
-          "Mexican-American",
-          "Chinese-American",
-          "Russian",
-          "Nigerian",
-          "Polish",
-          "Ukrainian"
-        ],
-        "topic": "Music Festival Tech Stack",
-        "min_tool_calls": 11
+          "conversations.kick",
+          "conversations.kick",
+          "chat.postMessage",
+          "conversations.setTopic",
+          "chat.delete",
+          "chat.update"
+        ]
       },
       "_step_sequence": [
         {
@@ -1783,7 +2097,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1791,29 +2105,22 @@
     {
       "id": "test_42",
       "name": "Pierogi vs Varenyky Debug Session",
-      "prompt": "Hey, I need your help coordinating something for our Polish-Ukrainian debugging session today. We're calling it the \"Pierogi vs Varenyky Debug Session\" because Olena and Sophie are bringing food during our break!\n\nFirst, can you check on Sophie Dubois and Olena Petrenko's profiles? I want to make sure I have their roles right when I introduce them to the rest of the team. Also, I need to catch up on what's been happening in the engineering channel - there were some login issues discussed that might be relevant.\n\nCould you find any channels that might already be discussing this topic, and if there isn't a dedicated space yet, please create a new channel for our pierogi-vs-varenyky session? We should also post a heads-up in core-infra about our debugging plans.\n\nOh, and Aisha left a great message earlier that I want to react to with a thumbs up. Also, I need to remove someone from one of our project channels who's no longer on the team. Thanks!",
+      "prompt": "I need your help coordinating something for our Polish-Ukrainian debugging session today. We're calling it the \"Pierogi vs Varenyky Debug Session\" because Olena and Sophie are bringing food during our break!\n\nFirst, can you check on Sophie Dubois and Olena Petrenko's profiles? I want to make sure I have their roles right when I introduce them to the rest of the team. Also, I need to catch up on what's been happening in the engineering channel - there were some login issues discussed that might be relevant.\n\nCould you find any channels that might already be discussing this topic, and if there isn't a dedicated space yet, please create a new channel for our pierogi-vs-varenyky session? We should also post a heads-up in core-infra about our debugging plans.\n\nOh, and Aisha left a great message earlier that I want to react to with a thumbs up. Also, I need to remove someone from one of our project channels who's no longer on the team. Thanks!",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 8,
-        "sampled_endpoints": [
-          "reactions.add",
-          "conversations.history",
-          "chat.postMessage",
+        "min_tool_calls": 8,
+        "tools_required": [
           "users.info",
-          "conversations.kick",
+          "users.info",
+          "conversations.history",
           "conversations.list",
-          "conversations.create"
-        ],
-        "nationalities": [
-          "Ukrainian",
-          "Indian",
-          "French",
-          "Nigerian"
-        ],
-        "topic": "Pierogi vs Varenyky Debug Session",
-        "min_tool_calls": 7
+          "conversations.create",
+          "chat.postMessage",
+          "reactions.add",
+          "conversations.kick"
+        ]
       },
       "_step_sequence": [
         {
@@ -1867,7 +2174,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -1875,7 +2182,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1883,29 +2190,25 @@
     {
       "id": "test_43",
       "name": "Traditional Tea Ceremony Planning",
-      "prompt": "Hey, I need some help organizing our cross-cultural tea ceremony exchange between the Tokyo and Paris offices. Can you set up a dedicated channel for this traditional tea ceremony planning initiative and make sure the channel topic clearly explains what it's about?\n\nBefore we get started, I want to check what's been happening in #random lately - there was some casual conversation about lunch plans and something about Gemini that might be relevant to who's interested. Also, take a look at #growth because I remember seeing some Reddit strategy discussion that could tie into how we promote this cultural exchange.\n\nI posted a few messages earlier about the event that need updating with corrected information - the dates and details have changed. There's also one outdated message I sent that's no longer relevant and should just be removed entirely to avoid confusion.\n\nOh, and if you see the message where Priya or Mateo showed interest in participating, can you add a reaction to acknowledge it? I don't want to clutter the thread with another reply.",
+      "prompt": "I need some help organizing our cross-cultural tea ceremony exchange between the Tokyo and Paris offices. Can you set up a dedicated channel for this traditional tea ceremony planning initiative and make sure the channel topic clearly explains what it's about?\n\nBefore we get started, I want to check what's been happening in #random lately - there was some casual conversation about lunch plans and something about Gemini that might be relevant to who's interested. Also, take a look at #growth because I remember seeing some Reddit strategy discussion that could tie into how we promote this cultural exchange.\n\nI posted a few messages earlier about the event that need updating with corrected information - the dates and details have changed. There's also one outdated message I sent that's no longer relevant and should just be removed entirely to avoid confusion.\n\nOh, and if you see the message where Priya or Mateo showed interest in participating, can you add a reaction to acknowledge it? I don't want to clutter the thread with another reply.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 11,
-        "sampled_endpoints": [
-          "conversations.history",
-          "reactions.add",
+        "min_tool_calls": 11,
+        "tools_required": [
+          "conversations.create",
           "conversations.setTopic",
+          "conversations.history",
+          "conversations.history",
+          "chat.update",
+          "chat.update",
+          "chat.update",
+          "reactions.add",
           "chat.delete",
           "conversations.create",
-          "chat.update"
-        ],
-        "nationalities": [
-          "Nigerian",
-          "Ukrainian",
-          "Indian",
-          "Mexican-American",
-          "Chinese-American"
-        ],
-        "topic": "Traditional Tea Ceremony Planning",
-        "min_tool_calls": 6
+          "conversations.create"
+        ]
       },
       "_step_sequence": [
         {
@@ -1974,7 +2277,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -1982,29 +2285,24 @@
     {
       "id": "test_44",
       "name": "Lunar New Year Product Launch",
-      "prompt": "Hey, I need your help coordinating our Lunar New Year product launch for the APAC market. Can you first catch me up on what's been happening in #model-research and #core-infra? I want to make sure we're not planning a launch during any technical instability.\n\nAlso, I need to verify that Kenji Sato and Robert Chen are the right people to loop in on this - can you confirm their roles for me? Kenji should be handling APAC growth and Robert should be our engineering lead.\n\nOnce you've gathered that context, please set up a dedicated channel for this initiative and make sure the topic clearly reflects what we're working on. Then post a summary of what you found to #project-alpha-dev so the team is aligned.\n\nOh, and I think I sent a message earlier about the timeline that needs updating with the correct dates - can you fix that? And if there's anything important in those channel histories worth acknowledging, give it a thumbs up so people know we've seen it.",
+      "prompt": "I need your help coordinating our Lunar New Year product launch for the APAC market. Can you first catch me up on what's been happening in #model-research and #core-infra? I want to make sure we're not planning a launch during any technical instability.\n\nAlso, I need to verify that Kenji Sato and Robert Chen are the right people to loop in on this - can you confirm their roles for me? Kenji should be handling APAC growth and Robert should be our engineering lead.\n\nOnce you've gathered that context, please set up a dedicated channel for this initiative and make sure the topic clearly reflects what we're working on. Then post a summary of what you found to #project-alpha-dev so the team is aligned.\n\nOh, and I think I sent a message earlier about the timeline that needs updating with the correct dates - can you fix that? And if there's anything important in those channel histories worth acknowledging, give it a thumbs up so people know we've seen it.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 10,
-        "sampled_endpoints": [
+        "min_tool_calls": 10,
+        "tools_required": [
           "conversations.history",
-          "reactions.add",
-          "chat.postMessage",
-          "conversations.setTopic",
+          "conversations.history",
+          "users.info",
           "users.info",
           "conversations.create",
-          "chat.update"
-        ],
-        "nationalities": [
-          "Nigerian",
-          "Japanese",
-          "Mexican-American",
-          "Chinese-American"
-        ],
-        "topic": "Lunar New Year Product Launch",
-        "min_tool_calls": 7
+          "conversations.setTopic",
+          "chat.postMessage",
+          "chat.update",
+          "reactions.add",
+          "conversations.create"
+        ]
       },
       "_step_sequence": [
         {
@@ -2068,7 +2366,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -2076,7 +2374,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -2084,31 +2382,23 @@
     {
       "id": "test_45",
       "name": "Music Festival Tech Stack",
-      "prompt": "Hey, I need some help coordinating our virtual Afrobeats festival streaming infrastructure project. Can you help me get things organized across our Slack workspace?\n\nFirst, I want to make sure the #engineering channel clearly reflects that we're focused on the Music Festival Tech Stack right now - the topic should be updated so everyone knows what we're working on.\n\nI remember there were some discussions about CDN solutions a while back that would be really relevant to our streaming needs - can you dig those up for me?\n\nI also need to figure out who on our team should be involved. I know Robert Chen is supposed to be leading the engineering side, but can you confirm his role? And I think \u0141ukasz Kowalski has some great performance optimization experience - make sure he's part of the conversation in our main coordination channel.\n\nOnce you've gathered all this info, I need updates posted to #engineering, #frontend, and #general to get everyone aligned on our festival streaming infrastructure plans. Also, check what channels we have available that might be relevant to this project.",
+      "prompt": "I need some help coordinating our virtual Afrobeats festival streaming infrastructure project. Can you help me get things organized across our Slack workspace?\n\nFirst, I want to make sure the #engineering channel clearly reflects that we're focused on the Music Festival Tech Stack right now - the topic should be updated so everyone knows what we're working on.\n\nI remember there were some discussions about CDN solutions a while back that would be really relevant to our streaming needs - can you dig those up for me?\n\nI also need to figure out who on our team should be involved. I know Robert Chen is supposed to be leading the engineering side, but can you confirm his role? And I think \u0141ukasz Kowalski has some great performance optimization experience - make sure he's part of the conversation in our main coordination channel.\n\nOnce you've gathered all this info, I need updates posted to #engineering, #frontend, and #general to get everyone aligned on our festival streaming infrastructure plans. Also, check what channels we have available that might be relevant to this project.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 9,
-        "sampled_endpoints": [
-          "conversations.invite",
-          "chat.postMessage",
+        "min_tool_calls": 9,
+        "tools_required": [
           "conversations.setTopic",
           "search.messages",
+          "users.list",
           "users.info",
           "conversations.list",
-          "users.list"
-        ],
-        "nationalities": [
-          "Chinese-American",
-          "Polish",
-          "Polish",
-          "Japanese",
-          "Ukrainian",
-          "French"
-        ],
-        "topic": "Music Festival Tech Stack",
-        "min_tool_calls": 7
+          "chat.postMessage",
+          "chat.postMessage",
+          "chat.postMessage",
+          "conversations.invite"
+        ]
       },
       "_step_sequence": [
         {
@@ -2163,7 +2453,7 @@
           "entity": "messages",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -2171,7 +2461,7 @@
           "entity": "channel_members",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -2179,29 +2469,27 @@
     {
       "id": "test_46",
       "name": "Anime Convention Booth Setup",
-      "prompt": "Hey, I need help getting our anime convention booth coordination sorted out. Can you check what's been happening in #product-growth and #random lately? I want to make sure I'm caught up on any relevant discussions before we dive into planning.\n\nAlso, I remember there were some conversations about badges somewhere - can you find those for me? We had some outdated messages about our old booth location that need to be removed since we got reassigned to a different hall.\n\nI need to loop in Olena Petrenko on this since her perspective would be really helpful for the setup logistics. And I should probably reach out directly to John Doe and Priya Sharma separately - John for general coordination and Priya about the infrastructure stuff like power and internet at the booth.\n\nOh, and let's update the channel topics for #product-growth and #project-alpha-dev to reflect that we're focusing on the anime expo booth setup now. There were a couple of my earlier messages that need corrections too - I posted the wrong setup times initially. Once you find the key planning message, just give it a thumbs up so everyone knows we're aligned.",
+      "prompt": "I need help getting our anime convention booth coordination sorted out. Can you check what's been happening in #product-growth and #random lately? I want to make sure I'm caught up on any relevant discussions before we dive into planning.\n\nAlso, I remember there were some conversations about badges somewhere - can you find those for me? We had some outdated messages about our old booth location that need to be removed since we got reassigned to a different hall.\n\nI need to loop in Olena Petrenko on this since her perspective would be really helpful for the setup logistics. And I should probably reach out directly to John Doe and Priya Sharma separately - John for general coordination and Priya about the infrastructure stuff like power and internet at the booth.\n\nOh, and let's update the channel topics for #product-growth and #project-alpha-dev to reflect that we're focusing on the anime expo booth setup now. There were a couple of my earlier messages that need corrections too - I posted the wrong setup times initially. Once you find the key planning message, just give it a thumbs up so everyone knows we're aligned.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 13,
-        "sampled_endpoints": [
-          "reactions.add",
+        "min_tool_calls": 13,
+        "tools_required": [
           "conversations.history",
-          "conversations.invite",
-          "conversations.open",
+          "conversations.history",
+          "search.messages",
+          "chat.delete",
           "chat.delete",
           "conversations.setTopic",
-          "search.messages",
-          "chat.update"
-        ],
-        "nationalities": [
-          "Indian",
-          "American",
-          "Ukrainian"
-        ],
-        "topic": "Anime Convention Booth Setup",
-        "min_tool_calls": 8
+          "conversations.setTopic",
+          "conversations.invite",
+          "conversations.open",
+          "conversations.open",
+          "chat.update",
+          "chat.update",
+          "reactions.add"
+        ]
       },
       "_step_sequence": [
         {
@@ -2280,7 +2568,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -2288,7 +2576,7 @@
           "entity": "channel_members",
           "where": {},
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         }
       ]
@@ -2296,93 +2584,22 @@
     {
       "id": "test_47",
       "name": "Cricket World Cup Watch Party",
-      "prompt": "Hey, I need your help organizing a Cricket World Cup watch party for our office! We've got team members spread across India, UK, and Australia timezones, so this needs some coordination.\n\nFirst, can you check what channels we already have that might be relevant to this kind of event? I want to make sure we're not duplicating efforts. Also, I remember someone posted about bringing chai for team gatherings a while back - can you find that conversation? Might be useful for planning refreshments.\n\nI think we should create a dedicated channel for the watch party coordination. Once that's set up, update the topic so people know what it's for. I also need to reach out to Priya Sharma directly since she handles infrastructure and we'll need her help with the streaming setup across offices.\n\nCan you pull up our team roster so I can see who else might want to be involved? Oh, and I sent a few messages earlier about potential dates that had wrong timezone info - please fix those, and there's one completely outdated message about a cancelled venue that should just be deleted entirely.\n\nThanks!",
+      "prompt": "Hey, I need your help organizing a Cricket World Cup watch party for our office! We've got team members spread across India, UK, and Australia timezones, so this needs some coordination.\n\nFirst, can you check what channels we already have that might be relevant to this kind of event? I want to make sure we're not duplicating efforts.\n\nI think we should create a dedicated channel for the watch party coordination. Once that's set up, update the topic so people know what it's for. I also need to reach out to Priya Sharma directly since she handles infrastructure and we'll need her help with the streaming setup across offices.\n\nCan you pull up our team roster so I can see who else might want to be involved? Oh, and I posted a message in #general about the watch party time being 3pm PST - that's wrong, it should be 3pm IST since we're primarily coordinating with the India office. Please fix that. There's also an old message I sent about booking a downtown venue that's no longer happening - just delete that one entirely.\n\nThanks!",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
       "metadata": {
-        "n_endpoints": 12,
-        "sampled_endpoints": [
-          "conversations.open",
-          "conversations.setTopic",
-          "chat.delete",
-          "search.messages",
+        "min_tool_calls": 7,
+        "tools_required": [
           "conversations.list",
-          "users.list",
           "conversations.create",
-          "chat.update"
-        ],
-        "nationalities": [
-          "Mexican-American",
-          "Nigerian",
-          "Indian",
-          "Japanese"
-        ],
-        "topic": "Cricket World Cup Watch Party",
-        "min_tool_calls": 8
+          "conversations.setTopic",
+          "conversations.open",
+          "users.list",
+          "chat.update",
+          "chat.delete"
+        ]
       },
-      "_step_sequence": [
-        {
-          "endpoint": "conversations.list",
-          "action": "Discover channels related to Cricket World Cup Watch Party",
-          "justification": "Need to find relevant channels before coordinating"
-        },
-        {
-          "endpoint": "conversations.list",
-          "action": "Discover channels related to Cricket World Cup Watch Party",
-          "justification": "Need to find relevant channels before coordinating"
-        },
-        {
-          "endpoint": "chat.update",
-          "action": "Update a previous message with new info",
-          "justification": "Correct or enhance earlier communication"
-        },
-        {
-          "endpoint": "conversations.setTopic",
-          "action": "Set channel topic about Cricket World Cup Watch Party",
-          "justification": "Clarify channel purpose"
-        },
-        {
-          "endpoint": "chat.update",
-          "action": "Update a previous message with new info",
-          "justification": "Correct or enhance earlier communication"
-        },
-        {
-          "endpoint": "conversations.create",
-          "action": "Create channel #cricket-world-cup-wa",
-          "justification": "Dedicated space for this initiative"
-        },
-        {
-          "endpoint": "chat.update",
-          "action": "Update a previous message with new info",
-          "justification": "Correct or enhance earlier communication"
-        },
-        {
-          "endpoint": "chat.delete",
-          "action": "Delete an outdated message",
-          "justification": "Clean up obsolete information"
-        },
-        {
-          "endpoint": "users.list",
-          "action": "List all team members",
-          "justification": "Identify who to involve based on expertise"
-        },
-        {
-          "endpoint": "search.messages",
-          "action": "Search for messages about 'chai'",
-          "justification": "Find specific discussions related to the topic"
-        },
-        {
-          "endpoint": "conversations.open",
-          "action": "Open DM with Priya Sharma",
-          "justification": "Direct coordination about infrastructure"
-        },
-        {
-          "endpoint": "conversations.list",
-          "action": "Discover channels related to Cricket World Cup Watch Party",
-          "justification": "Need to find relevant channels before coordinating"
-        }
-      ],
       "assertions": [
         {
           "diff_type": "added",
@@ -2393,7 +2610,7 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
           }
         },
         {
@@ -2405,7 +2622,390 @@
             }
           },
           "expected_count": {
-            "gte": 1
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "messages",
+          "where": {
+            "message_id": {
+              "eq": "1699564900.000124"
+            }
+          },
+          "expected_changes": {
+            "message_text": {
+              "to": {
+                "contains": "IST"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "removed",
+          "entity": "messages",
+          "where": {
+            "message_id": {
+              "eq": "1699564950.000125"
+            }
+          },
+          "expected_count": 1
+        }
+      ]
+    },
+    {
+      "id": "test_48",
+      "name": "Channel Audit and Rename",
+      "prompt": "I need to do a quick audit of our #engineering channel. Can you get me the full details about the channel and check who's currently in it?\n\nPost the audit results to #general - I want a message showing the exact member count (as a number) and a list of the current members by name.\n\nAfter that, rename #engineering to \"engineering-backend\" since that's what the team mainly works on. Then post a follow-up message in #general confirming the rename was successful with the new channel name.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_v2",
+      "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 7,
+        "tools_required": [
+          "conversations.list",
+          "conversations.info",
+          "conversations.members",
+          "users.list",
+          "chat.postMessage",
+          "conversations.rename",
+          "chat.postMessage"
+        ]
+      },
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "contains": "5"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "regex": "[Mm]ember"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "channels",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            }
+          },
+          "expected_changes": {
+            "channel_name": {
+              "to": {
+                "contains": "engineering-backend"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "contains": "engineering-backend"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_49",
+      "name": "Thread Q&A from DM - Circuit Tracer Rewrite",
+      "prompt": "There's a thread in #engineering where Robert asked about the circuit tracer library rewrite timeline. We've been having issues with the layer-by-layer loading and need to rewrite it in PyTorch from scratch to handle multi-GPU distribution properly.\n\nSophie sent me a DM with her implementation plan and timeline since she's leading the PyTorch migration. Check my DM with Sophie to find her estimated completion date, then reply to Robert's question in the thread with that information.\n\nAfter replying, add a checkmark reaction to the original thread message to mark it as addressed.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_v2",
+      "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 7,
+        "tools_required": [
+          "conversations.list",
+          "conversations.history",
+          "conversations.replies",
+          "users.list",
+          "conversations.open",
+          "conversations.history",
+          "chat.postMessage",
+          "reactions.add"
+        ]
+      },
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "parent_id": {
+              "eq": "1706110000.000100"
+            },
+            "message_text": {
+              "contains": "Wednesday"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "added",
+          "entity": "message_reactions",
+          "where": {
+            "message_id": {
+              "eq": "1706110000.000100"
+            },
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "test_50",
+      "name": "Quarterly Workspace Reorganization",
+      "prompt": "It's end of Q4 and I need to reorganize our Slack workspace. Help me with the following:\n\n1. First, list all the channels I'm currently a member of. Format it as a numbered list showing: channel name, member count. Send that list to me as a DM to myself.\n\n2. The \"old-project-q3\" channel was archived but we're reviving it for Q1 planning. Unarchive it and rename it to \"q1-planning-2026\". Update the topic to \"Q1 2026 Planning - Americas Team\".\n\n3. In #project-alpha-dev, we want to focus on the Americas timezone team only. Check each member's timezone using their profile info, then remove anyone who is NOT in an Americas timezone (timezone should start with \"America/\").\n\n4. I left an 👀 reaction on the circuit-tracer thread in #engineering a while back - please remove that since we've addressed the issue.\n\n5. Join the #product-growth channel since I'm not in it yet.\n\n6. Finally, post a Q1 kickoff message in the newly renamed channel. In the message, list which team members from #project-alpha-dev are in Americas timezones (the ones who remain after cleanup) - include their names and timezones.",
+      "type": "actionEval",
+      "seed_template": "slack_bench_v2",
+      "impersonate_user_id": "U01AGENBOT9",
+      "metadata": {
+        "min_tool_calls": 12,
+        "tools_required": [
+          "users.conversations",
+          "conversations.members",
+          "conversations.open",
+          "chat.postMessage",
+          "conversations.list",
+          "conversations.unarchive",
+          "conversations.rename",
+          "conversations.setTopic",
+          "conversations.members",
+          "users.info",
+          "conversations.kick",
+          "reactions.remove",
+          "conversations.join",
+          "chat.postMessage"
+        ]
+      },
+      "assertions": [
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "message_text": {
+              "contains": "general"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "channels",
+          "where": {
+            "channel_id": {
+              "eq": "C_OLD_PROJECT"
+            }
+          },
+          "expected_changes": {
+            "is_archived": {
+              "to": {
+                "eq": false
+              }
+            },
+            "channel_name": {
+              "to": {
+                "contains": "q1-planning"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "changed",
+          "entity": "channels",
+          "where": {
+            "channel_id": {
+              "eq": "C_OLD_PROJECT"
+            }
+          },
+          "expected_changes": {
+            "topic_text": {
+              "to": {
+                "contains": "Americas"
+              }
+            }
+          }
+        },
+        {
+          "diff_type": "removed",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_PRIYA"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "removed",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_LUKAS"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "removed",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_KENJI"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "removed",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_AISHA"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "unchanged",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_MATEO"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "unchanged",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C06ALPHADEV"
+            },
+            "user_id": {
+              "eq": "U_ROBERT"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "removed",
+          "entity": "message_reactions",
+          "where": {
+            "message_id": {
+              "eq": "1706110000.000100"
+            },
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            },
+            "reaction_type": {
+              "eq": "eyes"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "channel_id": {
+              "eq": "C_GROWTH"
+            },
+            "user_id": {
+              "eq": "U01AGENBOT9"
+            }
+          },
+          "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C_OLD_PROJECT"
+            },
+            "message_text": {
+              "contains": "Mateo"
+            }
+          },
+          "expected_count": {
+            "min": 1
+          }
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C_OLD_PROJECT"
+            },
+            "message_text": {
+              "contains": "Robert"
+            }
+          },
+          "expected_count": {
+            "min": 1
           }
         }
       ]

@@ -21,6 +21,8 @@ from .code_executor import (
     BaseExecutorProxy,
     PythonExecutorProxy,
     BashExecutorProxy,
+    # Persistent workspace for file operations
+    PersistentWorkspace,
     # Framework-specific tool factories
     create_openai_tool,
     create_langchain_tool,
@@ -49,6 +51,8 @@ __all__ = [
     "BaseExecutorProxy",
     "PythonExecutorProxy",
     "BashExecutorProxy",
+    # Persistent workspace
+    "PersistentWorkspace",
     # Tool factories
     "create_openai_tool",
     "create_langchain_tool",
