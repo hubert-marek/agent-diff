@@ -64,6 +64,10 @@ curl() {
             modified_arg="\${arg//https:\\/\\/api.slack.com/${this.baseUrl}/api/env/${this.environmentId}/services/slack}"
         elif [[ "$arg" == *"https://api.linear.app"* ]]; then
             modified_arg="\${arg//https:\\/\\/api.linear.app/${this.baseUrl}/api/env/${this.environmentId}/services/linear}"
+        elif [[ "$arg" == *"https://api.box.com/2.0"* ]]; then
+            modified_arg="\${arg//https:\\/\\/api.box.com\\/2.0/${this.baseUrl}/api/env/${this.environmentId}/services/box/2.0}"
+        elif [[ "$arg" == *"https://api.box.com"* ]]; then
+            modified_arg="\${arg//https:\\/\\/api.box.com/${this.baseUrl}/api/env/${this.environmentId}/services/box}"
         fi
 
         new_args+=("$modified_arg")

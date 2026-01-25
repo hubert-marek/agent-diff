@@ -5,8 +5,21 @@ from src.platform.db.schema import Diff, SnapshotMetadata
 from .models import DiffResult
 import logging
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Convert non-JSON-serializable types (memoryview, bytes) to strings."""
+    sanitized = {}
+    for key, value in row.items():
+        if isinstance(value, (memoryview, bytes)):
+            # Replace binary data with placeholder (not useful for evaluation)
+            sanitized[key] = "<binary_data>"
+        else:
+            sanitized[key] = value
+    return sanitized
 
 
 class Differ:
@@ -103,7 +116,7 @@ class Differ:
                 rows = conn.execute(text(q_inserts)).mappings().all()
                 table_duration = time.perf_counter() - table_start
                 for r in rows:
-                    item = dict(r)
+                    item = _sanitize_row(dict(r))
                     item["__table__"] = t
                     inserts.append(item)
                 stats_count = len(rows)
@@ -182,8 +195,8 @@ class Differ:
                 rows = conn.exec_driver_sql(sql).mappings().all()
                 table_duration = time.perf_counter() - table_start
                 for r in rows:
-                    after_map = {c: r.get(f"after_{c}") for c in cols}
-                    before_map = {c: r.get(f"before_{c}") for c in cols}
+                    after_map = _sanitize_row({c: r.get(f"after_{c}") for c in cols})
+                    before_map = _sanitize_row({c: r.get(f"before_{c}") for c in cols})
                     updates.append(
                         {
                             "__table__": t,
@@ -246,7 +259,7 @@ class Differ:
                 rows = conn.execute(text(q_deletes)).mappings().all()
                 table_duration = time.perf_counter() - table_start
                 for r in rows:
-                    item = dict(r)
+                    item = _sanitize_row(dict(r))
                     item["__table__"] = t
                     deletes.append(item)
                 stats_count = len(rows)

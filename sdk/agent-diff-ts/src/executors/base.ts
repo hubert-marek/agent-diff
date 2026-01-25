@@ -19,6 +19,9 @@ export abstract class BaseExecutorProxy {
       ['https://api.slack.com', `${baseUrl}/api/env/${environmentId}/services/slack`],
       // Linear API
       ['https://api.linear.app', `${baseUrl}/api/env/${environmentId}/services/linear`],
+      // Box API (https://api.box.com/2.0/*)
+      ['https://api.box.com/2.0', `${baseUrl}/api/env/${environmentId}/services/box/2.0`],
+      ['https://api.box.com', `${baseUrl}/api/env/${environmentId}/services/box`],
     ];
   }
 

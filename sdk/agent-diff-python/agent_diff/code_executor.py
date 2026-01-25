@@ -45,6 +45,24 @@ class BaseExecutorProxy:
                 "https://api.linear.app",
                 f"{self.base_url}/api/env/{environment_id}/services/linear",
             ),
+            # Box API (https://api.box.com/2.0/*)
+            (
+                "https://api.box.com/2.0",
+                f"{self.base_url}/api/env/{environment_id}/services/box/2.0",
+            ),
+            (
+                "https://api.box.com",
+                f"{self.base_url}/api/env/{environment_id}/services/box",
+            ),
+            # Box Upload API (https://upload.box.com/api/2.0/*)
+            (
+                "https://upload.box.com/api/2.0",
+                f"{self.base_url}/api/env/{environment_id}/services/box/2.0",
+            ),
+            (
+                "https://upload.box.com",
+                f"{self.base_url}/api/env/{environment_id}/services/box",
+            ),
         ]
 
     def _run_code(
@@ -211,6 +229,14 @@ curl() {{
             modified_arg="${{arg//https:\\/\\/api.slack.com/{self.base_url}/api/env/{self.environment_id}/services/slack}}"
         elif [[ "$arg" == *"https://api.linear.app"* ]]; then
             modified_arg="${{arg//https:\\/\\/api.linear.app/{self.base_url}/api/env/{self.environment_id}/services/linear}}"
+        elif [[ "$arg" == *"https://api.box.com/2.0"* ]]; then
+            modified_arg="${{arg//https:\\/\\/api.box.com\\/2.0/{self.base_url}/api/env/{self.environment_id}/services/box/2.0}}"
+        elif [[ "$arg" == *"https://api.box.com"* ]]; then
+            modified_arg="${{arg//https:\\/\\/api.box.com/{self.base_url}/api/env/{self.environment_id}/services/box}}"
+        elif [[ "$arg" == *"https://upload.box.com/api/2.0"* ]]; then
+            modified_arg="${{arg//https:\\/\\/upload.box.com\\/api\\/2.0/{self.base_url}/api/env/{self.environment_id}/services/box/2.0}}"
+        elif [[ "$arg" == *"https://upload.box.com"* ]]; then
+            modified_arg="${{arg//https:\\/\\/upload.box.com/{self.base_url}/api/env/{self.environment_id}/services/box}}"
         fi
 
         new_args+=("$modified_arg")

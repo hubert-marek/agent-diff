@@ -21,6 +21,7 @@ from starlette import status
 from sqlalchemy.orm import Session
 
 from src.services.box.database import operations as ops
+from src.services.box.database.operations import UNSET
 from src.services.box.utils import (
     BoxErrorCode,
     generate_request_id,
@@ -394,7 +395,7 @@ async def update_file_by_id(request: Request) -> Response:
         if "collections" in body:
             updated_file = ops.update_file_collections(
                 session, file_id, collections, user_id
-        )
+            )
 
         file_data = updated_file.to_dict()
         filtered_data = _filter_fields(file_data, fields)
@@ -770,7 +771,11 @@ async def update_folder_by_id(request: Request) -> Response:
         parent_id = parent.get("id") if parent else None
         tags = body.get("tags")
         collections = body.get("collections")
-        shared_link = body.get("shared_link")
+
+        # For shared_link, use UNSET sentinel to distinguish
+        # "not provided" from "explicitly set to null" (which removes it).
+        # Box API does partial updates - fields not in request should be unchanged.
+        shared_link = body.get("shared_link") if "shared_link" in body else UNSET
 
         updated_folder = ops.update_folder(
             session,

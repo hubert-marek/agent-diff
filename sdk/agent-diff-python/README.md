@@ -86,7 +86,8 @@ When your agent executes Python or Bash code:
 1. The executor wraps your code with interception logic
 2. API calls to `https://slack.com/api/*` → routed to your sandbox
 3. API calls to `https://api.linear.app/*` → routed to your sandbox
-4. Your agent sees real API responses from the isolated environment
+4. API calls to `https://api.box.com/2.0/*` → routed to your sandbox
+5. Your agent sees real API responses from the isolated environment
 
 ### Important: Executor Configuration
 

@@ -275,6 +275,7 @@ Supported services:
 - Slack: `https://slack.com` → `/api/env/{id}/services/slack`
 - Slack: `https://api.slack.com` → `/api/env/{id}/services/slack`
 - Linear: `https://api.linear.app` → `/api/env/{id}/services/linear`
+- Box: `https://api.box.com/2.0` → `/api/env/{id}/services/box/2.0`
 
 
 ### Assertion DSL
