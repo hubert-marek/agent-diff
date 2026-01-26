@@ -365,16 +365,28 @@ export WORKSPACE="{workspace_path}"
 export TMPDIR="{workspace_path}/tmp"
 cd "$WORKSPACE"
 
-# JQ (Python-based, no external dependency)
+# JQ - Use real jq binary if available (recommended), otherwise fallback to Python implementation
+# The real jq binary is faster and supports all features; Python fallback covers common use cases
 
-jq() {{
-    local input
-    input=$(cat)
-    JQ_INPUT="$input" python3 << 'PYJQ' - "$@"
-import sys, json, re, os
+if command -v jq &> /dev/null; then
+    : # Real jq is available, use it directly (no override needed)
+else
+    # Fallback: Python-based jq for systems without jq installed (e.g., Google Colab)
+    jq() {{
+        local input
+        input=$(cat)
+        JQ_INPUT="$input" python3 << 'PYJQ' - "$@"
+import sys, json, os, re
+
+class JQException(Exception):
+    pass
+
+# Special sentinel for "no output" (different from null)
+class NoOutput:
+    pass
+NO_OUTPUT = NoOutput()
 
 def parse_path(path):
-    # Parse jq path into components
     if not path or path == '.':
         return []
     parts = []
@@ -398,10 +410,9 @@ def parse_path(path):
             elif idx.startswith('"') or idx.startswith("'"):
                 parts.append(('key', idx[1:-1]))
             elif ':' in idx:
-                # Handle slicing [start:end]
-                slice_parts = idx.split(':')
-                start = int(slice_parts[0]) if slice_parts[0] else None
-                end = int(slice_parts[1]) if slice_parts[1] else None
+                sp = idx.split(':')
+                start = int(sp[0]) if sp[0] else None
+                end = int(sp[1]) if sp[1] else None
                 parts.append(('slice', (start, end)))
             else:
                 parts.append(('index', int(idx)))
@@ -414,219 +425,487 @@ def parse_path(path):
     return parts
 
 def apply_path(data, parts):
-    # Apply parsed path to data
     for i, (ptype, pval) in enumerate(parts):
         if data is None:
             return None
         if ptype == 'key':
-            if isinstance(data, dict):
-                data = data.get(pval)
-            else:
-                return None
+            data = data.get(pval) if isinstance(data, dict) else None
         elif ptype == 'index':
-            if isinstance(data, list) and -len(data) <= pval < len(data):
-                data = data[pval]
-            else:
-                return None
+            data = data[pval] if isinstance(data, list) and -len(data) <= pval < len(data) else None
         elif ptype == 'slice':
             start, end = pval
-            if isinstance(data, list):
-                data = data[start:end]
-            elif isinstance(data, str):
-                data = data[start:end]
-            else:
-                return None
+            data = data[start:end] if isinstance(data, (list, str)) else None
         elif ptype == 'iter':
             remaining = parts[i+1:]
             if isinstance(data, list):
-                if remaining:
-                    return [apply_path(item, remaining) for item in data]
-                return data
+                return [apply_path(item, remaining) for item in data] if remaining else data
             elif isinstance(data, dict):
                 items = list(data.values())
-                if remaining:
-                    return [apply_path(item, remaining) for item in items]
-                return items
-            else:
-                return None
+                return [apply_path(item, remaining) for item in items] if remaining else items
+            return None
     return data
 
-def process(data, expr):
-    # Process a jq expression
-    expr = expr.strip()
-    
-    # Handle parentheses grouping
-    if expr.startswith('(') and expr.endswith(')'):
-        # Check if the parens are balanced (outermost group)
-        depth = 0
-        is_group = True
-        for i, c in enumerate(expr):
-            if c == '(':
-                depth += 1
-            elif c == ')':
-                depth -= 1
-            if depth == 0 and i < len(expr) - 1:
-                is_group = False
-                break
-        if is_group:
-            return process(data, expr[1:-1])
-    
-    # Handle pipe (only at top level, not inside parens/braces/brackets)
+def find_top_level(expr, char, skip_strings=True):
     depth = 0
-    pipe_idx = -1
-    for i, c in enumerate(expr):
-        if c in '([{{':
-            depth += 1
-        elif c in ')]}}':
-            depth -= 1
-        elif c == '|' and depth == 0:
-            pipe_idx = i
-            break
-    if pipe_idx >= 0:
-        left, right = expr[:pipe_idx], expr[pipe_idx+1:]
-        data = process(data, left)
-        right_stripped = right.strip()
-        # Aggregate functions that apply to the whole collection
-        agg = ('length', 'keys', 'type', 'first', 'last', 'min', 'max', 'add', 'unique', 'reverse', 'sort', 'group_by', 'sort_by', 'map', 'select')
-        is_agg = any(right_stripped == f or right_stripped.startswith(f + '(') for f in agg)
-        if isinstance(data, list) and not right_stripped.startswith('[') and not right_stripped.startswith('.[') and not right_stripped.startswith('.[]') and not is_agg:
-            return [process(item, right) for item in data]
-        return process(data, right)
-    
-    # Handle array construction [.foo, .bar]
-    if expr.startswith('[') and expr.endswith(']'):
-        inner = expr[1:-1]
-        if ',' in inner:
-            parts = [p.strip() for p in inner.split(',')]
-            return [process(data, p) for p in parts]
-        result = process(data, inner)
-        return result if isinstance(result, list) else [result]
-    
-    # Handle object construction (jq: {{key: expr, ...}})
-    if expr.startswith('{{') and expr.endswith('}}'):
-        inner = expr[1:-1].strip()
-        result = dict()
-        # Parse key: value pairs (simplified - handles basic cases)
-        depth = 0
-        current = ''
-        pairs = []
-        for c in inner + ',':
+    in_str = False
+    str_char = None
+    i = 0
+    while i < len(expr):
+        c = expr[i]
+        if skip_strings and c in '"\'':
+            if not in_str:
+                in_str = True
+                str_char = c
+            elif c == str_char and (i == 0 or expr[i-1] != '\\'):
+                in_str = False
+        elif not in_str:
+            if c in '([':
+                depth += 1
+            elif c in ')]':
+                depth -= 1
+            elif c == '{{':
+                depth += 1
+            elif c == '}}':
+                depth -= 1
+            elif depth == 0:
+                if isinstance(char, str) and expr[i:i+len(char)] == char:
+                    return i
+                elif isinstance(char, (list, tuple)) and c in char:
+                    return i
+        i += 1
+    return -1
+
+def split_top_level(expr, sep):
+    parts = []
+    current = ''
+    depth = 0
+    in_str = False
+    str_char = None
+    i = 0
+    while i < len(expr):
+        c = expr[i]
+        if c in '"\'':
+            if not in_str:
+                in_str = True
+                str_char = c
+            elif c == str_char and (i == 0 or expr[i-1] != '\\'):
+                in_str = False
+            current += c
+        elif not in_str:
             if c in '([{{':
                 depth += 1
                 current += c
             elif c in ')]}}':
                 depth -= 1
                 current += c
-            elif c == ',' and depth == 0:
-                if current.strip():
-                    pairs.append(current.strip())
+            elif c == sep and depth == 0:
+                parts.append(current.strip())
                 current = ''
             else:
                 current += c
+        else:
+            current += c
+        i += 1
+    if current.strip():
+        parts.append(current.strip())
+    return parts
+
+def eval_condition(data, cond):
+    cond = cond.strip()
+    # Handle pipe in condition (e.g., .name | test("hello"))
+    pipe_idx = find_top_level(cond, '|')
+    if pipe_idx > 0:
+        left_expr = cond[:pipe_idx].strip()
+        right_cond = cond[pipe_idx+1:].strip()
+        data = process(data, left_expr)
+        return eval_condition(data, right_cond)
+    # Handle 'not'
+    if cond == 'not':
+        return not data if isinstance(data, bool) else data is None
+    if cond.startswith('not '):
+        return not eval_condition(data, cond[4:])
+    # Handle 'and' / 'or'
+    and_idx = find_top_level(cond, ' and ')
+    if and_idx > 0:
+        left = eval_condition(data, cond[:and_idx])
+        right = eval_condition(data, cond[and_idx+5:])
+        return left and right
+    or_idx = find_top_level(cond, ' or ')
+    if or_idx > 0:
+        left = eval_condition(data, cond[:or_idx])
+        right = eval_condition(data, cond[or_idx+4:])
+        return left or right
+    # Handle comparisons
+    for op in ['==', '!=', '<=', '>=', '<', '>']:
+        idx = find_top_level(cond, op)
+        if idx > 0:
+            left_val = process(data, cond[:idx].strip())
+            right_expr = cond[idx+len(op):].strip()
+            if right_expr.startswith('"') and right_expr.endswith('"'):
+                right_val = right_expr[1:-1]
+            elif right_expr == 'null':
+                right_val = None
+            elif right_expr == 'true':
+                right_val = True
+            elif right_expr == 'false':
+                right_val = False
+            elif right_expr.replace('.','').replace('-','').isdigit():
+                right_val = float(right_expr) if '.' in right_expr else int(right_expr)
+            else:
+                right_val = process(data, right_expr)
+            if op == '==': return left_val == right_val
+            if op == '!=': return left_val != right_val
+            if op == '<': return left_val < right_val if left_val is not None and right_val is not None else False
+            if op == '>': return left_val > right_val if left_val is not None and right_val is not None else False
+            if op == '<=': return left_val <= right_val if left_val is not None and right_val is not None else False
+            if op == '>=': return left_val >= right_val if left_val is not None and right_val is not None else False
+    # Handle test(regex)
+    if cond.startswith('test(') and cond.endswith(')'):
+        inner = cond[5:-1].strip()
+        flags = ''
+        if ';' in inner:
+            pattern_part, flags = inner.rsplit(';', 1)
+            pattern_part = pattern_part.strip()
+            flags = flags.strip().strip('"\'')
+        else:
+            pattern_part = inner
+        if pattern_part.startswith('"') and pattern_part.endswith('"'):
+            pattern = pattern_part[1:-1]
+        else:
+            pattern = pattern_part
+        re_flags = re.IGNORECASE if 'i' in flags else 0
+        return bool(re.search(pattern, str(data) if data else '', re_flags))
+    # Handle contains()
+    if cond.startswith('contains(') and cond.endswith(')'):
+        inner = cond[9:-1].strip()
+        if inner.startswith('"') and inner.endswith('"'):
+            search = inner[1:-1]
+        else:
+            search = process(data, inner)
+        if isinstance(data, str):
+            return search in data
+        if isinstance(data, list):
+            return search in data
+        if isinstance(data, dict):
+            return search in data.values()
+        return False
+    # Handle startswith/endswith
+    if cond.startswith('startswith(') and cond.endswith(')'):
+        inner = cond[11:-1].strip().strip('"\'')
+        return str(data).startswith(inner) if data else False
+    if cond.startswith('endswith(') and cond.endswith(')'):
+        inner = cond[9:-1].strip().strip('"\'')
+        return str(data).endswith(inner) if data else False
+    # Handle has()
+    if cond.startswith('has(') and cond.endswith(')'):
+        key = cond[4:-1].strip().strip('"\'')
+        return key in data if isinstance(data, dict) else False
+    # Evaluate as expression and check truthiness
+    result = process(data, cond)
+    if result is None or result is False or result == 0 or result == '' or result == []:
+        return False
+    return True
+
+def process(data, expr):
+    expr = expr.strip()
+    if not expr or expr == '.':
+        return data
+    
+    # Handle parentheses grouping
+    if expr.startswith('(') and expr.endswith(')'):
+        depth = 0
+        is_group = True
+        for i, c in enumerate(expr):
+            if c == '(': depth += 1
+            elif c == ')': depth -= 1
+            if depth == 0 and i < len(expr) - 1:
+                is_group = False
+                break
+        if is_group:
+            return process(data, expr[1:-1])
+    
+    # Handle if-then-else
+    if expr.startswith('if '):
+        then_idx = find_top_level(expr, ' then ')
+        if then_idx > 0:
+            cond = expr[3:then_idx].strip()
+            rest = expr[then_idx+6:]
+            else_idx = find_top_level(rest, ' else ')
+            end_idx = find_top_level(rest, ' end')
+            if else_idx > 0:
+                then_expr = rest[:else_idx].strip()
+                if end_idx > else_idx:
+                    else_expr = rest[else_idx+6:end_idx].strip()
+                else:
+                    else_expr = rest[else_idx+6:].strip().rstrip(' end')
+            else:
+                then_expr = rest[:end_idx].strip() if end_idx > 0 else rest.strip()
+                else_expr = '.'
+            if eval_condition(data, cond):
+                return process(data, then_expr)
+            else:
+                return process(data, else_expr)
+    
+    # Handle alternative operator //
+    alt_idx = find_top_level(expr, '//')
+    if alt_idx > 0:
+        left = process(data, expr[:alt_idx].strip())
+        if left is None or left is False:
+            return process(data, expr[alt_idx+2:].strip())
+        return left
+    
+    # Handle comma (multiple outputs) - must be before pipe
+    comma_idx = find_top_level(expr, ',')
+    if comma_idx > 0:
+        parts = split_top_level(expr, ',')
+        results = []
+        for p in parts:
+            r = process(data, p)
+            if isinstance(r, list) and '[]' in p:
+                results.extend(r)
+            else:
+                results.append(r)
+        return ('multi', results)
+    
+    # Handle pipe
+    pipe_idx = find_top_level(expr, '|')
+    if pipe_idx > 0:
+        left_expr = expr[:pipe_idx].strip()
+        right_expr = expr[pipe_idx+1:].strip()
+        left_result = process(data, left_expr)
+        # Handle multi-output from left side
+        if isinstance(left_result, tuple) and left_result[0] == 'multi':
+            results = []
+            for item in left_result[1]:
+                r = process(item, right_expr)
+                if isinstance(r, tuple) and r[0] == 'multi':
+                    results.extend(r[1])
+                else:
+                    results.append(r)
+            return ('multi', results)
+        # Aggregate functions that work on a whole collection value.
+        #
+        # NOTE: jq "format" filters like @tsv/@json are per-item transforms in a
+        # stream, so they should NOT be treated as aggregates here. Treating them
+        # as aggregates breaks common jq patterns like:
+        #   .members[] | [.id,.name] | @tsv
+        # because the intermediate stream is represented as a Python list.
+        agg_funcs = ('length', 'keys', 'type', 'first', 'last', 'min', 'max', 'add', 
+                     'unique', 'reverse', 'sort', 'flatten', 'group_by', 'sort_by', 
+                     'map', 'select')
+        is_agg = any(right_expr == f or right_expr.startswith(f + '(') or right_expr.startswith(f + ' ') for f in agg_funcs)
+        # When the left side is a list (used to emulate a jq stream), map the next
+        # stage across items unless it's an aggregate function.
+        #
+        # Importantly: array construction like `[.id,.name]` must be mapped too.
+        if isinstance(left_result, list) and not is_agg and not right_expr.startswith('.[]'):
+            results = [process(item, right_expr) for item in left_result]
+            # Filter out NO_OUTPUT
+            results = [r for r in results if not isinstance(r, NoOutput)]
+            return results
+        return process(left_result, right_expr)
+    
+    # Handle array construction [expr, expr, ...]
+    if expr.startswith('[') and expr.endswith(']'):
+        inner = expr[1:-1].strip()
+        if not inner:
+            return []
+        parts = split_top_level(inner, ',')
+        results = []
+        for p in parts:
+            r = process(data, p.strip())
+            if isinstance(r, tuple) and r[0] == 'multi':
+                results.extend(r[1])
+            else:
+                results.append(r)
+        return results
+    
+    # Handle object construction
+    if expr.startswith('{{') and expr.endswith('}}'):
+        inner = expr[1:-1].strip()
+        if not inner:
+            return {{}}
+        result = {{}}
+        pairs = split_top_level(inner, ',')
         for pair in pairs:
-            if ':' in pair:
-                key, val_expr = pair.split(':', 1)
-                key = key.strip().strip('"').strip("'")
-                result[key] = process(data, val_expr.strip())
+            pair = pair.strip()
+            colon_idx = find_top_level(pair, ':')
+            if colon_idx > 0:
+                key = pair[:colon_idx].strip().strip('"\'')
+                val_expr = pair[colon_idx+1:].strip()
+                result[key] = process(data, val_expr)
             else:
                 # Shorthand: {{foo}} means get .foo
-                key = pair.strip().strip('"').strip("'")
+                key = pair.strip('"\'')
                 if key.startswith('.'):
                     key = key[1:]
                 result[key] = process(data, '.' + key)
         return result
     
+    # Handle string literals
+    if expr.startswith('"') and expr.endswith('"'):
+        return expr[1:-1]
+    
+    # Handle numeric literals
+    if expr.replace('.','').replace('-','').isdigit():
+        return float(expr) if '.' in expr else int(expr)
+    
+    # Handle boolean/null literals
+    if expr == 'null': return None
+    if expr == 'true': return True
+    if expr == 'false': return False
+    
+    # Handle .[]
+    if expr == '.[]':
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            return list(data.values())
+        return []
+    
     # Handle keys
     if expr == 'keys':
-        return list(data.keys()) if isinstance(data, dict) else []
+        return list(data.keys()) if isinstance(data, dict) else list(range(len(data))) if isinstance(data, list) else []
     
     # Handle length
     if expr == 'length':
-        return len(data) if isinstance(data, (list, dict, str)) else 0
+        return len(data) if isinstance(data, (list, dict, str)) else 0 if data is None else 1
     
     # Handle type
     if expr == 'type':
-        if isinstance(data, dict): return 'object'
-        if isinstance(data, list): return 'array'
-        if isinstance(data, str): return 'string'
+        if data is None: return 'null'
         if isinstance(data, bool): return 'boolean'
         if isinstance(data, (int, float)): return 'number'
-        if data is None: return 'null'
+        if isinstance(data, str): return 'string'
+        if isinstance(data, list): return 'array'
+        if isinstance(data, dict): return 'object'
         return 'unknown'
-    
-    # Handle map(expr)
-    if expr.startswith('map(') and expr.endswith(')'):
-        inner_expr = expr[4:-1]
-        if isinstance(data, list):
-            return [process(item, inner_expr) for item in data]
-        return None
-    
-    # Handle select(condition) - improved support
-    if expr.startswith('select(') and expr.endswith(')'):
-        cond = expr[7:-1]
-        
-        # If data is a list, apply select to each item and filter
-        if isinstance(data, list):
-            results = [process(item, expr) for item in data]
-            return [r for r in results if r is not None]
-        
-        # Handle equality check
-        if '==' in cond:
-            left, right = cond.split('==', 1)
-            left_val = process(data, left.strip())
-            right_str = right.strip()
-            # Handle variable references like $uid
-            if right_str.startswith('$'):
-                right_val = right_str  # Let caller handle variables
-            else:
-                right_val = right_str.strip('"').strip("'")
-            if str(left_val) == str(right_val):
-                return data
-            return None
-        # Handle contains check
-        if 'contains(' in cond:
-            # Parse contains expression like .text|contains("foo")
-            contains_idx = cond.find('contains(')
-            if contains_idx > 0:
-                left_expr = cond[:contains_idx].rstrip('|').strip()
-                rest = cond[contains_idx + 9:]  # after 'contains('
-                # Extract the search string
-                if rest.startswith('"') or rest.startswith("'"):
-                    quote = rest[0]
-                    end_idx = rest.find(quote, 1)
-                    if end_idx > 0:
-                        search_str = rest[1:end_idx]
-                        left_val = process(data, left_expr)
-                        if isinstance(left_val, str) and search_str.lower() in left_val.lower():
-                            return data
-                        return None
-        return data
     
     # Handle first/last
     if expr == 'first':
-        if isinstance(data, list) and len(data) > 0:
-            return data[0]
-        return None
+        return data[0] if isinstance(data, list) and len(data) > 0 else None
     if expr == 'last':
-        if isinstance(data, list) and len(data) > 0:
-            return data[-1]
-        return None
+        return data[-1] if isinstance(data, list) and len(data) > 0 else None
     
-    # Handle add (sum array)
+    # Handle min/max
+    if expr == 'min':
+        return min(data) if isinstance(data, list) and len(data) > 0 else None
+    if expr == 'max':
+        return max(data) if isinstance(data, list) and len(data) > 0 else None
+    
+    # Handle add
     if expr == 'add':
-        if isinstance(data, list):
-            if all(isinstance(x, (int, float)) for x in data):
-                return sum(data)
-            if all(isinstance(x, str) for x in data):
-                return ''.join(data)
-            if all(isinstance(x, list) for x in data):
-                result = []
-                for x in data:
-                    result.extend(x)
-                return result
+        if isinstance(data, list) and len(data) > 0:
+            if all(isinstance(x, (int, float)) for x in data): return sum(data)
+            if all(isinstance(x, str) for x in data): return ''.join(data)
+            if all(isinstance(x, list) for x in data): return [item for sublist in data for item in sublist]
         return None
     
-    # Strip optional ? operator (we handle missing keys gracefully anyway)
+    # Handle unique/sort/reverse/flatten
+    if expr == 'unique':
+        if isinstance(data, list):
+            seen = []
+            for x in data:
+                if x not in seen:
+                    seen.append(x)
+            return seen
+        return data
+    if expr == 'sort':
+        return sorted(data) if isinstance(data, list) else data
+    if expr == 'reverse':
+        return list(reversed(data)) if isinstance(data, list) else data
+    if expr == 'flatten':
+        if isinstance(data, list):
+            result = []
+            for item in data:
+                if isinstance(item, list):
+                    result.extend(item)
+                else:
+                    result.append(item)
+            return result
+        return data
+    
+    # Handle @tsv
+    if expr == '@tsv':
+        if isinstance(data, list):
+            return '\t'.join(str(x) if x is not None else '' for x in data)
+        return str(data)
+    
+    # Handle @csv
+    if expr == '@csv':
+        if isinstance(data, list):
+            def csv_escape(v):
+                s = str(v) if v is not None else ''
+                if ',' in s or '"' in s or '\n' in s:
+                    return '"' + s.replace('"', '""') + '"'
+                return s
+            return ','.join(csv_escape(x) for x in data)
+        return str(data)
+    
+    # Handle @base64
+    if expr == '@base64':
+        import base64
+        return base64.b64encode(str(data).encode()).decode()
+    
+    # Handle @uri
+    if expr == '@uri':
+        from urllib.parse import quote
+        return quote(str(data), safe='')
+    
+    # Handle @json
+    if expr == '@json':
+        return json.dumps(data)
+    
+    # Handle map(expr)
+    if expr.startswith('map(') and expr.endswith(')'):
+        inner = expr[4:-1]
+        if isinstance(data, list):
+            return [process(item, inner) for item in data]
+        return None
+    
+    # Handle select(condition)
+    if expr.startswith('select(') and expr.endswith(')'):
+        cond = expr[7:-1]
+        if isinstance(data, list):
+            results = []
+            for item in data:
+                if eval_condition(item, cond):
+                    results.append(item)
+            return results
+        if eval_condition(data, cond):
+            return data
+        return NO_OUTPUT
+    
+    # Handle sort_by(expr)
+    if expr.startswith('sort_by(') and expr.endswith(')'):
+        key_expr = expr[8:-1]
+        if isinstance(data, list):
+            return sorted(data, key=lambda x: process(x, key_expr) or '')
+        return data
+    
+    # Handle group_by(expr)
+    if expr.startswith('group_by(') and expr.endswith(')'):
+        key_expr = expr[9:-1]
+        if isinstance(data, list):
+            groups = {{}}
+            for item in data:
+                key = process(item, key_expr)
+                key_str = json.dumps(key) if not isinstance(key, str) else key
+                if key_str not in groups:
+                    groups[key_str] = []
+                groups[key_str].append(item)
+            return list(groups.values())
+        return data
+    
+    # Handle not
+    if expr == 'not':
+        return not data if isinstance(data, bool) else data is None
+    
+    # Handle empty
+    if expr == 'empty':
+        return NO_OUTPUT
+    
+    # Handle path access with optional ?
     if expr.endswith('?'):
         expr = expr[:-1]
     
@@ -634,52 +913,72 @@ def process(data, expr):
     parts = parse_path(expr)
     return apply_path(data, parts)
 
+def output_value(val, raw=False):
+    if isinstance(val, NoOutput):
+        return
+    if val is None:
+        print('null')
+    elif isinstance(val, bool):
+        print('true' if val else 'false')
+    elif isinstance(val, str):
+        print(val if raw else json.dumps(val))
+    elif isinstance(val, (int, float)):
+        print(json.dumps(val))
+    elif isinstance(val, (dict, list)):
+        print(json.dumps(val, indent=2))
+    else:
+        print(json.dumps(val))
+
 try:
     args = sys.argv[1:]
-    raw = False
+    raw = '-r' in args
+    compact = '-c' in args
     expr = '.'
-    
-    for i, arg in enumerate(args):
-        if arg == '-r':
-            raw = True
-        elif not arg.startswith('-'):
-            expr = arg
-            break
-    
-    data = json.loads(os.environ['JQ_INPUT'])
-    result = process(data, expr)
-    
-    def output(val):
-        if val is None:
-            print('null')
-        elif isinstance(val, dict):
-            print(json.dumps(val, indent=2))
-        elif isinstance(val, list):
-            # Check if this is a result of iteration (contains simple values)
-            if raw and all(isinstance(x, str) for x in val):
-                for x in val:
-                    print(x)
-            elif '[]' in expr:
-                for x in val:
-                    if isinstance(x, str):
-                        print(json.dumps(x) if not raw else x)
-                    else:
-                        print(json.dumps(x, indent=2) if isinstance(x, (dict, list)) else json.dumps(x))
+    files = []
+    found_expr = False
+
+    for a in args:
+        if not a.startswith('-'):
+            if not found_expr:
+                expr = a
+                found_expr = True
             else:
-                print(json.dumps(val, indent=2))
-        elif raw and isinstance(val, str):
-            print(val)
-        else:
-            print(json.dumps(val))
+                files.append(a)
     
-    output(result)
+    jq_input = os.environ.get('JQ_INPUT', '')
+    targets = []
+
+    if files:
+        for f in files:
+            if os.path.exists(f):
+                with open(f) as fh:
+                    targets.append(json.load(fh))
+    elif jq_input.strip():
+        targets.append(json.loads(jq_input))
+    else:
+        # If no input and no files, try loading empty string to trigger error
+        targets.append(json.loads(jq_input))
+
+    for data in targets:
+        result = process(data, expr)
         
+        # Handle multi-output
+        if isinstance(result, tuple) and result[0] == 'multi':
+            for val in result[1]:
+                output_value(val, raw)
+        elif isinstance(result, list) and ('[]' in expr or expr.startswith('.[].') or '| .' in expr):
+            for val in result:
+                output_value(val, raw)
+        else:
+            output_value(result, raw)
+
 except Exception as e:
     print(f'jq: {{e}}', file=sys.stderr)
     sys.exit(1)
 PYJQ
-}}
-export -f jq
+    }}
+    export -f jq
+fi
 
 # CURL PROXY WRAPPER
 
