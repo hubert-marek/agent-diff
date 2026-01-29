@@ -1,0 +1,868 @@
+{
+    "auth.test": {
+        "description": "Checks authentication & identity.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes. Tokens should be passed as an HTTP Authorization header or alternatively, as a POST parameter."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/auth.test\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\""
+    },
+    "chat.delete": {
+        "description": "Deletes a message.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Channel containing the message to be deleted."
+                },
+                "ts": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Timestamp of the message to be deleted."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/chat.delete\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"ts\": \"1405894322.002768\"\n     }'"
+    },
+    "chat.postMessage": {
+        "description": "Sends a message to a channel.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Channel, private group, or IM channel to send message to. Can be an encoded ID, or a name."
+                },
+                "text": {
+                    "type": "string",
+                    "required": false,
+                    "description": "The message text. Required when not using blocks or attachments."
+                },
+                "blocks": {
+                    "type": "array",
+                    "required": false,
+                    "description": "A JSON-based array of structured blocks."
+                },
+                "attachments": {
+                    "type": "array",
+                    "required": false,
+                    "description": "A JSON-based array of structured attachments."
+                },
+                "thread_ts": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Provide another message's ts value to make this message a reply."
+                },
+                "reply_broadcast": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Used with thread_ts to broadcast reply to channel. Default: false."
+                },
+                "mrkdwn": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Enable Slack markup parsing. Default: true."
+                },
+                "unfurl_links": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Enable unfurling of text-based content."
+                },
+                "unfurl_media": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Enable unfurling of media content. Default: true."
+                },
+                "metadata": {
+                    "type": "object",
+                    "required": false,
+                    "description": "JSON object with event_type and event_payload fields."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/chat.postMessage\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"text\": \"Hello, world!\"\n     }'"
+    },
+    "chat.update": {
+        "description": "Updates a message.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Channel containing the message to be updated."
+                },
+                "ts": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Timestamp of the message to be updated."
+                },
+                "text": {
+                    "type": "string",
+                    "required": false,
+                    "description": "New text for the message."
+                },
+                "blocks": {
+                    "type": "array",
+                    "required": false,
+                    "description": "A JSON-based array of structured blocks."
+                },
+                "attachments": {
+                    "type": "array",
+                    "required": false,
+                    "description": "A JSON-based array of structured attachments."
+                },
+                "reply_broadcast": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Broadcast an existing thread reply to make it visible to everyone. Default: false."
+                },
+                "metadata": {
+                    "type": "object",
+                    "required": false,
+                    "description": "JSON object with event_type and event_payload fields."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/chat.update\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"ts\": \"1405894322.002768\",\n       \"text\": \"Updated text\"\n     }'"
+    },
+    "conversations.archive": {
+        "description": "Archives a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of conversation to archive."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.archive\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\"\n     }'"
+    },
+    "conversations.create": {
+        "description": "Initiates a public or private channel-based conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Name of the public or private channel to create."
+                },
+                "is_private": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Create a private channel instead of a public one. Default: false."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to create the channel in (required if org token is used)."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.create\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"name\": \"my-new-channel\"\n     }'"
+    },
+    "conversations.history": {
+        "description": "Fetches a conversation's history of messages and events.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Conversation ID to fetch history for."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections by setting cursor to next_cursor."
+                },
+                "inclusive": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Include messages with oldest or latest timestamps in results. Default: false."
+                },
+                "latest": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Only messages before this Unix timestamp will be included. Default: now."
+                },
+                "oldest": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Only messages after this Unix timestamp will be included. Default: 0."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return (max: 999). Default: 100."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/conversations.history?channel=C1234567890&limit=100\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "conversations.info": {
+        "description": "Retrieve information about a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Conversation ID to learn more about."
+                },
+                "include_locale": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to receive the locale for this conversation. Default: false."
+                },
+                "include_num_members": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to include the member count. Default: false."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/conversations.info?channel=C1234567890\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "conversations.invite": {
+        "description": "Invites users to a channel.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The ID of the public or private channel to invite user(s) to."
+                },
+                "users": {
+                    "type": "string",
+                    "required": true,
+                    "description": "A comma separated list of user IDs. Up to 100 users may be listed."
+                },
+                "force": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "When true, continue inviting valid users while disregarding invalid IDs. Default: false."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.invite\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"users\": \"U1234567890,U0987654321\"\n     }'"
+    },
+    "conversations.join": {
+        "description": "Joins an existing conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of conversation to join."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.join\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\"\n     }'"
+    },
+    "conversations.kick": {
+        "description": "Removes a user from a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of conversation to remove user from."
+                },
+                "user": {
+                    "type": "string",
+                    "required": true,
+                    "description": "User ID to be removed."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.kick\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"user\": \"U1234567890\"\n     }'"
+    },
+    "conversations.leave": {
+        "description": "Leaves a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Conversation to leave."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.leave\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\"\n     }'"
+    },
+    "conversations.list": {
+        "description": "Lists all channels in a Slack team.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections of data by setting cursor to a next_cursor value."
+                },
+                "exclude_archived": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to exclude archived channels. Default: false."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return (max: 1000). Default: 100."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to list channels in (required if org token is used)."
+                },
+                "types": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Mix and match channel types: public_channel, private_channel, mpim, im. Default: public_channel."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/conversations.list?limit=20&types=public_channel,private_channel\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "conversations.members": {
+        "description": "Retrieve members of a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of the conversation to retrieve members for."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections by setting cursor to next_cursor."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return. Default: 100."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/conversations.members?channel=C1234567890&limit=100\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "conversations.open": {
+        "description": "Opens or resumes a direct message or multi-person direct message.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Resume a conversation by supplying an im or mpim's ID. Or provide the users field instead."
+                },
+                "users": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Comma separated list of user IDs. Creates a 1:1 DM for 1 user, or MPIM for multiple."
+                },
+                "return_im": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Return the full IM channel definition in the response. Default: false."
+                },
+                "prevent_creation": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Do not create a DM or MPIM. Used to check if one exists. Default: false."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.open\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"users\": \"U1234567890,U0987654321\"\n     }'"
+    },
+    "conversations.rename": {
+        "description": "Renames a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of conversation to rename."
+                },
+                "name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "New name for conversation."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.rename\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"name\": \"new-channel-name\"\n     }'"
+    },
+    "conversations.replies": {
+        "description": "Retrieve a thread of messages posted to a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Conversation ID to fetch thread from."
+                },
+                "ts": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Unique identifier of either a thread's parent message or a message in the thread."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections by setting cursor to next_cursor."
+                },
+                "inclusive": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Include messages with oldest or latest timestamps. Default: false."
+                },
+                "latest": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Only messages before this Unix timestamp will be included. Default: now."
+                },
+                "oldest": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Only messages after this Unix timestamp will be included. Default: 0."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return. Default: 1000."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/conversations.replies?channel=C1234567890&ts=1234567890.123456\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "conversations.setTopic": {
+        "description": "Sets the topic for a conversation.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Conversation to set the topic of."
+                },
+                "topic": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The new topic string. Does not support formatting or linkification."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.setTopic\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"topic\": \"Apply topically for best effects\"\n     }'"
+    },
+    "conversations.unarchive": {
+        "description": "Reverses conversation archival.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ID of conversation to unarchive."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/conversations.unarchive\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\"\n     }'"
+    },
+    "reactions.add": {
+        "description": "Adds a reaction to an item.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Channel where the message to add reaction to was posted."
+                },
+                "name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Reaction (emoji) name."
+                },
+                "timestamp": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Timestamp of the message to add reaction to."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/reactions.add\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"name\": \"thumbsup\",\n       \"timestamp\": \"1234567890.123456\"\n     }'"
+    },
+    "reactions.get": {
+        "description": "Gets reactions for an item.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Channel where the message to get reactions for was posted."
+                },
+                "timestamp": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Timestamp of the message to get reactions for."
+                },
+                "file": {
+                    "type": "string",
+                    "required": false,
+                    "description": "File to get reactions for."
+                },
+                "file_comment": {
+                    "type": "string",
+                    "required": false,
+                    "description": "File comment to get reactions for."
+                },
+                "full": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "If true, always return the complete reaction list. Default: false."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/reactions.get?channel=C1234567890&timestamp=1234567890.123456\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "reactions.remove": {
+        "description": "Removes a reaction from an item.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Reaction (emoji) name."
+                },
+                "channel": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Channel where the message to remove reaction from was posted."
+                },
+                "timestamp": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Timestamp of the message to remove reaction from."
+                },
+                "file": {
+                    "type": "string",
+                    "required": false,
+                    "description": "File to remove reaction from."
+                },
+                "file_comment": {
+                    "type": "string",
+                    "required": false,
+                    "description": "File comment to remove reaction from."
+                }
+            }
+        },
+        "example_request": "curl -X POST \"https://slack.com/api/reactions.remove\" \\\n     -H \"Authorization: Bearer <TOKEN>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"channel\": \"C1234567890\",\n       \"name\": \"thumbsup\",\n       \"timestamp\": \"1234567890.123456\"\n     }'"
+    },
+    "search.all": {
+        "description": "Searches for messages and files matching a query.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "query": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Search query. May contain booleans, etc."
+                },
+                "count": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Number of results per page. Default: 20."
+                },
+                "highlight": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Pass true to enable query highlight markers. Default: false."
+                },
+                "page": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Page number of results to return. Default: 1."
+                },
+                "sort": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Return matches sorted by score or timestamp. Default: score."
+                },
+                "sort_dir": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Sort direction: asc or desc. Default: desc."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to search in (required if org token is used)."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/search.all?query=workflow&count=20\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "search.messages": {
+        "description": "Searches for messages matching a query.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "query": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Search query."
+                },
+                "count": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Number of results per page (max: 100). Default: 20."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "For cursormark pagination. Send * for first call, then next_cursor for subsequent."
+                },
+                "highlight": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Pass true to enable query highlight markers. Default: false."
+                },
+                "page": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Page number of results to return. Default: 1."
+                },
+                "sort": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Return matches sorted by score or timestamp. Default: score."
+                },
+                "sort_dir": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Sort direction: asc or desc. Default: desc."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to search in (required if org token is used)."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/search.messages?query=hello&count=20&sort=timestamp\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "users.conversations": {
+        "description": "List conversations the calling user is a member of.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections by setting cursor to next_cursor."
+                },
+                "exclude_archived": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to exclude archived channels. Default: false."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return (max: 999). Default: 100."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to list conversations in (required if org token is used)."
+                },
+                "types": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Mix and match channel types: public_channel, private_channel, mpim, im. Default: public_channel."
+                },
+                "user": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Browse conversations by a specific user ID's membership."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/users.conversations?types=public_channel,private_channel&limit=100\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "users.info": {
+        "description": "Gets information about a user.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "user": {
+                    "type": "string",
+                    "required": true,
+                    "description": "User to get info on."
+                },
+                "include_locale": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to receive the locale for this user. Default: false."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/users.info?user=U1234567890\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    },
+    "users.list": {
+        "description": "Lists all users in a Slack team.",
+        "parameters": {
+            "body": {
+                "token": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Authentication token bearing required scopes."
+                },
+                "cursor": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Paginate through collections by setting cursor to next_cursor."
+                },
+                "include_locale": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Set to true to receive the locale for users. Default: false."
+                },
+                "limit": {
+                    "type": "integer",
+                    "required": false,
+                    "description": "Maximum number of items to return. Default: 0 (no limit)."
+                },
+                "team_id": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Encoded team id to list users in (required if org token is used)."
+                }
+            }
+        },
+        "example_request": "curl -X GET \"https://slack.com/api/users.list?limit=100\" \\\n     -H \"Authorization: Bearer <TOKEN>\""
+    }
+}

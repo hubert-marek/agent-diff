@@ -154,16 +154,12 @@ class UserRole(Base):
 
 class MessageReaction(Base):
     __tablename__ = "message_reactions"
-    __table_args__ = (
-        UniqueConstraint(
-            "message_id", "user_id", "reaction_type", name="uq_message_reaction"
-        ),
-    )
-    reaction_type: Mapped[str] = mapped_column(String(50), primary_key=True)
+    # Composite primary key: a user can add a specific reaction to a specific message only once
     message_id: Mapped[str] = mapped_column(
-        ForeignKey("messages.message_id"), nullable=False
+        ForeignKey("messages.message_id"), primary_key=True
     )
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), primary_key=True)
+    reaction_type: Mapped[str] = mapped_column(String(50), primary_key=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now)
 
     message: Mapped["Message"] = relationship(back_populates="reactions")

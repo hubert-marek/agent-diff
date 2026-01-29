@@ -3,6 +3,7 @@ import os
 import sys
 import json
 from pathlib import Path
+from uuid import uuid5, UUID
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -10,6 +11,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from src.platform.db.schema import Test, TestRun, TestSuite, TestMembership
+
+
+# Namespace for generating deterministic test UUIDs
+TEST_UUID_NAMESPACE = UUID(
+    "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+)  # Standard URL namespace
+
+
+def generate_suite_uuid(suite_name: str, owner: str) -> UUID:
+    """Generate a deterministic UUID for a test suite based on name and owner.
+
+    This ensures the same suite always gets the same UUID across fresh DB setups.
+    """
+    return uuid5(TEST_UUID_NAMESPACE, f"suite:{owner}:{suite_name}")
+
+
+def generate_test_uuid(suite_name: str, test_id: str) -> UUID:
+    """Generate a deterministic UUID for a test based on suite name and test ID.
+
+    This ensures the same test always gets the same UUID across runs,
+    enabling consistent test identification in evaluation results.
+    """
+    return uuid5(TEST_UUID_NAMESPACE, f"test:{suite_name}:{test_id}")
 
 
 def _normalize_expected_output(
@@ -114,7 +138,9 @@ def main():
                 test_suite = existing_suite
                 test_suite.description = suite_description
             else:
+                suite_uuid = generate_suite_uuid(suite_name, owner)
                 test_suite = TestSuite(
+                    id=suite_uuid,
                     name=suite_name,
                     description=suite_description,
                     owner=owner,
@@ -127,7 +153,11 @@ def main():
             test_count = 0
             suite_ignore_fields = data.get("ignore_fields")
             for test_data in data.get("tests", []):
+                test_string_id = test_data.get("id", test_data["name"])
+                test_uuid = generate_test_uuid(suite_name, test_string_id)
+
                 test = Test(
+                    id=test_uuid,
                     name=test_data["name"],
                     prompt=test_data["prompt"],
                     type=test_data["type"],
