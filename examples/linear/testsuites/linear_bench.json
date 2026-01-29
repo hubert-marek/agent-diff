@@ -98,7 +98,10 @@
                 "eq": "6963a682-5967-477a-9afc-0b8a5b70b070"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -135,7 +138,10 @@
                 "eq": "2dcc8dc2-ca19-475d-9882-3ba5e911e7ec"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -239,7 +245,10 @@
                 "eq": "Urgent"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -309,7 +318,10 @@
                 "contains": "session timeout"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -369,7 +381,10 @@
                 "eq": "4334c4ee-405c-4d2c-bf25-4dcb7a8c0512"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -488,7 +503,10 @@
                 "contains": "follow up"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -553,7 +571,10 @@
                 "eq": "4379b3d7-1143-4aa4-a3a6-da0c436e73b6"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -587,7 +608,10 @@
                 "eq": "03b0809e-713e-44ee-95de-b7a198b135ac"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -689,7 +713,10 @@
                 "contains": "Updated: working on a fix"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -726,7 +753,10 @@
                 "exists": true
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -812,7 +842,10 @@
                 "eq": "d4f59a6d-33cb-45d1-8f4e-3e57536f912d"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -884,7 +917,10 @@
                 "eq": "User Experience"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -917,7 +953,10 @@
                 "exists": false
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1009,7 +1048,10 @@
                 "exists": true
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1058,7 +1100,10 @@
                 "exists": true
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1123,7 +1168,10 @@
                 "contains": "smith.langchain.com"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1158,7 +1206,10 @@
                 "eq": "03b0809e-713e-44ee-95de-b7a198b135ac"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -1188,7 +1239,10 @@
               "eq": "ENG-1"
             }
           },
-          "expected_count": 0
+          "expected_count": 0,
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1231,7 +1285,10 @@
                 "eq": "31d46818-d16d-4279-90e6-a7bab45561c0"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1309,7 +1366,10 @@
                 "eq": "b55072d7-ccaa-43cd-8ab7-3dca324e3294"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -1395,7 +1455,10 @@
                 "eq": "741f29ae-cfb3-4b8a-a1f8-c5161c842366"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -1657,7 +1720,10 @@
                 "eq": "34567890-bcde-f012-3456-789abcdef012"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -1673,7 +1739,10 @@
                 "eq": "45678901-cdef-0123-4567-89abcdef0123"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -1689,7 +1758,10 @@
                 "eq": "45678901-cdef-0123-4567-89abcdef0123"
               }
             }
-          }
+          },
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2345,7 +2417,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2383,7 +2458,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2400,7 +2478,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2566,7 +2647,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2583,7 +2667,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2688,7 +2775,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2705,7 +2795,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2722,7 +2815,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
@@ -2764,7 +2860,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2781,7 +2880,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -2798,7 +2900,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2844,7 +2949,7 @@
     {
       "id": "test_55",
       "name": "Quarterly Resource Allocation Review",
-      "prompt": "The PMO is conducting a Q1 resource allocation review. Here's what needs to happen:\n\nFirst, look at all teams and count how many members each team has.\n\nFind the team with the most members - this is our \"fully staffed\" benchmark.\n\nFor every team that has FEWER members than the benchmark team, create a new issue in that team titled \"Q1 Staffing Request - Need [X] additional team members\" where [X] is the exact difference between that team's member count and the benchmark team's count. Set priority to High for these issues.\n\nAlso, there's a misrouted issue: \"API Documentation Update\" was accidentally created in the Design team but belongs in Engineering. Move it to the Engineering team.\n\nFinally, add a comment to any issue in the Engineering team summarizing the analysis:\n\n\"RESOURCE_AUDIT: Q1 staffing review complete. Engineering has [MAX] members (benchmark). Staffing gaps identified: Product needs [A], Design needs [B], QA needs [C]. Total headcount gap across org: [TOTAL]. Staffing request issues created in all understaffed teams.\"\n\nReplace the bracketed values with the actual numbers from your analysis.",
+      "prompt": "The PMO is conducting a Q1 resource allocation review. Here's what needs to happen:\n\nFirst, look at all teams and count how many members each team has.\n\nFind the team with the most members - this is our \"fully staffed\" benchmark.\n\nFor every team that has FEWER members than the benchmark team, create a new issue in that team titled \"Q1 Staffing Request - Need [X] additional team members\" where [X] is the exact difference between that team's member count and the benchmark team's count. Set priority to High for these issues.\n\nAlso, there's a misrouted issue: \"API Documentation Update\" was accidentally created in the Design team but belongs in Engineering. Move it to the Engineering team.\n\nFinally, add a comment to any issue in the Engineering team summarizing the analysis:\n\n\"RESOURCE_AUDIT: Q1 staffing review complete. Engineering has [MAX] members (benchmark). Staffing gaps identified: Product needs [A], Design needs [B], QA needs [C]. Total headcount gap across org: [TOTAL]. Staffing request issues created in all understaffed teams.\"\n\nReplace the bracketed values with the actual numbers from your analysis. Note: [TOTAL] should be the sum of headcount gaps from ALL understaffed teams (not just Product, Design, and QA).",
       "type": "actionEval",
       "seed_template": "linear_expanded",
       "impersonate_user_id": "2790a7ee-fde0-4537-9588-e233aa5a68d1",
@@ -2855,12 +2960,17 @@
           "where": {
             "id": {
               "eq": "res-issue-api-docs-001"
-            },
-            "teamId": {
-              "eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"
             }
           },
-          "expected_count": 1
+          "expected_changes": {
+            "teamId": {
+              "to": {"eq": "ad608998-915c-4bad-bcd9-85ebfccccee8"}
+            }
+          },
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -2925,7 +3035,7 @@
           "entity": "comments",
           "where": {
             "body": {
-              "contains": "5 members"
+              "contains": "7 members"
             }
           },
           "expected_count": 1
@@ -2935,7 +3045,7 @@
           "entity": "comments",
           "where": {
             "body": {
-              "contains": "Product needs 2"
+              "contains": "Product needs 4"
             }
           },
           "expected_count": 1
@@ -2945,7 +3055,7 @@
           "entity": "comments",
           "where": {
             "body": {
-              "contains": "Design needs 3"
+              "contains": "Design needs 5"
             }
           },
           "expected_count": 1
@@ -2955,7 +3065,7 @@
           "entity": "comments",
           "where": {
             "body": {
-              "contains": "QA needs 1"
+              "contains": "QA needs 3"
             }
           },
           "expected_count": 1
@@ -2965,7 +3075,7 @@
           "entity": "comments",
           "where": {
             "body": {
-              "contains": "Total headcount gap across org: 6"
+              "contains": "Total headcount gap across org: 28"
             }
           },
           "expected_count": 1
@@ -3166,7 +3276,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "changed",
@@ -3183,7 +3296,10 @@
               }
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         },
         {
           "diff_type": "added",
@@ -3214,6 +3330,39 @@
             }
           },
           "expected_count": 1
+        },
+        {
+          "diff_type": "added",
+          "entity": "comments",
+          "where": {
+            "body": {
+              "contains": "WEATHER_LOG:"
+            },
+            "issueId": {
+              "eq": "race-issue-stormchaser-001"
+            }
+          },
+          "expected_count": 0
+        },
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "id": {
+              "eq": "race-issue-stormchaser-001"
+            }
+          },
+          "expected_changes": {
+            "description": {
+              "to": {
+                "contains": "87.6298"
+              }
+            }
+          },
+          "expected_count": 1,
+          "ignore": [
+            "updatedAt"
+          ]
         }
       ],
       "metadata": {
