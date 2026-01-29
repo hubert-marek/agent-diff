@@ -64,7 +64,8 @@ def _constraint_exists(conn, schema: str, constraint_name: str) -> bool:
 
 
 def _quote_ident(ident: str) -> str:
-    return f'"{ident.replace('"', '""')}"'
+    """Quote a PostgreSQL identifier, escaping internal double quotes."""
+    return '"' + ident.replace('"', '""') + '"'
 
 
 def upgrade() -> None:
