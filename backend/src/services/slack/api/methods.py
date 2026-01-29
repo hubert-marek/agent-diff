@@ -1042,36 +1042,55 @@ async def conversations_list(request: Request) -> JSONResponse:
     # Parse types filter: public_channel, private_channel, mpim, im
     requested_types = set(t.strip() for t in types_param.split(","))
 
-    # Fetch ALL user's channels (public, private, DMs, MPDMs that user is member of)
-    # Note: list_user_channels returns channels the user is a member of
-    channels = ops.list_user_channels(
-        session=session,
-        user_id=user_id,
-        team_id=team_id,
-        offset=offset,
-        limit=limit + 1,  # Fetch extra for pagination check
-    )
+    # Fetch channels based on type:
+    # - Public channels: ALL public channels in the workspace (user can see all)
+    # - Private channels, DMs, MPDMs: only channels the user is a member of
+    all_channels: list = []
 
-    # Apply filters after fetching
+    # Get public channels (all of them, not just ones user is member of)
+    if "public_channel" in requested_types:
+        public_channels = ops.list_public_channels(session=session, team_id=team_id)
+        for ch in public_channels:
+            if not ch.is_dm and not ch.is_gc and not ch.is_private:
+                all_channels.append(ch)
+
+    # Get user's private channels, DMs, and MPDMs (only ones they're a member of)
+    if any(t in requested_types for t in ["private_channel", "im", "mpim"]):
+        user_channels = ops.list_user_channels(
+            session=session,
+            user_id=user_id,
+            team_id=team_id,
+            offset=None,  # We'll handle pagination after combining
+            limit=None,
+        )
+        for ch in user_channels:
+            # Add private channels if requested
+            if ch.is_private and not ch.is_dm and not ch.is_gc and "private_channel" in requested_types:
+                all_channels.append(ch)
+            # Add DMs if requested
+            elif ch.is_dm and "im" in requested_types:
+                all_channels.append(ch)
+            # Add MPDMs/GCs if requested
+            elif ch.is_gc and "mpim" in requested_types:
+                all_channels.append(ch)
+
+    # Remove duplicates (in case a public channel was also in user's channels)
+    seen_ids = set()
+    unique_channels = []
+    for ch in all_channels:
+        if ch.channel_id not in seen_ids:
+            seen_ids.add(ch.channel_id)
+            unique_channels.append(ch)
+
+    # Apply archived filter
     filtered_channels = []
-    for ch in channels:
-        # Filter by archived status
+    for ch in unique_channels:
         if exclude_archived and ch.is_archived:
             continue
-
-        # Filter by conversation type
-        if ch.is_dm and "im" not in requested_types:
-            continue
-        if ch.is_gc and "mpim" not in requested_types:
-            continue
-        if not ch.is_dm and not ch.is_gc:
-            # Regular channels (public or private)
-            if ch.is_private and "private_channel" not in requested_types:
-                continue
-            if not ch.is_private and "public_channel" not in requested_types:
-                continue
-
         filtered_channels.append(ch)
+
+    # Apply pagination
+    filtered_channels = filtered_channels[offset:]
 
     has_more = len(filtered_channels) > limit
     if has_more:

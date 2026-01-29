@@ -157,6 +157,15 @@
       "email": "aisha@neuroflow.ai",
       "is_bot": false,
       "timezone": "Africa/Lagos"
+    },
+    {
+      "user_id": "U_INCOGNITO",
+      "username": "shadow.lurker",
+      "display_name": "El Incognito",
+      "real_name": "Carlos Vega",
+      "email": "carlos@neuroflow.ai",
+      "is_bot": false,
+      "timezone": "America/Mexico_City"
     }
   ],
   "channels": [
@@ -370,6 +379,11 @@
       "user_id": "U_AISHA",
       "team_id": "T01WORKSPACE",
       "role": "member"
+    },
+    {
+      "user_id": "U_INCOGNITO",
+      "team_id": "T01WORKSPACE",
+      "role": "member"
     }
   ],
   "channel_members": [
@@ -578,6 +592,10 @@
       "user_id": "U_AISHA"
     },
     {
+      "channel_id": "C_GROWTH",
+      "user_id": "U_INCOGNITO"
+    },
+    {
       "channel_id": "C_FRONTEND",
       "user_id": "U_PRIYA"
     },
@@ -683,14 +701,18 @@
       "message_id": "1700143200.000999",
       "channel_id": "C03IJKL9012",
       "user_id": "U01AGENBOT9",
-      "message_text": "I've noticed a few auth issues and potential improvements:"
+      "message_text": "I've noticed a few auth issues and potential improvements:",
+      "type": "message",
+      "ts": "1700143200.000999"
     },
     {
       "message_id": "1700153200.000999",
       "channel_id": "C03IJKL9012",
       "user_id": "U01AGENBOT9",
       "parent_id": "1700143200.000999",
-      "message_text": "Joke: 'What do you call an AI enginner? Someone who can't write code or build software.'"
+      "message_text": "Joke: 'What do you call an AI enginner? Someone who can't write code or build software.'",
+      "type": "message",
+      "ts": "1700153200.000999"
     },
     {
       "message_id": "1700173200.000456",
@@ -1341,6 +1363,14 @@
       "ts": "1706069531.000000"
     },
     {
+      "message_id": "1706069700.000001",
+      "channel_id": "C_INFRA",
+      "user_id": "U_LUKAS",
+      "message_text": "The GPU cluster is basically a mini supercomputer at this point - we should treat it like one for scheduling purposes. Proper job prioritization, resource quotas, the works.",
+      "type": "message",
+      "ts": "1706069700.000001"
+    },
+    {
       "message_id": "1706076473.000000",
       "channel_id": "C_MODEL",
       "user_id": "U_MATEO",
@@ -1460,6 +1490,39 @@
       "message_text": "When will the PyTorch rewrite be ready? We need multi-GPU support for the 70B model interpretability work - currently blocked on this.",
       "type": "message",
       "ts": "1706110000.000200"
+    },
+    {
+      "message_id": "1706110000.000300",
+      "channel_id": "C03IJKL9012",
+      "user_id": "U_KENJI",
+      "parent_id": "1706110000.000100",
+      "message_text": "I can try a JAX implementation this weekend if you want a parallel prototype. Might help us compare performance with the PyTorch approach before committing too heavily.",
+      "type": "message",
+      "ts": "1706110000.000300"
+    },
+    {
+      "message_id": "1706112500.000001",
+      "channel_id": "C03IJKL9012",
+      "user_id": "U02JOHNDOE1",
+      "message_text": "Has anyone looked into getting supercomputer time for the circuit-tracer workload? AWS has those p5 instances now and the pricing isn't terrible for burst jobs.",
+      "type": "message",
+      "ts": "1706112500.000001"
+    },
+    {
+      "message_id": "1706115000.000001",
+      "channel_id": "C03IJKL9012",
+      "user_id": "U_KENJI",
+      "message_text": "Does anyone else forget to eat real food during crunch weeks? I survived on vending machine snacks the entire last sprint. We should set up a team food rotation or something.",
+      "type": "message",
+      "ts": "1706115000.000001"
+    },
+    {
+      "message_id": "1706115500.000001",
+      "channel_id": "C01ABCD1234",
+      "user_id": "U_OLENA",
+      "message_text": "Brought some homemade food from my grandma's recipe to the kitchen \u2014 Ukrainian honey cake. Grab some before it's all gone!",
+      "type": "message",
+      "ts": "1706115500.000001"
     }
   ],
   "message_reactions": [

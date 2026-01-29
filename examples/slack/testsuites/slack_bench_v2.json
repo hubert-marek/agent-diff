@@ -3213,13 +3213,52 @@
             }
           },
           "expected_count": 0
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C01ABCD1234"
+            },
+            "message_text": {
+              "i_contains": "circuit"
+            }
+          },
+          "expected_count": 0
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C02EFGH5678"
+            },
+            "message_text": {
+              "i_contains": "circuit"
+            }
+          },
+          "expected_count": 0
+        },
+        {
+          "diff_type": "added",
+          "entity": "messages",
+          "where": {
+            "channel_id": {
+              "eq": "C03IJKL9012"
+            },
+            "message_text": {
+              "i_contains": "circuit"
+            }
+          },
+          "expected_count": 0
         }
       ]
     },
     {
       "id": "test_52",
       "name": "Midnight Bazaar",
-      "prompt": "Sophie and Mateo want to bring the workspace's food culture together under one roof \u2014 a \"Midnight Bazaar\" inspired by all those coffee and pizza conversations scattered around the channels. Dig through the workspace to find what food chatter has been going on and who's been part of it - specifically, search for the authors of the messages that contain the words \"food\" or \"eat\". That old archived channel nobody uses anymore \u2014 revive it and repurpose it as bazaar headquarters. Set a topic that captures the night-market vibe (needs to include the words \"street food\"), and write an opening post that weaves in whatever food discussions you find. While you're at it, some housekeeping: Mateo says he's drowning in #project-alpha-dev notifications and wants out \u2014 remove him. Also, that message about the espresso machine in #random? Edit it to plug the bazaar. And delete that stale pizza coordination message in #random \u2014 the bazaar makes casual lunch plans obsolete.",
+      "prompt": "Sophie and Mateo want to bring the workspace's food culture together under one roof \u2014 a \"Midnight Bazaar\" inspired by all those coffee and pizza conversations scattered around the channels. Dig through the workspace to find what food chatter has been going on and who's been part of it - specifically, search for the authors of the messages that contain the words \"food\" or \"eat\". That old archived channel nobody uses anymore \u2014 revive it and repurpose it as bazaar headquarters. Set a topic that captures the night-market vibe (needs to include the words \"street food\"), and write an opening post that weaves in whatever food discussions you find. While you're at it, some housekeeping: Mateo says he's drowning in #project-alpha-dev notifications and wants out \u2014 remove him. Also, that message about the espresso machine in #random? Edit it to plug the bazaar. And delete that stale message in #random asking about ordering \"large pies\" \u2014 the bazaar makes casual lunch plans obsolete.",
       "type": "actionEval",
       "seed_template": "slack_bench_v2",
       "impersonate_user_id": "U01AGENBOT9",
@@ -3326,12 +3365,10 @@
               "eq": "C02EFGH5678"
             },
             "message_text": {
-              "i_contains": "pizza"
+              "i_contains": "large pies"
             }
           },
-          "expected_count": {
-            "min": 1
-          }
+          "expected_count": 1
         }
       ]
     },
@@ -3512,8 +3549,7 @@
           "where": {
             "user_id": "U01AGENBOT9",
             "message_text": {
-              "i_contains": "supercomputer",
-              "regex": "\\b2\\b"
+              "regex": "(?i)supercomputer.*\\b2\\b"
             }
           },
           "expected_count": {
@@ -3696,9 +3732,20 @@
           "entity": "message_reactions",
           "where": {
             "reaction_type": "honey_pot",
-            "user_id": "U01AGENBOT9"
+            "user_id": "U01AGENBOT9",
+            "message_id": {
+              "in": [
+                "1700300000.000001",
+                "1700300060.000002",
+                "1700300120.000003",
+                "1700300180.000004",
+                "1700300240.000005",
+                "1700300300.000006"
+              ]
+            }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "description": ":honey_pot: reaction added to a message in #growth channel"
         },
         {
           "diff_type": "added",
@@ -3710,7 +3757,8 @@
               "contains": "FORAGERS REPORT"
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "description": "Forager's Report posted to #random with required phrase"
         },
         {
           "diff_type": "changed",
@@ -3724,7 +3772,8 @@
               "from": false,
               "to": true
             }
-          }
+          },
+          "description": "#project-alpha archived (empty cell sealed)"
         }
       ]
     },
@@ -3796,11 +3845,11 @@
           "where": {
             "user_id": "U01AGENBOT9",
             "message_text": {
-              "regex": "(?s)Field Report 2:\\s*1\\s+repl.*circuit-tracer.*Robert"
+              "regex": "(?si)Field Report 2:\\s*\\[?2\\]?\\s+repl.*circuit-tracer.*robert.*kenji"
             }
           },
           "expected_count": 1,
-          "description": "Field Report 2 sent to circuit-tracer poster reporting exactly 1 reply by Robert (Chen) under the circuit-tracer thread"
+          "description": "Field Report 2 sent to circuit-tracer poster reporting exactly 2 replies by Robert and Kenji under the circuit-tracer thread"
         }
       ]
     },
@@ -3888,6 +3937,127 @@
           },
           "expected_count": 6,
           "description": "6 new DM channels created to reach target of 7 private conversations (Agent started with 1 DM with Sophie, needs DMs with: Aisha, Artem, Carlos, Gabriel, Hubert, John \u2014 first 6 alphabetically excluding Sophie)"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_LUKAS"
+            }
+          },
+          "expected_count": 0,
+          "description": "Łukasz (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_MATEO"
+            }
+          },
+          "expected_count": 0,
+          "description": "Mateo (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U07MORGANFREE"
+            }
+          },
+          "expected_count": 0,
+          "description": "Morgan Freeman (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U05MORGAN23"
+            }
+          },
+          "expected_count": 0,
+          "description": "Morgan Stanley (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U08NICK23"
+            }
+          },
+          "expected_count": 0,
+          "description": "Nick (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_OLENA"
+            }
+          },
+          "expected_count": 0,
+          "description": "Olena (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U04OMER23"
+            }
+          },
+          "expected_count": 0,
+          "description": "Omer (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_PRIYA"
+            }
+          },
+          "expected_count": 0,
+          "description": "Priya (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_ROBERT"
+            }
+          },
+          "expected_count": 0,
+          "description": "Robert Chen (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U03ROBERT23"
+            }
+          },
+          "expected_count": 0,
+          "description": "Robert Walsh (alphabetically after John) should NOT be added — agent stops at 7 conversations"
+        },
+        {
+          "diff_type": "added",
+          "entity": "channel_members",
+          "where": {
+            "user_id": {
+              "eq": "U_KENJI"
+            }
+          },
+          "expected_count": 0,
+          "description": "Kenji (alphabetically after John) should NOT be added — agent stops at 7 conversations"
         }
       ]
     }

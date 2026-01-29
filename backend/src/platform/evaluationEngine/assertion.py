@@ -192,8 +192,11 @@ class AssertionEngine:
                 ]
                 logger.info(f"assertion#{idx} added {entity}: found {len(rows)} total inserts")
                 for r in rows:
-                    body_val = r.get("body")
-                    logger.info(f"assertion#{idx} row body type={type(body_val).__name__}, value={body_val!r:.200}")
+                    # Log key fields for debugging
+                    msg_text = r.get("message_text", "")[:150] if r.get("message_text") else None
+                    user_id = r.get("user_id")
+                    channel_id = r.get("channel_id")
+                    logger.info(f"assertion#{idx} insert row: user_id={user_id}, channel_id={channel_id}, message_text={msg_text!r}")
                     match_result = _row_matches_where(r, where)
                     logger.info(f"assertion#{idx} where={where}, match_result={match_result}")
                 matched = [r for r in rows if _row_matches_where(r, where)]
@@ -207,6 +210,12 @@ class AssertionEngine:
                     for r in (diff.get("deletes", []) or [])
                     if r.get("__table__") == entity
                 ]
+                logger.info(f"assertion#{idx} removed {entity}: found {len(rows)} total deletes")
+                for r in rows:
+                    msg_text = r.get("message_text", "")[:100] if r.get("message_text") else None
+                    logger.info(f"assertion#{idx} delete row: channel_id={r.get('channel_id')}, message_text={msg_text!r}")
+                    match_result = _row_matches_where(r, where)
+                    logger.info(f"assertion#{idx} where={where}, match_result={match_result}")
                 matched = [r for r in rows if _row_matches_where(r, where)]
                 self._check_count(
                     a, len(matched), failures, failed_indexes, idx, entity, diff_type
