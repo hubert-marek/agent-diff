@@ -36,12 +36,13 @@ COMMON_REACTIONS = {
     "raised_hands",  # thank you
     "bow",  # thank you
     "thumbsup",  # agree / got it
+    "thumbsdown",  # disagree / dislike
     "clap",  # well done
     "tada",  # congrats / celebration
     "dart",  # bullseye / nailed it
     "joy",  # crying-laughing
-    "+1",  # agree / like
-    "-1",  # disagree
+    "+1",  # agree / like (alias for thumbsup)
+    "-1",  # disagree (alias for thumbsdown)
     "eyes",  # watching / reviewing
     "heart",  # love it
     "fire",  # hot / amazing
