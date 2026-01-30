@@ -3005,7 +3005,7 @@
               "contains": "Staffing Request"
             },
             "priority": {
-              "eq": 1
+              "eq": 2
             }
           },
           "expected_count": 1
@@ -3021,7 +3021,7 @@
               "contains": "Staffing Request"
             },
             "priority": {
-              "eq": 1
+              "eq": 2
             }
           },
           "expected_count": 1
@@ -3037,7 +3037,7 @@
               "contains": "Staffing Request"
             },
             "priority": {
-              "eq": 1
+              "eq": 2
             }
           },
           "expected_count": 1

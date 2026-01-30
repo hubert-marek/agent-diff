@@ -995,7 +995,7 @@ def serialize_event_instances(
     
     # Updated timestamp (latest event update)
     if events:
-        latest_update = max(e.updated_at for e in events if e.updated_at)
+        latest_update = max((e.updated_at for e in events if e.updated_at), default=None)
         if latest_update:
             result["updated"] = _format_datetime(latest_update)
     

@@ -13616,8 +13616,15 @@ def resolve_issueRelationCreate(obj, info, **kwargs):
         # Look up issue titles for denormalization (used for assertion checking)
         issue = session.query(Issue).filter_by(id=issue_id).first()
         related_issue = session.query(Issue).filter_by(id=related_issue_id).first()
-        issue_title = issue.title if issue else None
-        related_issue_title = related_issue.title if related_issue else None
+
+        # Validate both issues exist before creating relation
+        if issue is None:
+            raise Exception(f"Issue not found: {issue_id}")
+        if related_issue is None:
+            raise Exception(f"Related issue not found: {related_issue_id}")
+
+        issue_title = issue.title
+        related_issue_title = related_issue.title
 
         # Create the IssueRelation entity
         issue_relation = IssueRelation(
