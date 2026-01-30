@@ -3265,14 +3265,14 @@
       "metadata": {
         "min_tool_calls": 10,
         "tools_required": [
-          "search_messages",
-          "conversations_unarchive",
-          "conversations_join",
-          "conversations_setTopic",
-          "chat_postMessage",
-          "conversations_kick",
-          "chat_update",
-          "chat_delete"
+          "search.messages",
+          "conversations.unarchive",
+          "conversations.join",
+          "conversations.setTopic",
+          "chat.postMessage",
+          "conversations.kick",
+          "chat.update",
+          "chat.delete"
         ]
       },
       "assertions": [
@@ -3382,17 +3382,17 @@
       "metadata": {
         "min_tool_calls": 12,
         "tools_required": [
-          "conversations_history",
-          "users_info",
-          "conversations_create",
-          "conversations_setTopic",
-          "conversations_invite",
-          "chat_postMessage",
-          "conversations_open",
-          "reactions_remove",
-          "conversations_join",
-          "conversations_leave",
-          "conversations_archive"
+          "conversations.history",
+          "users.info",
+          "conversations.create",
+          "conversations.setTopic",
+          "conversations.invite",
+          "chat.postMessage",
+          "conversations.open",
+          "reactions.remove",
+          "conversations.join",
+          "conversations.leave",
+          "conversations.archive"
         ]
       },
       "assertions": [

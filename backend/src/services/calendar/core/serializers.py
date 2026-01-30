@@ -487,13 +487,13 @@ def serialize_event(
         attendees_list = [
             serialize_attendee(a, user_email) for a in event.attendees
         ]
-        # Apply maxAttendees limit if specified
-        if max_attendees and len(attendees_list) > max_attendees:
+        # Apply maxAttendees limit if specified (check is not None to handle 0)
+        if max_attendees is not None and len(attendees_list) > max_attendees:
             result["attendees"] = attendees_list[:max_attendees]
             result["attendeesOmitted"] = True
         else:
             result["attendees"] = attendees_list
-    
+
     return result
 
 

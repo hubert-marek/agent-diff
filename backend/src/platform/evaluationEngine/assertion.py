@@ -12,12 +12,21 @@ Kind = Literal["added", "removed", "changed"]
 
 
 def _normalize_for_comparison(value: Any) -> Any:
-    """Normalize values for comparison - convert date/datetime to ISO string."""
+    """Normalize values for comparison - recursively convert date/datetime to ISO string."""
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, date):
         return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _normalize_for_comparison(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        normalized = [_normalize_for_comparison(item) for item in value]
+        return type(value)(normalized)
+    if isinstance(value, set):
+        return {_normalize_for_comparison(item) for item in value}
     return value
+
+
 Bucket = Literal["inserts", "deletes", "updates"]
 
 
@@ -190,15 +199,11 @@ class AssertionEngine:
                     for r in (diff.get("inserts", []) or [])
                     if r.get("__table__") == entity
                 ]
-                logger.info(f"assertion#{idx} added {entity}: found {len(rows)} total inserts")
+                logger.debug(f"assertion#{idx} added {entity}: found {len(rows)} total inserts, where_keys={list(where.keys())}")
                 for r in rows:
-                    # Log key fields for debugging
-                    msg_text = r.get("message_text", "")[:150] if r.get("message_text") else None
-                    user_id = r.get("user_id")
-                    channel_id = r.get("channel_id")
-                    logger.info(f"assertion#{idx} insert row: user_id={user_id}, channel_id={channel_id}, message_text={msg_text!r}")
+                    row_id = r.get("id")
                     match_result = _row_matches_where(r, where)
-                    logger.info(f"assertion#{idx} where={where}, match_result={match_result}")
+                    logger.debug(f"assertion#{idx} insert row id={row_id}: match={match_result}")
                 matched = [r for r in rows if _row_matches_where(r, where)]
                 self._check_count(
                     a, len(matched), failures, failed_indexes, idx, entity, diff_type
@@ -210,12 +215,11 @@ class AssertionEngine:
                     for r in (diff.get("deletes", []) or [])
                     if r.get("__table__") == entity
                 ]
-                logger.info(f"assertion#{idx} removed {entity}: found {len(rows)} total deletes")
+                logger.debug(f"assertion#{idx} removed {entity}: found {len(rows)} total deletes, where_keys={list(where.keys())}")
                 for r in rows:
-                    msg_text = r.get("message_text", "")[:100] if r.get("message_text") else None
-                    logger.info(f"assertion#{idx} delete row: channel_id={r.get('channel_id')}, message_text={msg_text!r}")
+                    row_id = r.get("id")
                     match_result = _row_matches_where(r, where)
-                    logger.info(f"assertion#{idx} where={where}, match_result={match_result}")
+                    logger.debug(f"assertion#{idx} delete row id={row_id}: match={match_result}")
                 matched = [r for r in rows if _row_matches_where(r, where)]
                 self._check_count(
                     a, len(matched), failures, failed_indexes, idx, entity, diff_type
@@ -227,9 +231,7 @@ class AssertionEngine:
                     for r in (diff.get("updates", []) or [])
                     if r.get("__table__") == entity
                 ]
-                logger.info(f"assertion#{idx} found {len(updates)} updates for entity {entity}")
-                logger.info(f"assertion#{idx} ignore set: {ignore}")
-                logger.info(f"assertion#{idx} where clause: {where}")
+                logger.debug(f"assertion#{idx} changed {entity}: found {len(updates)} updates, where_keys={list(where.keys())}, ignore_count={len(ignore)}")
                 matched_updates = []
                 for r in updates:
                     before = r.get("before", {})
@@ -237,16 +239,16 @@ class AssertionEngine:
                     row_id = after.get("id") or before.get("id")
                     where_match_after = _row_matches_where(after, where)
                     where_match_before = _row_matches_where(before, where)
-                    logger.info(f"assertion#{idx} row {row_id}: where_match_after={where_match_after}, where_match_before={where_match_before}")
+                    logger.debug(f"assertion#{idx} row {row_id}: where_match_after={where_match_after}, where_match_before={where_match_before}")
                     if not (where_match_after or where_match_before):
                         continue
                     changed = _changed_keys(before, after, ignore)
                     expected_changes: dict = a.get("expected_changes", {})
                     expected_keys = set(expected_changes.keys())
-                    logger.info(f"assertion#{idx} row {row_id}: changed={sorted(changed)}, expected_keys={sorted(expected_keys)}")
+                    logger.debug(f"assertion#{idx} row {row_id}: changed_count={len(changed)}, expected_count={len(expected_keys)}")
                     if self.strict:
                         if not changed.issubset(expected_keys):
-                            logger.info(f"assertion#{idx} row {row_id}: STRICT FAIL - changed not subset of expected")
+                            logger.debug(f"assertion#{idx} row {row_id}: STRICT FAIL - extra fields changed")
                             self._add_failure(
                                 failures,
                                 failed_indexes,
@@ -257,7 +259,7 @@ class AssertionEngine:
                     ok = True
                     for field, spec_chg in expected_changes.items():
                         if field not in changed:
-                            logger.info(f"assertion#{idx} row {row_id}: field {field} not in changed set")
+                            logger.debug(f"assertion#{idx} row {row_id}: field '{field}' not in changed set")
                             ok = False
                             break
                         pred_from = spec_chg.get("from")
@@ -265,20 +267,20 @@ class AssertionEngine:
                         if pred_from is not None and not _matches_predicate(
                             before.get(field), pred_from
                         ):
-                            logger.info(f"assertion#{idx} row {row_id}: field {field} from predicate failed")
+                            logger.debug(f"assertion#{idx} row {row_id}: field '{field}' from predicate failed")
                             ok = False
                             break
                         if pred_to is not None and not _matches_predicate(
                             after.get(field), pred_to
                         ):
-                            logger.info(f"assertion#{idx} row {row_id}: field {field} to predicate failed - value={after.get(field)}, pred={pred_to}")
+                            logger.debug(f"assertion#{idx} row {row_id}: field '{field}' to predicate failed")
                             ok = False
                             break
                     if ok:
-                        logger.info(f"assertion#{idx} row {row_id}: MATCHED")
+                        logger.debug(f"assertion#{idx} row {row_id}: MATCHED")
                         matched_updates.append(r)
                     else:
-                        logger.info(f"assertion#{idx} row {row_id}: NOT MATCHED")
+                        logger.debug(f"assertion#{idx} row {row_id}: NOT MATCHED")
                 self._check_count(
                     a,
                     len(matched_updates),

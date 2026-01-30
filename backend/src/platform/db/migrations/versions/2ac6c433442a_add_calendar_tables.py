@@ -1,7 +1,7 @@
 """Add calendar tables
 
 Revision ID: 2ac6c433442a
-Revises: b49e93fd90ec
+Revises: c8f3a2b1d9e4
 Create Date: 2026-01-19 15:50:46.254187
 
 """

@@ -1240,6 +1240,9 @@
             }
           },
           "expected_count": 0,
+          "expected_changes": {
+            "assigneeId": {}
+          },
           "ignore": [
             "updatedAt"
           ]
@@ -1991,15 +1994,27 @@
           "where": {
             "title": {
               "contains": "Server rack B7"
-            },
-            "assigneeId": {
-              "eq": "a3b4c5d6-e7f8-9012-7890-456789012345"
-            },
-            "stateId": {
-              "eq": "its-state-inreview-4567-def0123456"
             }
           },
           "expected_count": 1
+        },
+        {
+          "diff_type": "changed",
+          "entity": "issues",
+          "where": {
+            "title": {
+              "contains": "Server rack B7"
+            }
+          },
+          "expected_count": 1,
+          "expected_changes": {
+            "assigneeId": {
+              "to": {
+                "eq": "a3b4c5d6-e7f8-9012-7890-456789012345"
+              }
+            }
+          },
+          "ignore": ["updatedAt"]
         },
         {
           "diff_type": "added",
@@ -2018,14 +2033,21 @@
           "expected_count": 1
         },
         {
-          "diff_type": "added",
+          "diff_type": "changed",
           "entity": "comments",
           "where": {
             "body": {
               "contains": "|| UPDATE:"
             }
           },
-          "expected_count": 1
+          "expected_count": 1,
+          "expected_changes": {
+            "body": {
+              "to": {
+                "contains": "|| UPDATE:"
+              }
+            }
+          }
         }
       ],
       "metadata": {

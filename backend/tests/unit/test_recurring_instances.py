@@ -231,7 +231,7 @@ class TestExceptionEventFields:
         """Exception events should inherit unspecified fields from master."""
         # This is a specification test - the actual behavior is tested
         # in integration tests, but we document the expected behavior here
-        
+
         # When creating an exception without specifying fields:
         # - summary: inherits from master
         # - description: inherits from master
@@ -240,11 +240,11 @@ class TestExceptionEventFields:
         # - reminders: inherits from master
         # - visibility: inherits from master
         # - transparency: inherits from master
-        
+
         # When specifying fields:
         # - Only specified fields are changed
         # - Unspecified fields still inherit from master
-        pass
+        pytest.skip("TODO: implement test")
 
     def test_exception_has_required_fields(self):
         """Exception events must have specific fields set."""
@@ -254,7 +254,7 @@ class TestExceptionEventFields:
         # - original_start_time: when this instance was originally scheduled
         # - calendar_id: same as master
         # - ical_uid: same as master
-        pass
+        pytest.skip("TODO: implement test")
 
 
 class TestRecurrenceValidation:
@@ -344,9 +344,9 @@ class TestAttendeeInheritance:
         """When attendees are not provided, master's attendees are inherited."""
         # Specification test: if kwargs["attendees"] is None,
         # master's attendees should be copied to the exception
-        
+
         # This behavior is now implemented in update_recurring_instance()
-        pass
+        pytest.skip("TODO: implement test")
 
 
 class TestSingleEventsExpansion:
@@ -359,11 +359,11 @@ class TestSingleEventsExpansion:
         # 2. Query for exception events (recurring_event_id = master.id)
         # 3. Replace virtual instances with exceptions where they exist
         # 4. Exclude cancelled exceptions from results
-        pass
+        pytest.skip("TODO: implement test")
 
     def test_cancelled_exception_excludes_instance(self):
         """Cancelled exceptions should exclude that instance from results."""
         # Specification test:
         # If an exception event has status=cancelled, that instance
         # should not appear in the list when singleEvents=true
-        pass
+        pytest.skip("TODO: implement test")
