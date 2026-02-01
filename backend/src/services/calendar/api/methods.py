@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import timezone
 from typing import Any, Callable, Awaitable, Optional
 from functools import wraps
 
@@ -152,6 +153,9 @@ def parse_watch_expiration(expiration: Any) -> Optional[int]:
         # Try parsing as ISO date string
         try:
             dt = parse_rfc3339(expiration)
+            # If datetime is naive, assume UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
             # Convert to milliseconds since epoch
             return int(dt.timestamp() * 1000)
         except (ValueError, AttributeError):
