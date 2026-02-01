@@ -1,2 +1,2 @@
 examples/box/seeds/filesystem/** filter=lfs diff=lfs merge=lfs -text
-experiments/kdd[[:space:]]2026/evaluation_outputs/*.json filter=lfs diff=lfs merge=lfs -text
+experiments/kdd[[:space:]]2026/evaluation_outputs/**/*.json filter=lfs diff=lfs merge=lfs -text

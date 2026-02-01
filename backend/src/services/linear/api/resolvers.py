@@ -1128,6 +1128,205 @@ def resolve_team_issues(
     return apply_pagination(items, after, before, first, last, order_field)
 
 
+@team_type.field("members")
+def resolve_team_members(
+    team,
+    info,
+    after=None,
+    before=None,
+    filter=None,
+    first=None,
+    includeArchived=False,
+    includeDisabled=False,
+    last=None,
+    orderBy="createdAt",
+):
+    """
+    Resolve the members field to return a UserConnection for users who are members of this team.
+
+    Args:
+        team: The parent Team object
+        info: GraphQL resolve info
+        after: Cursor for forward pagination
+        before: Cursor for backward pagination
+        filter: UserFilter to filter results
+        first: Number of items for forward pagination (default: 50)
+        includeArchived: Include archived users (default: False)
+        includeDisabled: Include disabled users (default: False)
+        last: Number of items for backward pagination
+        orderBy: Order by field - "createdAt" or "updatedAt" (default: "createdAt")
+
+    Returns:
+        UserConnection with nodes field
+    """
+    from src.services.linear.database.schema import TeamMembership
+
+    session: Session = info.context["session"]
+
+    # Build base query for users who are members of this team
+    base_query = (
+        session.query(User)
+        .join(TeamMembership, User.id == TeamMembership.userId)
+        .filter(TeamMembership.teamId == team.id)
+        .filter(TeamMembership.archivedAt.is_(None))  # Only active memberships
+    )
+
+    # Filter archived users unless includeArchived is True
+    if not includeArchived:
+        base_query = base_query.filter(User.archivedAt.is_(None))
+
+    # Filter disabled users unless includeDisabled is True
+    if not includeDisabled:
+        base_query = base_query.filter(User.active == True)
+
+    # Apply custom filter if provided
+    if filter:
+        base_query = apply_user_filter(base_query, filter)
+
+    # Determine order field
+    order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
+
+    # Apply cursor-based pagination
+    if after:
+        cursor_data = decode_cursor(after)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        order_column = getattr(User, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column > cursor_field_value,
+                and_(order_column == cursor_field_value, User.id > cursor_id),
+            )
+        )
+
+    if before:
+        cursor_data = decode_cursor(before)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        order_column = getattr(User, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column < cursor_field_value,
+                and_(order_column == cursor_field_value, User.id < cursor_id),
+            )
+        )
+
+    # Apply ordering
+    order_column = getattr(User, order_field)
+    if last or before:
+        base_query = base_query.order_by(order_column.desc(), User.id.desc())
+    else:
+        base_query = base_query.order_by(order_column.asc(), User.id.asc())
+
+    # Determine limit
+    limit = first if first else (last if last else 50)
+
+    # Fetch limit + 1 to detect if there are more pages
+    items = base_query.limit(limit + 1).all()
+
+    # Use the centralized pagination helper
+    return apply_pagination(items, after, before, first, last, order_field)
+
+
+@team_type.field("labels")
+def resolve_team_labels(
+    team,
+    info,
+    after=None,
+    before=None,
+    filter=None,
+    first=None,
+    includeArchived=False,
+    last=None,
+    orderBy="createdAt",
+):
+    """
+    Resolve the labels field to return an IssueLabelConnection for labels belonging to this team.
+
+    Args:
+        team: The parent Team object
+        info: GraphQL resolve info
+        after: Cursor for forward pagination
+        before: Cursor for backward pagination
+        filter: IssueLabelFilter to filter results
+        first: Number of items for forward pagination (default: 50)
+        includeArchived: Include archived labels (default: False)
+        last: Number of items for backward pagination
+        orderBy: Order by field - "createdAt" or "updatedAt" (default: "createdAt")
+
+    Returns:
+        IssueLabelConnection with nodes field
+    """
+    session: Session = info.context["session"]
+
+    # Build base query for labels belonging to this team
+    base_query = session.query(IssueLabel).filter(IssueLabel.teamId == team.id)
+
+    # Filter archived labels unless includeArchived is True
+    if not includeArchived:
+        base_query = base_query.filter(IssueLabel.archivedAt.is_(None))
+
+    # Determine order field
+    order_field = orderBy if orderBy in ["createdAt", "updatedAt"] else "createdAt"
+
+    # Apply cursor-based pagination
+    if after:
+        cursor_data = decode_cursor(after)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        order_column = getattr(IssueLabel, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column > cursor_field_value,
+                and_(order_column == cursor_field_value, IssueLabel.id > cursor_id),
+            )
+        )
+
+    if before:
+        cursor_data = decode_cursor(before)
+        cursor_field_value = cursor_data["field"]
+        cursor_id = cursor_data["id"]
+
+        if order_field in ["createdAt", "updatedAt"]:
+            cursor_field_value = datetime.fromisoformat(cursor_field_value)
+
+        order_column = getattr(IssueLabel, order_field)
+        base_query = base_query.filter(
+            or_(
+                order_column < cursor_field_value,
+                and_(order_column == cursor_field_value, IssueLabel.id < cursor_id),
+            )
+        )
+
+    # Apply ordering
+    order_column = getattr(IssueLabel, order_field)
+    if last or before:
+        base_query = base_query.order_by(order_column.desc(), IssueLabel.id.desc())
+    else:
+        base_query = base_query.order_by(order_column.asc(), IssueLabel.id.asc())
+
+    # Determine limit
+    limit = first if first else (last if last else 50)
+
+    # Fetch limit + 1 to detect if there are more pages
+    items = base_query.limit(limit + 1).all()
+
+    # Use the centralized pagination helper
+    return apply_pagination(items, after, before, first, last, order_field)
+
+
 @user_type.field("teams")
 def resolve_user_teams(
     user,
@@ -11646,6 +11845,11 @@ def resolve_issueCreate(obj, info, **kwargs):
         # Extract optional fields
         title = input_data.get("title", "")
         assignee_id = input_data.get("assigneeId")
+        # Validate assignee exists before creating issue (prevents FK violation)
+        if assignee_id:
+            assignee = session.get(User, assignee_id)
+            if assignee is None:
+                raise Exception(f"Assignee with id '{assignee_id}' not found")
         cycle_id = input_data.get("cycleId")
         delegate_id = input_data.get("delegateId")
         parent_id = input_data.get("parentId")
@@ -11825,10 +12029,8 @@ def resolve_issueCreate(obj, info, **kwargs):
         team = locked_team
         issue.team = team
         if assignee_id:
-            assignee = session.get(User, assignee_id)
-            if assignee is None:
-                raise Exception(f"Assignee with id '{assignee_id}' not found")
-            issue.assignee = assignee
+            # Assignee was already validated above, just hydrate for GraphQL response
+            issue.assignee = session.get(User, assignee_id)
 
         # Return the payload
         return {"issue": issue, "success": True, "lastSyncId": float(now.timestamp())}
@@ -12168,7 +12370,12 @@ def resolve_issueBatchUpdate(obj, info, **kwargs):
 
             # Update simple fields
             if "assigneeId" in input_data:
-                issue.assigneeId = input_data["assigneeId"]
+                assignee_value = input_data["assigneeId"]
+                if assignee_value:
+                    assignee = session.get(User, assignee_value)
+                    if assignee is None:
+                        raise Exception(f"Assignee with id '{assignee_value}' not found")
+                issue.assigneeId = assignee_value
 
             if "autoClosedByParentClosing" in input_data:
                 issue.autoClosedByParentClosing = input_data[
