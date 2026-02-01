@@ -72,7 +72,59 @@ def _validate_identifier(identifier: str, allowed_set: set[str], label: str) -> 
     return identifier
 
 
-def insert_seed_data(conn, schema_name: str, seed_data: dict):
+class SeedStats:
+    """Track file loading statistics during seeding."""
+
+    def __init__(self):
+        self.files_expected = 0
+        self.files_loaded = 0
+        self.files_failed = []  # List of (path, error) tuples
+        self.files_missing = []  # List of paths
+
+    def record_success(self, path: str, size: int):
+        self.files_loaded += 1
+
+    def record_failure(self, path: str, error: str):
+        self.files_failed.append((path, error))
+
+    def record_missing(self, path: str):
+        self.files_missing.append(path)
+
+    def print_summary(self):
+        """Print a clear summary of file loading results."""
+        total_issues = len(self.files_failed) + len(self.files_missing)
+
+        print(f"\n  {'=' * 60}")
+        print("  FILE LOADING SUMMARY")
+        print(f"  {'=' * 60}")
+        print(f"  Expected:  {self.files_expected} files")
+        print(f"  Loaded:    {self.files_loaded} files")
+        print(f"  Failed:    {len(self.files_failed)} files")
+        print(f"  Missing:   {len(self.files_missing)} files")
+        print(f"  {'=' * 60}")
+
+        if self.files_failed:
+            print(f"\n  FAILED FILES ({len(self.files_failed)}):")
+            for path, error in self.files_failed:
+                print(f"    ✗ {path}")
+                print(f"      Error: {error}")
+
+        if self.files_missing:
+            print(f"\n  MISSING FILES ({len(self.files_missing)}):")
+            for path in self.files_missing:
+                print(f"    ✗ {path}")
+
+        if total_issues > 0:
+            print(f"\n  WARNING: {total_issues} file(s) failed to load!")
+            print("      Tests depending on these files may fail.")
+        else:
+            print(f"\n  ✓ All {self.files_loaded} files loaded successfully!")
+
+        print()
+        return total_issues == 0
+
+
+def insert_seed_data(conn, schema_name: str, seed_data: dict) -> SeedStats:
     """Insert seed data into tables using parameterized SQL.
 
     Validates table names and column names against SQLAlchemy metadata
@@ -82,7 +134,12 @@ def insert_seed_data(conn, schema_name: str, seed_data: dict):
         conn: Database connection
         schema_name: Target schema name (must match a known pattern)
         seed_data: Dict mapping table names to lists of records
+
+    Returns:
+        SeedStats object with file loading statistics
     """
+    stats = SeedStats()
+
     # Validate schema name matches expected pattern (box_* prefixed)
     if not schema_name.startswith("box_") and schema_name not in ("public",):
         raise ValueError(f"Invalid schema_name pattern: {schema_name}")
@@ -96,6 +153,11 @@ def insert_seed_data(conn, schema_name: str, seed_data: dict):
 
     if "box_file_versions" in seed_data:
         content_records = []
+        versions_with_files = [
+            v for v in seed_data["box_file_versions"] if "local_path" in v
+        ]
+        stats.files_expected = len(versions_with_files)
+
         for version_record in seed_data["box_file_versions"]:
             if "local_path" in version_record:
                 local_path = version_record.pop("local_path")
@@ -115,17 +177,20 @@ def insert_seed_data(conn, schema_name: str, seed_data: dict):
                                 "content": content,
                             }
                         )
+                        stats.record_success(local_path, len(content))
                     except Exception as e:
-                        print(f"Warning: Failed to read file {file_path}: {e}")
+                        stats.record_failure(local_path, str(e))
                 else:
-                    print(f"Warning: Seed file not found: {file_path}")
+                    stats.record_missing(local_path)
 
         # Add generated content records to seed_data
         if content_records:
             if "box_file_contents" not in seed_data:
                 seed_data["box_file_contents"] = []
             seed_data["box_file_contents"].extend(content_records)
-            print(f"  Prepared {len(content_records)} file content records")
+
+        # Print summary for file loading
+        stats.print_summary()
 
     for table_name in TABLE_ORDER:
         if table_name not in seed_data:
@@ -153,6 +218,8 @@ def insert_seed_data(conn, schema_name: str, seed_data: dict):
             placeholders = ", ".join([f":{k}" for k in record.keys()])
             sql = f"INSERT INTO {schema_name}.{table_name} ({columns}) VALUES ({placeholders})"
             conn.execute(text(sql), record)
+
+    return stats
 
 
 def register_public_template(
@@ -202,15 +269,19 @@ def register_public_template(
     conn.execute(sql, params)
 
 
-def create_template(engine, template_name: str, seed_file: Path | None = None):
+def create_template(engine, template_name: str, seed_file: Path | None = None) -> bool:
     """Create a template schema with optional seed data.
 
     Args:
         engine: SQLAlchemy engine
         template_name: Name of the schema to create
         seed_file: Optional path to JSON seed file
+
+    Returns:
+        True if all files loaded successfully, False if any failed
     """
     print(f"\n=== Creating {template_name} ===")
+    all_files_ok = True
 
     with engine.begin() as conn:
         create_schema(conn, template_name)
@@ -222,12 +293,13 @@ def create_template(engine, template_name: str, seed_file: Path | None = None):
         if seed_file:
             if not seed_file.exists():
                 print(f"Seed file not found: {seed_file}")
-                return
+                return False
 
             with open(seed_file) as f:
                 seed_data = json.load(f)
 
-            insert_seed_data(conn, template_name, seed_data)
+            stats = insert_seed_data(conn, template_name, seed_data)
+            all_files_ok = (len(stats.files_failed) + len(stats.files_missing)) == 0
             print(f"Loaded seed data from {seed_file.name}")
         else:
             print(f"Empty template {template_name} ready")
@@ -246,16 +318,29 @@ def create_template(engine, template_name: str, seed_file: Path | None = None):
         )
         print(f"Registered public template: {template_name}")
 
+    return all_files_ok
+
 
 def main():
-    """Discover and create all Box templates from examples/box/seeds/."""
+    """Discover and create all Box templates from examples/box/seeds/.
+
+    Environment variables:
+        DATABASE_URL: Required. PostgreSQL connection string.
+        SEED_STRICT: Optional. If "true", exit with error code if any files fail to load.
+    """
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         print("ERROR: DATABASE_URL environment variable not set")
         sys.exit(1)
 
+    strict_mode = os.environ.get("SEED_STRICT", "").lower() == "true"
+    if strict_mode:
+        print("Running in STRICT mode - will fail on any file loading errors")
+
     engine = create_engine(db_url)
     seeds_dir = Path(__file__).parent.parent.parent / "examples" / "box" / "seeds"
+
+    all_ok = True
 
     # Create empty base template
     create_template(engine, "box_base")
@@ -266,11 +351,22 @@ def main():
 
         for seed_file in seed_files:
             template_name = seed_file.stem  # e.g. "box_default" from "box_default.json"
-            create_template(engine, template_name, seed_file)
+            template_ok = create_template(engine, template_name, seed_file)
+            if not template_ok:
+                all_ok = False
 
-        print(f"\n All {1 + len(seed_files)} Box template(s) created successfully\n")
+        if all_ok:
+            print(
+                f"\n✓ All {1 + len(seed_files)} Box template(s) created successfully\n"
+            )
+        else:
+            print(f"\n⚠️  {1 + len(seed_files)} Box template(s) created with WARNINGS\n")
+            print("Some files failed to load. Check the summary above for details.")
+            if strict_mode:
+                print("\nSEED_STRICT=true: Exiting with error code 1")
+                sys.exit(1)
     else:
-        print("\n Box base template created successfully (no seed files found)\n")
+        print("\n✓ Box base template created successfully (no seed files found)\n")
 
 
 if __name__ == "__main__":
